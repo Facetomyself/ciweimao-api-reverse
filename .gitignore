@@ -1,0 +1,20 @@
+# 认证凭据（敏感）
+tokens.json
+
+# 下载输出
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+output_api/
