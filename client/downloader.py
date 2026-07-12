@@ -13,7 +13,7 @@ from . import models
 
 
 def get_book(session: _api.Session, book_id: str,
-             on_chapter=None) -> models.Book:
+             on_chapter=None, book_info: dict = None) -> models.Book:
     """获取完整书籍对象（含所有章节内容）。
 
     Args:
@@ -25,8 +25,13 @@ def get_book(session: _api.Session, book_id: str,
         Book 对象，所有章节的 content 已填充
     """
     # Step 1: 书籍信息
-    data = session.get_book_info(book_id)
-    info = data.get("data", {}).get("book_info", {})
+    info = dict(book_info or {})
+    try:
+        data = session.get_book_info(book_id)
+        info.update(data.get("data", {}).get("book_info", {}))
+    except _api.ApiError as exc:
+        if exc.code != "320001" or not info:
+            raise
     book = models.Book(
         book_id=book_id,
         book_name=info.get("book_name", "未命名"),
@@ -94,7 +99,8 @@ def get_book(session: _api.Session, book_id: str,
 
 def download_book(session: _api.Session, book_id: str,
                   output_dir: str = "output",
-                  progress_callback=None) -> str:
+                  progress_callback=None, book_info: dict = None,
+                  skip_existing: bool = False) -> str:
     """下载一本书并导出为 TXT。
 
     Args:
@@ -110,7 +116,13 @@ def download_book(session: _api.Session, book_id: str,
         if progress_callback:
             progress_callback(current, total)
 
-    book = get_book(session, book_id, on_chapter=_on_chapter)
+    if skip_existing and book_info:
+        candidate = Path(output_dir) / f"{models.safe_book_name(book_info.get('book_name', book_id))}.txt"
+        if candidate.exists():
+            return str(candidate)
+
+    book = get_book(
+        session, book_id, on_chapter=_on_chapter, book_info=book_info)
 
     # 写入 TXT
     os.makedirs(output_dir, exist_ok=True)

@@ -1,11 +1,11 @@
-"""Ciweimao 纯 API 下载器 CLI —— 零人工、零模拟器。
+"""Ciweimao API 下载器 CLI。
 
 用法:
   python -m client list             列出书架全部书籍
   python -m client search <关键词>   搜索书籍
   python -m client download <书ID>  下载指定书籍
-  python -m client download-all     下载书架全部书籍
-  python -m client token            查看/刷新登录凭据
+  python -m client download-all     下载书架中尚未导出的书籍
+  python -m client token            查看登录凭据状态
   python -m client token-extract    从模拟器自动提取 token
 """
 
@@ -139,17 +139,33 @@ def cmd_search(keyword: str):
     _table(["Book ID", "书名", "作者", "字数"], rows, [10, 30, 12, 8])
 
 
-def cmd_download(book_id: str):
+def cmd_download(book_id: str, session=None, book_info=None,
+                 skip_existing: bool = False):
     """下载一本书。"""
-    s = _build_session()
+    s = session or _build_session()
 
     # 获取书名
-    try:
-        data = s.get_book_info(book_id)
-        info = data.get("data", {}).get("book_info", {})
-        name = info.get("book_name", book_id)
-    except Exception:
-        name = book_id
+    info = dict(book_info or {})
+    name = info.get("book_name", book_id)
+    if not info:
+        try:
+            data = s.get_book_info(book_id)
+            info = data.get("data", {}).get("book_info", {})
+            name = info.get("book_name", book_id)
+        except api.ApiError as exc:
+            if exc.code == "320001":
+                for shelf_book in s.get_all_shelf_books():
+                    if str(shelf_book.get("book_id")) == str(book_id):
+                        info = shelf_book
+                        name = info.get("book_name", book_id)
+                        break
+            else:
+                raise
+
+    output_path = OUTPUT_DIR / f"{models.safe_book_name(name)}.txt"
+    if skip_existing and output_path.exists():
+        print(f"[SKIP] 已存在: {output_path.name}")
+        return "skipped"
 
     print(f'[INFO] 下载: {name} ({book_id})')
     start = time.time()
@@ -166,26 +182,35 @@ def cmd_download(book_id: str):
     try:
         output_path = downloader.download_book(
             s, book_id, output_dir=str(OUTPUT_DIR),
-            progress_callback=on_progress)
+            progress_callback=on_progress, book_info=info,
+            skip_existing=skip_existing)
         elapsed = time.time() - start
         size_mb = os.path.getsize(output_path) / (1024 * 1024)
         print(f"\n[OK] {output_path} ({size_mb:.1f}MB, {elapsed:.0f}s)")
     except Exception as e:
         print(f"\n[ERR] 下载失败: {e}")
+        return "failed"
+    return "downloaded"
 
 
 def cmd_download_all():
-    """下载书架全部书籍。"""
+    """下载书架中尚未导出的书籍。"""
     s = _build_session()
     print("[INFO] 获取书架...")
     books = s.get_all_shelf_books()
     print(f"[INFO] 共 {len(books)} 本书")
 
+    stats = {"downloaded": 0, "skipped": 0, "failed": 0}
     for i, b in enumerate(books):
         bid = b.get("book_id", "")
         name = b.get("book_name", bid)
         print(f"\n[{i + 1}/{len(books)}] {name} ({bid})")
-        cmd_download(bid)
+        result = cmd_download(
+            bid, session=s, book_info=b, skip_existing=True)
+        stats[result] += 1
+    print("\n[SUMMARY] "
+          f"新增 {stats['downloaded']}，跳过 {stats['skipped']}，"
+          f"失败 {stats['failed']}")
 
 
 def cmd_token():
@@ -252,12 +277,13 @@ def cmd_token_extract():
 
     # 解析 LoginedUser JSON
     import re
+    import html
     match = re.search(r'LoginedUser">(\{.*?\})</string>', result.stdout)
     if not match:
         print("[ERR] 未找到登录信息，请确认 App 已登录")
         sys.exit(1)
 
-    user_data = json.loads(match.group(1))
+    user_data = json.loads(html.unescape(match.group(1)))
     login_token = user_data.get("loginToken", "")
     reader_info = user_data.get("readerInfo", {})
     account = reader_info.get("account", "")
@@ -320,7 +346,7 @@ def _usage():
     print("  list              列出书架全部书籍")
     print("  search <关键词>    搜索书籍")
     print("  download <书ID>    下载指定书籍")
-    print("  download-all       下载书架全部书籍")
+    print("  download-all       下载书架中尚未导出的书籍")
     print("  token              查看当前凭据状态")
     print("  token-extract      从模拟器自动提取 token")
 

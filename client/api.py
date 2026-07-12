@@ -9,6 +9,15 @@ import requests
 from . import crypto, config
 
 
+class ApiError(RuntimeError):
+    """刺猬猫 API 返回的业务错误。"""
+
+    def __init__(self, code: str, tip: str = ""):
+        self.code = str(code)
+        self.tip = tip
+        super().__init__(f"API 错误 code={self.code}: {tip}")
+
+
 class Session:
     """无状态的 API 会话。每次调用自动附加认证参数。"""
 
@@ -63,7 +72,7 @@ class Session:
             tip = data.get("tip", "")
             if code == "200100":
                 raise RuntimeError("login_token 已过期，请重新提取")
-            raise RuntimeError(f"API 错误 code={code}: {tip}")
+            raise ApiError(code, tip)
 
         return data
 
@@ -135,6 +144,7 @@ class Session:
             shelf_id: 指定书架 ID。为 None 时获取所有书架的全部书籍。
         """
         all_books = []
+        seen_book_ids = set()
         if shelf_id:
             shelves = [{"shelf_id": shelf_id}]
         else:
@@ -144,12 +154,24 @@ class Session:
             sid = shelf.get("shelf_id", "")
             sname = shelf.get("shelf_name", sid)
             page = 1
+            seen_pages = set()
             while True:
                 books = self.get_shelf_books(sid, page=page, count=50)
                 if not books:
                     break
+                page_signature = tuple(
+                    str(item.get("book_info", {}).get("book_id", ""))
+                    for item in books
+                )
+                if page_signature in seen_pages:
+                    break
+                seen_pages.add(page_signature)
                 for b in books:
-                    info = b.get("book_info", {})
+                    info = dict(b.get("book_info", {}))
+                    book_id = str(info.get("book_id", ""))
+                    if not book_id or book_id in seen_book_ids:
+                        continue
+                    seen_book_ids.add(book_id)
                     info["_shelf_name"] = sname
                     all_books.append(info)
                 if len(books) < 50:

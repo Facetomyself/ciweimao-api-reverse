@@ -1,6 +1,13 @@
 """数据模型：Book, Division, Chapter。"""
 
 from dataclasses import dataclass, field
+import re
+
+
+def safe_book_name(name: str) -> str:
+    """返回可用于 Windows 文件名的书名。"""
+    cleaned = re.sub(r'[\\/:*?"<>|]', '', str(name)).strip().rstrip(".")
+    return cleaned or "未命名"
 
 
 @dataclass
@@ -38,5 +45,4 @@ class Book:
     @property
     def safe_name(self) -> str:
         """返回安全的文件名。"""
-        import re
-        return re.sub(r'[\\/:*?"<>|]', '', self.book_name)
+        return safe_book_name(self.book_name)

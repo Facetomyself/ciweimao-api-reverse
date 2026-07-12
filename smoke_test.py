@@ -7,17 +7,13 @@
 import sys
 import json
 import requests
+from pathlib import Path
 from client import crypto, config
 
 
-# 从模拟器提取的凭据
-TOKENS = {
-    "login_token": "c7e4bb97595fbf1eb01ee7cdb3f2b2ee",
-    "account": "书客75351748166",
-    "device_token": "ciweimao_",
-    "app_version": "2.9.312",
-    "reader_id": "3507481",
-}
+TOKEN_PATH = Path(__file__).with_name("tokens.json")
+with open(TOKEN_PATH, "r", encoding="utf-8") as f:
+    TOKENS = json.load(f)
 
 
 def api_get(endpoint: str, extra_params: dict = None) -> dict:
@@ -52,7 +48,6 @@ def api_get(endpoint: str, extra_params: dict = None) -> dict:
 def main():
     print("=" * 60)
     print("Ciweimao API 连通性验证")
-    print(f"reader_id: {TOKENS['reader_id']}")
     print(f"app_version: {TOKENS['app_version']}")
     print("=" * 60)
 
