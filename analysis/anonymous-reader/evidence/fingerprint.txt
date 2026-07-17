@@ -1,0 +1,78 @@
+=== APK Fingerprint: ciweimao-2.9.362.apk ===
+
+Framework:        Native Android (Kotlin)
+  Rationale:      kotlin_module metadata present, no Compose markers
+Primary route:    protection-first: stub/manifest -> runtime load -> whole-DEX dump
+  Confidence:     high (protector marker; edition still requires validation)
+Protector:        360 Jiagu marker
+APKiD:            not installed; built-in markers are lightweight evidence only
+Obfuscation:      LOW (no significant short-name namespace pollution)
+APK splits:       1
+DEX files:        1
+ABIs:             arm64-v8a,armeabi-v7a
+
+HTTP stack:       OkHttp
+DI:               Dagger
+Serialization:    none detected
+BuildConfig:      not detected in DEX descriptors (still worth grepping after decompile)
+
+Protection route:
+  Treat marker matches as triage evidence, not proof of a specific edition.
+  Decode manifest/stub first; if business classes are absent after runtime load,
+  use dump-dex.ps1 for whole-DEX packing. Method extraction/VMP/Dex2C must
+  route to specialized unpacking or native-reverse instead of blind re-dumps.
+
+Third-party SDKs: none detected
+
+Native libraries: 68 total across splits
+  lib/arm64-v8a/libBDSpeechDecoder_V1.so
+  lib/arm64-v8a/libCtaApiLib.so
+  lib/arm64-v8a/libJavaJni.so
+  lib/arm64-v8a/libPglbizssdk_ml.so
+  lib/arm64-v8a/libavmdl_lite.so
+  lib/arm64-v8a/libbd_etts.so
+  lib/arm64-v8a/libbdtts.so
+  lib/arm64-v8a/libcrashsdk.so
+  lib/arm64-v8a/libcrypto.so
+  lib/arm64-v8a/libcurl.so
+  lib/arm64-v8a/libcurlhttps.so
+  lib/arm64-v8a/libcwmhttps.so
+  lib/arm64-v8a/libdevInfo.so
+  lib/arm64-v8a/libgetVersion.so
+  lib/arm64-v8a/libgnustl_shared.so
+  lib/arm64-v8a/libmsaoaidauth.so
+  lib/arm64-v8a/libmsaoaidsec.so
+  lib/arm64-v8a/liboctopus.so
+  lib/arm64-v8a/libpanglearmor.so
+  lib/arm64-v8a/libpangleflipped.so
+  lib/arm64-v8a/libpl_droidsonroids_gif.so
+  lib/arm64-v8a/libplt-base.so
+  lib/arm64-v8a/libsgcore.so
+  lib/arm64-v8a/libsharewind.so
+  lib/arm64-v8a/libssl.so
+  lib/arm64-v8a/libti-monitor.so
+  lib/arm64-v8a/libtnet-3.1.14.so
+  lib/arm64-v8a/libtobEmbedEncrypt.so
+  lib/arm64-v8a/libtt_ugen_layout.so
+  lib/arm64-v8a/libttmplayer_lite.so
+  lib/arm64-v8a/libucrash-core.so
+  lib/arm64-v8a/libucrash.so
+  lib/arm64-v8a/libumeng-spy.so
+  lib/arm64-v8a/libumonitor.so
+  lib/arm64-v8a/libweibosdkcore.so
+  lib/armeabi-v7a/libBDSpeechDecoder_V1.so
+  lib/armeabi-v7a/libCtaApiLib.so
+  lib/armeabi-v7a/libPglbizssdk_ml.so
+  lib/armeabi-v7a/libavmdl_lite.so
+  lib/armeabi-v7a/libbd_etts.so
+  ... 28 more (inspect the APK listing for the full set)
+
+Recommended next step:
+  Protection markers take priority. Decode the stub/manifest, start the app
+  until real classes are loaded, then use the validated wrapper:
+    powershell -File "D:\reverse_ENV\skill\apk-reverse\scripts\dump-dex.ps1" -Project <project> -Package <package> -DeviceSerial <serial> -Launch
+  Treat output as partial until DEX structure, business classes, method bodies,
+  and decompiler errors are reviewed. VMP/Dex2C is a native-reverse route.
+
+  Proceed with Phase 1 decode:
+    powershell -File "D:\reverse_ENV\skill\apk-reverse\scripts\decode.ps1" -ApkPath "<file>" -Clean

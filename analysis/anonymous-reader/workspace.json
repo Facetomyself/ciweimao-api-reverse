@@ -1,0 +1,91 @@
+{
+  "_schema": "reverse-coordinator-workspace-v1",
+  "target": {
+    "path": "analysis/anonymous-reader/input/ciweimao-2.9.362.apk",
+    "type": "Android APK",
+    "arch": "arm64-v8a, armeabi-v7a",
+    "size_bytes": 136899174
+  },
+  "pipeline": {
+    "phase": "review",
+    "analysis_depth": "L2",
+    "primary_skill": "apk-reverse",
+    "fallback_skill": "native-reverse"
+  },
+  "phases": {
+    "classification": {
+      "status": "completed",
+      "started": "2026-07-17T15:35:00+08:00",
+      "completed": "2026-07-17T15:40:00+08:00",
+      "notes": "Android APK 2.9.362; 360 Jiagu; OkHttp; Native Android/Kotlin."
+    },
+    "recon": {
+      "status": "completed",
+      "started": "2026-07-17T15:35:00+08:00",
+      "completed": "2026-07-17T15:43:00+08:00",
+      "notes": "Inspected proxy settings, ReaderActivity4, runtime logs, guest session and chapter flags."
+    },
+    "decision": {
+      "status": "completed",
+      "started": "2026-07-17T15:40:00+08:00",
+      "completed": "2026-07-17T15:43:00+08:00",
+      "notes": "Proxy A/B sufficient for current symptom; no blind unpacking required."
+    },
+    "deep_dive": {
+      "status": "completed",
+      "started": "2026-07-17T15:43:00+08:00",
+      "completed": "2026-07-17T15:46:00+08:00",
+      "notes": "Matched port 8083, captured CDN HTTP 200, verified reader rendering."
+    },
+    "rebuild": {
+      "status": "pending",
+      "started": null,
+      "completed": null,
+      "notes": "No APK patch or client rebuild required for this diagnosis."
+    },
+    "review": {
+      "status": "completed",
+      "started": "2026-07-17T15:46:00+08:00",
+      "completed": "2026-07-17T15:55:00+08:00",
+      "notes": "Claims redacted and correlated across settings, logcat, flow and UI."
+    }
+  },
+  "markers": {
+    "file_format": "APK",
+    "has_native": true,
+    "has_wasm": false,
+    "has_obfuscation": true,
+    "has_anti_debug": false,
+    "has_jni": true,
+    "has_crypto": true,
+    "strings_of_interest": [
+      "ReaderActivity4",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "global_http_proxy_host",
+      "global_http_proxy_port",
+      "auth_access",
+      "use_cdn"
+    ]
+  },
+  "artifacts": {
+    "report": "analysis/anonymous-reader/report.md",
+    "findings": "analysis/anonymous-reader/findings.json",
+    "triage": "analysis/anonymous-reader/triage.md",
+    "supporting": [
+      "analysis/anonymous-reader/evidence/fingerprint.txt",
+      "analysis/anonymous-reader/evidence/runtime-summary.json",
+      "analysis/anonymous-reader/evidence/proxy-ab-test.txt",
+      "captures/app_actions_20260717_161359.flow"
+    ]
+  },
+  "review_gate": {
+    "all_claims_have_evidence": true,
+    "triage_items_documented": true,
+    "artifact_paths_recorded": true,
+    "rebuild_scripts_tested": false,
+    "sensitive_data_redacted": true,
+    "finding_redaction_metadata_complete": true,
+    "ready_for_delivery": true
+  }
+}

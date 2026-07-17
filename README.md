@@ -1,92 +1,146 @@
 # ciweimao-api-reverse
 
-刺猬猫（Ciweimao / Hbooker）HTTP API TXT 导出工具。适合已有登录凭据的账号批量备份书架内可读内容。
+刺猬猫（Ciweimao / Hbooker）官方 Android App API 的搜索、书城枚举与免费章节抓取客户端。
 
-## 能力
+本仓当前只负责：
 
-- 读取并搜索账号书架
-- 下载免费章节和账号已购买章节
-- `download-all` 自动跳过 `output/` 中同名 TXT
-- 详情接口对下架书返回 `320001` 时，使用书架元数据继续走分卷、章节和正文接口
-- 从已 root 的 Android 设备或模拟器提取现有登录凭据
+- 复现 App 2.9.362 的请求签名与响应解密；
+- 按关键词从第 0 页开始搜索并按 `book_id` 去重；
+- 从书城入口按更新时间连续遍历书籍；
+- 一次请求获取整本分卷与章节目录；
+- 仅处理 `is_paid=0` 且 `auth_access=1` 的免费可读章节。
 
-下架不等于一定可下载：能否导出最终由账号对章节的 `auth_access` 和正文接口权限决定。本工具不会绕过未购买章节。
+TXT / EPUB、插图和 App 本地缓存等既有下载格式能力不在本轮重复逆向；本仓的抓取命令只复用现有 TXT 落盘链。
 
-## 安装
+## App 端结论
 
-```bash
-pip install requests pycryptodome pydantic
-git clone https://github.com/Facetomyself/ciweimao-api-reverse.git
-cd ciweimao-api-reverse
+2026-07-17 对官方 App 2.9.362 的运行时取证确认，所谓“未登录可看”并非完全空身份：App 首次启动会自动创建未绑定游客账号，后续请求仍携带游客 `account` 与 `login_token`。
+
+正文曾卡在“加载中”的直接原因是残留代理，而不是 App 禁止游客阅读：
+
+```text
+Native curl 业务 API
+  -> command / 章节元数据成功
+
+Java/OkHttp CDN 请求
+  -> 服从 Android 代理 127.0.0.1:8083
+  -> 当时无 adb reverse / mitmproxy 监听
+  -> ECONNREFUSED
 ```
 
-## 获取凭据
+业务 API 与正文 CDN 使用不同网络分支，因此会出现“目录、评论、章节授权全正常，正文却一直转圈”的现象。补齐代理链后正文 CDN 返回 HTTP 200；关闭代理时必须同时清理 host、port、PAC 与 exclusion 等 global setting。
 
-### 从已登录设备提取
+## 2.9.362 协议
 
-```bash
-python -m client token-extract
+当前 App 的业务 API 基址为：
+
+```text
+https://app1.happybooker.cn
 ```
 
-该命令通过 ADB 读取 App 私有目录，设备必须已连接、App 已登录，并提供 root 权限。提取完成后，日常 API 下载不需要保持模拟器运行。
+每个业务请求追加 16 位 `rand_str` 与 HMAC-SHA256 签名 `p`。签名输入为：
 
-也可手动创建本地 `tokens.json`：
-
-```json
-{
-  "login_token": "...",
-  "account": "...",
-  "device_token": "ciweimao_",
-  "app_version": "2.9.312"
-}
+```text
+account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><suffix>
 ```
 
-`tokens.json` 已加入 `.gitignore`，不要提交或分享该文件。
+抓到的 84 个请求已全部逐个重算，`84/84` 一致。Native 静态分析同时确认：
+
+- `libcwmhttps.so` 的 `CenterDataAPI::aes_256_cbc_decode` 位于 RVA `0x80D6C`；
+- mode 为 `1` 时使用 2.9.352+ response key，否则使用 legacy key；
+- key 先经过 SHA-256，再以零 IV 执行 AES-256-CBC；
+- 当前抓包中的短响应可直接解密，真实签名请求的搜索结果与 App 抓取结果顺序完全一致。
+
+旧版 2.9.312 兼容链仍保留，但 CLI 默认使用 2.9.362。旧链搜索结果明显不完整，不能代替当前 App 搜索。
+
+## 已验证接口
+
+| 能力 | Endpoint | 关键参数 |
+|---|---|---|
+| 搜索 | `/bookcity/get_filter_search_book_list` | `page=0..N`、`count=10` |
+| 全站书城 | `/bookcity/get_filter_book_list` | `tab_type=200`、`order=uptime`、`count=100` |
+| 排行 | `/bookcity/get_rank_book_list` | `order`、`time_type`、`page` |
+| 详情 | `/book/get_info_by_id` | `book_id` |
+| 评论 | `/book/get_review_list` | 热门 `type=2`；普通 `type=1` |
+| 整本目录 | `/chapter/get_updated_chapter_by_division_new` | `division_id=0` |
+| 章节 command | `/chapter/get_chapter_cmd` | `chapter_id` |
+| 章节元数据 | `/chapter/get_cpt_ifm` | `chapter_id`、`chapter_command` |
+| 间贴计数 | `/chapter/get_tsukkomi_num` | `chapter_id` |
+
+运行时样本：
+
+- 搜索“青春”第 0–5 页均返回 10 本，60 条中有 1 个跨页重复，必须去重；
+- 当前协议实测书城第 0–2 页各 100 本，合计 300 个不同 `book_id`；
+- 一份 433 章目录中，50 章满足免费可读，5 章虽 `is_paid=0` 但 `auth_access=0`，另有 378 个付费未授权章；
+- 正文 CDN 的 7 个样本均为 `HTTP gzip -> zlib -> UTF-8 HTML fragment`。
+
+## 环境
+
+只使用 `D:\reverse_ENV` 项目环境：
+
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m pip install requests pycryptodome
+```
+
+## 凭据
+
+可使用 App 自动创建的游客身份，无需绑定正式账号。`tokens.json` 只保存在本机并已排除 Git。
+
+从 Root 设备提取当前 App 身份：
+
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client token-extract --device emulator-5574
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client token
+```
+
+`token-extract` 会写入 `tokens.json`；已有正式账号凭据时不要随手覆盖。
 
 ## 使用
 
-```bash
-python -m client token             # 验证当前凭据
-python -m client list              # 列出书架全部书籍
-python -m client search 关键词      # 搜索书籍
-python -m client download 书ID     # 下载指定书籍
-python -m client download-all      # 仅下载 output/ 中缺少的书籍
+### 搜索
+
+```powershell
+# 第一页
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client search "青春"
+
+# 一直翻到空页，并按 book_id 去重
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client search "青春" --max-pages 0
 ```
 
-输出目录为 `output/`。单本 `download` 会重新导出并覆盖同名文件；批量 `download-all` 默认跳过已有同名 TXT。
+### 抓取搜索结果中的免费章节
 
-## 下载链路
-
-```text
-/reader/get_my_info                         验证 token
-/bookshelf/get_shelf_list                   获取书架
-/bookshelf/get_shelf_book_list              获取书架元数据
-/book/get_info_by_id                        获取详情（下架时允许失败）
-/book/get_division_list                     获取分卷
-/chapter/get_updated_chapter_by_division_id 获取章节
-/chapter/get_chapter_cmd                    获取章节 command
-/chapter/get_cpt_ifm                        获取加密正文
-AES-256-CBC                                 解密并导出 TXT
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client crawl-search "方舟" --max-books 20
 ```
 
-## 限制
+### 全站抓取免费章节
 
-- `login_token` 会失效，届时需重新登录并提取。
-- token 提取依赖 ADB + root；“纯 HTTP”仅指凭据准备完成后的下载阶段。
-- 服务端可能对书架分页返回重复页，客户端会按页签名停止并按 `book_id` 去重。
-- 当前仅导出 TXT，不包含上游项目的 EPUB、插图和 App 缓存导出能力。
+```powershell
+# 小范围验证
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client crawl-all --max-pages 1 --max-books 5
+
+# 不限制页数和书籍数时必须显式确认
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client crawl-all --yes
+```
+
+全站模式默认 `order=uptime`、每页 100 本。分页遇到空页、重复页或整页没有新 `book_id` 时停止。
+
+### 兼容命令
+
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client download 100448715 --free-only --include-book-id
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client list
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m client download-all
+```
 
 ## 验证
 
-```bash
-python smoke_test.py
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m compileall -q client test_client.py smoke_test.py
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m unittest -v
 ```
 
-Smoke test 从本地 `tokens.json` 读取凭据，不在源码中保存 token。
+动态证据与三件套位于：
 
-## 参考项目
-
-- [NateScarlet/ciweimao](https://github.com/NateScarlet/ciweimao)
-- [zsakvo/Cirno-go](https://github.com/zsakvo/Cirno-go)
-- [AlexiaVeronica/pineapple-backups](https://github.com/AlexiaVeronica/pineapple-backups)
-- [NovelDownloader/CiweimaoDownloader](https://github.com/NovelDownloader/CiweimaoDownloader)
+- `analysis/anonymous-reader/`
+- `analysis/app-workflow/`

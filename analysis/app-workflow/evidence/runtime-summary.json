@@ -1,0 +1,176 @@
+{
+  "schema": "ciweimao-app-workflow-evidence-v1",
+  "captured_at": "2026-07-17T16:05:54+08:00",
+  "target": {
+    "package": "com.kuangxiangciweimao.novel",
+    "app_version": "2.9.362",
+    "apk_sha256": "d74f25b282ac32b396948473341cd6145fdeb5de923a2bc3d29c759d72b816f0",
+    "protector": "360 Jiagu",
+    "abi": [
+      "arm64-v8a",
+      "armeabi-v7a"
+    ]
+  },
+  "sources": {
+    "logcat": {
+      "path": "captures/app_actions_20260717_160554.log",
+      "sha256": "cf1193e28acbc7b77b4a22723b60a119ff8de05b9c926f9a3fa289adfcf1eec1",
+      "git_tracked": false
+    },
+    "mitm_flow": {
+      "path": "captures/app_actions_20260717_161359.flow",
+      "sha256": "718a27c1e4a828c94b7696fea91f8b1b6321be44654b84dcd0476c12593d9d22",
+      "git_tracked": false
+    }
+  },
+  "network_split": {
+    "native_api_requests_in_logcat": 84,
+    "unique_native_api_endpoints": 21,
+    "native_api_requests_in_mitm_flow": 0,
+    "mitm_flow_total_requests": 177,
+    "cdn_chapter_gets": 7,
+    "interpretation": "Native curl business API and proxy-aware CDN/image transport are separate paths."
+  },
+  "signature": {
+    "algorithm": "Base64(HMAC-SHA256(static_key, signature_source))",
+    "signature_source": "account=<percent-encoded>&app_version=<version>&rand_str=<16hex>&signatures=<key><suffix>",
+    "runtime_samples": 84,
+    "verified_matches": 84
+  },
+  "response_crypto": {
+    "encoding": "Base64 -> AES-256-CBC -> PKCS#7",
+    "key_derivation": "SHA-256(ASCII key string)",
+    "iv": "00 * 16",
+    "current_key_branch": "mode == 1",
+    "legacy_key_branch": "mode != 1",
+    "current_short_response_fixture_verified": true
+  },
+  "search": {
+    "endpoint": "/bookcity/get_filter_search_book_list",
+    "page_origin": 0,
+    "page_size": 10,
+    "captured_keyword": "青春",
+    "captured_pages": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "rows": 60,
+    "unique_book_ids": 59,
+    "cross_page_duplicates": 1,
+    "fresh_current_request": {
+      "code": "100000",
+      "count": 10,
+      "same_order_as_capture": true
+    }
+  },
+  "whole_site": {
+    "endpoint": "/bookcity/get_filter_book_list",
+    "parameters": {
+      "tab_type": "200",
+      "order": "uptime",
+      "count": "100"
+    },
+    "page_origin": 0,
+    "live_pages_checked": [
+      0,
+      1,
+      2
+    ],
+    "counts": [
+      100,
+      100,
+      100
+    ],
+    "unique_book_ids": 300,
+    "adjacent_page_overlaps": [
+      0,
+      0
+    ]
+  },
+  "catalog": {
+    "endpoint": "/chapter/get_updated_chapter_by_division_new",
+    "parameters": {
+      "division_id": "0"
+    },
+    "samples": [
+      {
+        "division_count": 2,
+        "chapter_count": 433,
+        "access_matrix": {
+          "free_authorized": 50,
+          "free_unauthorized": 5,
+          "paid_unauthorized": 378
+        }
+      },
+      {
+        "division_count": 1,
+        "chapter_count": 78,
+        "access_matrix": {
+          "free_authorized": 78,
+          "free_unauthorized": 0,
+          "paid_unauthorized": 0
+        }
+      }
+    ],
+    "free_filter": "is_paid == 0 and auth_access == 1"
+  },
+  "chapter_cdn": {
+    "metadata_endpoints": [
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm"
+    ],
+    "sample_count": 7,
+    "http_statuses": [
+      200
+    ],
+    "wire_pipeline": "HTTP Content-Encoding gzip -> zlib -> UTF-8 HTML fragment"
+  },
+  "rank_orders": [
+    "fans_value",
+    "no_vip_click",
+    "yp",
+    "word_count",
+    "track_read",
+    "complet",
+    "blade",
+    "yp_new",
+    "recommend",
+    "tsukkomi",
+    "favor"
+  ],
+  "rank_time_types": [
+    "week",
+    "month",
+    "total"
+  ],
+  "client_validation": {
+    "compileall": "ok",
+    "unit_tests": {
+      "count": 17,
+      "status": "ok"
+    },
+    "live_current_protocol": {
+      "search": {
+        "code": "100000",
+        "count": 10,
+        "unique": 10
+      },
+      "whole_site_page_0": {
+        "count": 100,
+        "unique": 100
+      },
+      "catalog": {
+        "division_count": 2,
+        "chapter_count": 433,
+        "free_authorized": 50,
+        "free_unauthorized": 5,
+        "paid_unauthorized": 378
+      }
+    },
+    "sensitive_scan": "no captured account/login_token in tracked candidates"
+  }
+}

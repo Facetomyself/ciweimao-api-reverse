@@ -1,0 +1,33 @@
+Ciweimao anonymous reader proxy A/B test
+Captured: 2026-07-17 15:35-15:45 Asia/Shanghai
+
+[A] Broken state
+- ReaderActivity4 displayed: loading, please wait.
+- Android settings retained global_http_proxy_host=127.0.0.1 and global_http_proxy_port=8083.
+- No adb reverse mapping existed and no mitmdump process was listening.
+- /chapter/get_chapter_cmd returned business code 100000.
+- /chapter/get_cpt_ifm returned business code 100000 for a free chapter:
+  is_paid=0, auth_access=1, use_cdn=1, txt_content=<redacted CDN URL>.
+- The following CDN GET failed with:
+  java.net.ConnectException: Failed to connect to /127.0.0.1:8083.
+
+[B] Working state
+- Started project mitmproxy on host port 8083.
+- Added adb reverse tcp:8083 -> tcp:8083.
+- Triggered another free chapter load without logging into a bound user account.
+- Chapter command and metadata APIs returned business code 100000.
+- Captured CDN GET results (paths redacted):
+  GET http://e6.kuangxiangit.com/<redacted>.txt -> 200, 3285 bytes
+  GET http://e6.kuangxiangit.com/<redacted>.txt -> 200, 3294 bytes
+  GET http://e6.kuangxiangit.com/<redacted>.txt -> 200, 3545 bytes
+- ReaderActivity4 rendered chapter text successfully.
+
+[Identity strategy]
+- The App automatically created an unbound guest reader identity.
+- Requests carried a guest account and login_token; raw values are omitted.
+- Free chapters were marked auth_access=1.
+- Paid chapters in the catalog were marked auth_access=0.
+
+Conclusion: the observed infinite loading was caused by a stale/dead proxy path.
+The App strategy separately permits free chapters to a guest identity and denies
+unauthorized paid chapters.

@@ -1,0 +1,14 @@
+# Native response crypto evidence
+
+- Target: `lib/arm64-v8a/libcwmhttps.so`
+- SHA-256: `75f488dd023c472e4a0255724b72ef1f365ecaa997d5949f58bd147f5d6ee7bf`
+- Format: normal AArch64 ELF64 with readable `.rodata`/`.text`; no packed or runtime-rebuilt marker was required for this crypto path.
+- `CenterDataAPI::aes_256_cbc_decode(...)`: RVA `0x80D6C`, size `0x168`.
+- Branch at RVA `0x80D94`: compare mode with `1`.
+- Current key string reference: RVA `0x80DB0` -> `.rodata` RVA `0x522A2`.
+- Legacy key string reference: RVA `0x80DC4` -> `.rodata` RVA `0x50A47`.
+- Key derivation call: `SHA256(input, length, output)` at RVA `0x80DF0`.
+- IV initialization: two zero 64-bit stores at RVA `0x80DF4`, yielding 16 zero bytes.
+- AES primitive: `AES_set_decrypt_key(..., 256, ...)` and `AES_cbc_encrypt(..., enc=0)`.
+- Request signing evidence: imports `EVP_sha256`/`HMAC`; runtime signature recomputation matched 84 of 84 requests.
+- Live verification: a signed 2.9.362 search request decrypted with the current branch and returned the same 10 book IDs in the same order as the captured App page.

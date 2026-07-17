@@ -46,3 +46,8 @@ class Book:
     def safe_name(self) -> str:
         """返回安全的文件名。"""
         return safe_book_name(self.book_name)
+
+    @property
+    def safe_stem(self) -> str:
+        """返回适合全站抓取、避免同名冲突的文件名主体。"""
+        return f"{self.book_id} - {self.safe_name}" if self.book_id else self.safe_name

@@ -1,0 +1,41 @@
+{
+  "captured_at": "2026-07-17T15:45:38+08:00",
+  "device": {
+    "instance": "ciweimao-api-reverse",
+    "adb_serial": "emulator-5574",
+    "package": "com.kuangxiangciweimao.novel",
+    "version_name": "2.9.362",
+    "version_code": 290362,
+    "foreground_activity": "com.kuangxiangciweimao.novel.activity.bookshelf.reader.ReaderActivity4"
+  },
+  "proxy_before": {
+    "http_proxy": null,
+    "global_http_proxy_host": "127.0.0.1",
+    "global_http_proxy_port": 8083,
+    "adb_reverse_present": false,
+    "mitmdump_present": false,
+    "result": "chapter CDN fetch failed with ECONNREFUSED"
+  },
+  "chapter_api": {
+    "get_chapter_cmd_code": "100000",
+    "get_cpt_ifm_code": "100000",
+    "is_paid": "0",
+    "auth_access": "1",
+    "use_cdn": "1",
+    "content_url_redacted": true
+  },
+  "guest_session": {
+    "automatically_created": true,
+    "bound_account": false,
+    "request_carries_account_and_login_token": true,
+    "credentials_redacted": true
+  },
+  "proxy_after": {
+    "proxy": "127.0.0.1:8083",
+    "adb_reverse_present": true,
+    "mitmdump_present": true,
+    "cdn_statuses": [200, 200, 200],
+    "cdn_response_sizes": [3285, 3294, 3545],
+    "reader_rendered_text": true
+  }
+}

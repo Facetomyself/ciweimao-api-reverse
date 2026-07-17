@@ -1,0 +1,139 @@
+{
+  "_schema": "reverse-coordinator-findings-v1",
+  "target": {
+    "path": "analysis/anonymous-reader/input/ciweimao-2.9.362.apk",
+    "type": "Android APK (360 Jiagu, Native Android/Kotlin)",
+    "arch": "arm64-v8a, armeabi-v7a"
+  },
+  "analysis_depth": "L2",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "config",
+      "claim": "正文无限加载由残留代理指向无监听的 127.0.0.1:8083 直接触发。",
+      "location": {
+        "file": "Android global settings / runtime logcat",
+        "class": "com.kuangxiangciweimao.novel.activity.bookshelf.reader.ReaderActivity4",
+        "method": "chapter CDN fetch",
+        "address": "",
+        "line": 0
+      },
+      "description": "章节 API 成功后，OkHttp 请求 CDN 正文时连接本机死代理并收到 ECONNREFUSED。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/anonymous-reader/evidence/proxy-ab-test.txt",
+        "value": "global proxy host/port remained 127.0.0.1:8083; no reverse/listener; CDN GET failed with ConnectException"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "账号、token、正文 URL 和正文内容均省略。"
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-002",
+      "category": "network",
+      "claim": "目标免费章节已获服务端授权，章节业务接口不是故障点。",
+      "location": {
+        "file": "runtime network log",
+        "class": "chapter API",
+        "method": "/chapter/get_chapter_cmd -> /chapter/get_cpt_ifm",
+        "address": "",
+        "line": 0
+      },
+      "description": "两个接口返回 code=100000，章节元数据为 is_paid=0、auth_access=1、use_cdn=1。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/anonymous-reader/evidence/runtime-summary.json",
+        "value": "get_chapter_cmd=100000; get_cpt_ifm=100000; is_paid=0; auth_access=1"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "章节 ID、标题和 CDN 路径未写入 finding。"
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-003",
+      "category": "logic",
+      "claim": "App 的未登录模式会自动创建游客账号，免费章并非空身份访问。",
+      "location": {
+        "file": "runtime reader-info response and request parameters",
+        "class": "guest identity bootstrap",
+        "method": "App first-run session initialization",
+        "address": "",
+        "line": 0
+      },
+      "description": "游客身份未绑定手机号/邮箱，但后续请求携带 account 和 login_token；免费章 auth_access=1，未授权付费章 auth_access=0。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/anonymous-reader/evidence/proxy-ab-test.txt",
+        "value": "auto-created unbound guest identity; credentials present but redacted"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "原始 Flow / logcat 仅保存在本机 captures/，已通过 Git ignore 排除。"
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-004",
+      "category": "network",
+      "claim": "补齐 8083 代理监听与 adb reverse 后，正文 CDN 和页面渲染立即恢复。",
+      "location": {
+        "file": "mitmproxy_traffic.flow / ReaderActivity4",
+        "class": "OkHttp CDN client",
+        "method": "GET chapter content",
+        "address": "",
+        "line": 0
+      },
+      "description": "同一 App 进程下触发后续免费章，CDN GET 连续返回 HTTP 200，页面显示正文。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/anonymous-reader/evidence/runtime-summary.json",
+        "value": "CDN statuses 200/200/200; response sizes 3285/3294/3545; reader_rendered_text=true"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "truncate",
+        "raw_value_stored": true,
+        "notes": "原始 flow 本机保存；路径、凭据和正文未进入 findings。"
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    }
+  ],
+  "triage_items": [
+    {
+      "id": "T-001",
+      "description": "LDPlayer proxy-off 未完整清理 global proxy 分项，模板复制后可能复发。",
+      "severity": "high",
+      "reason": "当前脚本只删除 http_proxy，未删除 host/port/exclusion/PAC 键。",
+      "suggested_next": "修正 proxy-off 并清理 re-xposed 模板代理残留，增加回归检查。"
+    }
+  ],
+  "session": {
+    "started": "2026-07-17T15:35:00+08:00",
+    "skills_used": [
+      "reverse-coordinator",
+      "apk-reverse",
+      "ldplayer-control",
+      "search-layer",
+      "github-solution-research"
+    ],
+    "mcp_tools_called": []
+  }
+}

@@ -36,15 +36,18 @@ class AuthManager:
             "login_name": username,
             "passwd": password,
             "device_token": self.device_token,
-            "app_version": config.APP_VERSION,
+            "app_version": config.LEGACY_APP_VERSION,
         }
 
-        url = f"{config.BASE_URL}/signup/login"
+        url = f"{config.LEGACY_BASE_URL}/signup/login"
         resp = requests.post(
             url,
             data=params,
             headers={
-                "User-Agent": config.USER_AGENT,
+                "User-Agent": (
+                    "Android com.kuangxiangciweimao.novel "
+                    f"{config.LEGACY_APP_VERSION}"
+                ),
                 "Content-Type": "application/x-www-form-urlencoded",
             },
             timeout=15,
@@ -56,7 +59,8 @@ class AuthManager:
 
         # 解密响应
         try:
-            plaintext = crypto.decrypt_response(resp.text.strip())
+            plaintext = crypto.decrypt_response(
+                resp.text.strip(), key_str=config.LEGACY_API_KEY)
             data = json.loads(plaintext)
         except Exception as e:
             print(f"[ERR] 解密登录响应失败: {e}")
@@ -80,8 +84,7 @@ class AuthManager:
         self.reader_name = reader_info.get("reader_name", "")
 
         print(f"[OK] 登录成功: {self.reader_name} (reader_id={self.reader_id})")
-        print(f"[OK] login_token: {self.login_token[:8]}...")
-        print(f"[OK] account: {self.account}")
+        print("[OK] 凭据已载入内存，不回显 account/login_token")
 
         return True
 
@@ -94,5 +97,5 @@ class AuthManager:
             "login_token": self.login_token,
             "account": self.account,
             "device_token": self.device_token,
-            "app_version": config.APP_VERSION,
+            "app_version": config.LEGACY_APP_VERSION,
         }

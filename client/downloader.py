@@ -12,8 +12,14 @@ from . import api as _api
 from . import models
 
 
+class NoDownloadableChapters(RuntimeError):
+    """目标书籍没有符合当前过滤条件的章节。"""
+
+
 def get_book(session: _api.Session, book_id: str,
-             on_chapter=None, book_info: dict = None) -> models.Book:
+             on_chapter=None, book_info: dict = None,
+             free_only: bool = False,
+             chapter_delay: float = 0.05) -> models.Book:
     """获取完整书籍对象（含所有章节内容）。
 
     Args:
@@ -42,32 +48,53 @@ def get_book(session: _api.Session, book_id: str,
         description=info.get("description", ""),
     )
 
-    # Step 2: 分卷列表
-    div_data = session.get_division_list(book_id)
-    div_list = div_data.get("data", {}).get("division_list", [])
+    # Step 2: 新接口一次返回全部分卷与章节；旧接口作为兼容回退。
+    try:
+        catalog_data = session.get_book_catalog(book_id)
+        div_list = catalog_data.get("data", {}).get("chapter_list", [])
+        embedded_chapters = True
+    except (AttributeError, _api.ApiError, RuntimeError):
+        div_data = session.get_division_list(book_id)
+        div_list = div_data.get("data", {}).get("division_list", [])
+        embedded_chapters = False
 
-    total_chapters = 0
-    completed = 0
-
+    prepared = []
     for div_info in div_list:
+        if embedded_chapters:
+            chap_list = list(div_info.get("chapter_list", []))
+        else:
+            chap_data = session.get_chapter_list(
+                div_info.get("division_id", ""))
+            chap_list = list(
+                chap_data.get("data", {}).get("chapter_list", []))
+        selected = []
+        for chap_info in chap_list:
+            is_paid = str(chap_info.get(
+                "is_paid", chap_info.get("is_vip", "0"))) == "1"
+            auth_raw = chap_info.get("auth_access")
+            auth_access = (str(auth_raw) == "1"
+                           if auth_raw is not None else not is_paid)
+            if free_only and (is_paid or not auth_access):
+                continue
+            selected.append((chap_info, is_paid, auth_access))
+        if selected:
+            prepared.append((div_info, selected))
+
+    total_chapters = sum(len(chapters) for _, chapters in prepared)
+    completed = 0
+    for div_info, selected in prepared:
         division = models.Division(
             division_id=div_info.get("division_id", ""),
             division_name=div_info.get("division_name", ""),
         )
-
-        # Step 3: 章节列表
-        chap_data = session.get_chapter_list(division.division_id)
-        chap_list = chap_data.get("data", {}).get("chapter_list", [])
-        total_chapters += len(chap_list)
-
-        for chap_info in chap_list:
+        for chap_info, is_paid, auth_access in selected:
             chapter = models.Chapter(
                 chapter_id=chap_info.get("chapter_id", ""),
                 chapter_index=int(chap_info.get("chapter_index", 0)),
                 chapter_title=chap_info.get("chapter_title", ""),
                 word_count=int(chap_info.get("word_count", 0)),
-                is_vip=chap_info.get("is_vip") == "1",
-                auth_access=chap_info.get("auth_access") == "1",
+                is_vip=is_paid,
+                auth_access=auth_access,
             )
 
             if not chapter.auth_access:
@@ -89,8 +116,8 @@ def get_book(session: _api.Session, book_id: str,
             if on_chapter:
                 on_chapter(completed, total_chapters)
 
-            # 小延迟，避免被限流
-            time.sleep(0.05)
+            if chapter_delay > 0:
+                time.sleep(chapter_delay)
 
         book.divisions.append(division)
 
@@ -100,7 +127,10 @@ def get_book(session: _api.Session, book_id: str,
 def download_book(session: _api.Session, book_id: str,
                   output_dir: str = "output",
                   progress_callback=None, book_info: dict = None,
-                  skip_existing: bool = False) -> str:
+                  skip_existing: bool = False,
+                  free_only: bool = False,
+                  include_book_id: bool = False,
+                  chapter_delay: float = 0.05) -> str:
     """下载一本书并导出为 TXT。
 
     Args:
@@ -117,21 +147,35 @@ def download_book(session: _api.Session, book_id: str,
             progress_callback(current, total)
 
     if skip_existing and book_info:
-        candidate = Path(output_dir) / f"{models.safe_book_name(book_info.get('book_name', book_id))}.txt"
+        stem = models.safe_book_name(book_info.get("book_name", book_id))
+        if include_book_id:
+            stem = f"{book_id} - {stem}"
+        candidate = Path(output_dir) / f"{stem}.txt"
         if candidate.exists():
             return str(candidate)
 
     book = get_book(
-        session, book_id, on_chapter=_on_chapter, book_info=book_info)
+        session, book_id, on_chapter=_on_chapter, book_info=book_info,
+        free_only=free_only, chapter_delay=chapter_delay)
+
+    if not any(division.chapters for division in book.divisions):
+        raise NoDownloadableChapters(
+            f"书籍 {book_id} 没有可导出的{'免费' if free_only else ''}章节")
 
     # 写入 TXT
     os.makedirs(output_dir, exist_ok=True)
-    output_path = Path(output_dir) / f"{book.safe_name}.txt"
+    stem = book.safe_stem if include_book_id else book.safe_name
+    output_path = Path(output_dir) / f"{stem}.txt"
+    temp_path = output_path.with_suffix(".txt.part")
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        for division in book.divisions:
-            for chapter in division.chapters:
-                f.write(chapter.chapter_title + "\n")
-                f.write(chapter.content + "\n\n")
+    try:
+        with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+            for division in book.divisions:
+                for chapter in division.chapters:
+                    f.write(chapter.chapter_title + "\n")
+                    f.write(chapter.content + "\n\n")
+        os.replace(temp_path, output_path)
+    finally:
+        temp_path.unlink(missing_ok=True)
 
     return str(output_path)

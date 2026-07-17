@@ -3,6 +3,17 @@ tokens.json
 
 # 下载输出
 output/
+output_api/
+
+# 逆向原始材料（仅本机留存）
+captures/
+analysis/**/input/
+analysis/**/work/
+*.flow
+*.pcap
+*.pcapng
+*.har
+mitmdump.pid
 
 # Python
 __pycache__/
@@ -17,4 +28,3 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
-output_api/

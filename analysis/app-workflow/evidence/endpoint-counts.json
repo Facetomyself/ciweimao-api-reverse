@@ -1,0 +1,28 @@
+{
+  "schema": "ciweimao-endpoint-counts-v1",
+  "total": 84,
+  "unique": 21,
+  "endpoints": {
+    "/bookcity/get_rank_book_list": 17,
+    "/bookcity/get_filter_search_book_list": 7,
+    "/chapter/get_chapter_cmd": 7,
+    "/chapter/get_cpt_ifm": 7,
+    "/book/get_info_by_id": 6,
+    "/book/get_review_list": 5,
+    "/book/get_bookmark_list": 4,
+    "/book/get_book_operate_list": 4,
+    "/bookcity/get_search_rank_list": 3,
+    "/booklist/get_search_booklist_by_listname": 3,
+    "/chapter/get_tsukkomi_num": 3,
+    "/reader/add_readbook": 3,
+    "/chapter/get_updated_chapter_by_division_new": 2,
+    "/bookcity/get_book_correlation_lists": 2,
+    "/book/get_book_fans_list": 2,
+    "/reader/get_homepage_info": 2,
+    "/book/get_recommend_by_book_id": 2,
+    "/bookcity/add_specific_recommend_exposure": 2,
+    "/bookcity/get_hot_key_list": 1,
+    "/bookcity/get_search_keys": 1,
+    "/bookcity/get_reader_rank_book_config": 1
+  }
+}

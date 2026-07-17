@@ -6,7 +6,7 @@
 
 import json
 import requests
-from . import crypto, config
+from . import content, crypto, config, protocol
 
 
 class ApiError(RuntimeError):
@@ -24,12 +24,14 @@ class Session:
     def __init__(self, login_token: str, account: str,
                  device_token: str = "ciweimao_",
                  app_version: str = config.APP_VERSION,
-                 base_url: str = config.BASE_URL):
+                 base_url: str = None,
+                 rand_factory=None):
         self.login_token = login_token
         self.account = account
         self.device_token = device_token
         self.app_version = app_version
-        self.base_url = base_url
+        self.base_url = base_url or config.base_url_for_version(app_version)
+        self._rand_factory = rand_factory
         self._session = requests.Session()
         self._session.headers.update({
             "User-Agent": f"Android com.kuangxiangciweimao.novel {app_version}",
@@ -37,12 +39,20 @@ class Session:
         })
 
     def _auth_params(self) -> dict:
-        return {
+        params = {
             "login_token": self.login_token,
             "account": self.account,
             "device_token": self.device_token,
             "app_version": self.app_version,
         }
+        if config.uses_signed_transport(self.app_version):
+            rand_str = self._rand_factory() if self._rand_factory else None
+            params.update(protocol.sign_request(
+                self.account,
+                self.app_version,
+                rand_str=rand_str,
+            ))
+        return params
 
     def _call(self, endpoint: str, extra_params: dict = None) -> dict:
         """发送 API 请求，自动解密响应，返回 JSON dict。
@@ -60,10 +70,15 @@ class Session:
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:200]}")
 
-        # 解密 + 解析
+        # 新旧 App 都返回 Base64 + AES-CBC；少数网关错误可能直接返回 JSON。
         try:
-            plaintext = crypto.decrypt_response(resp.text.strip())
-            data = json.loads(plaintext)
+            raw = resp.text.strip()
+            if raw.startswith("{"):
+                data = json.loads(raw)
+            else:
+                plaintext = crypto.decrypt_response_for_version(
+                    raw, self.app_version)
+                data = json.loads(plaintext)
         except Exception as e:
             raise RuntimeError(f"解密/解析失败: {e}")
 
@@ -86,11 +101,21 @@ class Session:
 
     def get_book_info(self, book_id: str) -> dict:
         """获取书籍详情。"""
-        return self._call("/book/get_info_by_id", {"book_id": book_id})
+        return self._call("/book/get_info_by_id", {
+            "book_id": book_id,
+            "use_daguan": "0",
+        })
 
     def get_division_list(self, book_id: str) -> dict:
         """获取分卷列表。"""
         return self._call("/book/get_division_list", {"book_id": book_id})
+
+    def get_book_catalog(self, book_id: str) -> dict:
+        """一次获取整本书的分卷与章节目录。"""
+        return self._call(
+            "/chapter/get_updated_chapter_by_division_new",
+            {"book_id": book_id, "division_id": "0"},
+        )
 
     # ---- Chapter ----
 
@@ -108,17 +133,26 @@ class Session:
         return data.get("data", {}).get("command", "")
 
     def get_chapter_content(self, chapter_id: str, command: str) -> str:
-        """获取并解密章节正文。返回纯文本。"""
+        """获取章节正文，兼容内联 AES 与新版 CDN/zlib 两条路径。"""
         data = self._call("/chapter/get_cpt_ifm", {
             "chapter_id": chapter_id,
             "chapter_command": command,
         })
         chapter_info = data.get("data", {}).get("chapter_info", {})
-        txt_encrypted = chapter_info.get("txt_content", "")
-        if not txt_encrypted:
+        txt_content = chapter_info.get("txt_content", "")
+        if not txt_content:
             return ""
-        plaintext = crypto.decrypt_chapter(txt_encrypted, command)
-        return plaintext.decode("utf-8", errors="replace")
+        if str(txt_content).startswith(("http://", "https://")):
+            resp = self._session.get(
+                txt_content,
+                headers={"Accept-Encoding": "gzip"},
+                timeout=30,
+            )
+            resp.raise_for_status()
+            return content.decode_cdn_payload(resp.content)
+        plaintext = crypto.decrypt_chapter(txt_content, command)
+        return content.normalize_chapter_text(
+            plaintext.decode("utf-8", errors="replace"))
 
     # ---- Bookshelf ----
 
@@ -181,11 +215,80 @@ class Session:
 
     # ---- Search ----
 
-    def search_books(self, keyword: str, page: int = 1,
-                     count: int = 20) -> dict:
-        """搜索书籍。"""
+    def search_books(self, keyword: str, page: int = 0,
+                     count: int = 10) -> dict:
+        """搜索书籍。App 搜索页使用从 0 开始的页码。"""
+        count = max(1, min(int(count), 10))
         return self._call("/bookcity/get_filter_search_book_list", {
             "key": keyword,
             "page": str(page),
             "count": str(count),
+            "category_index": "0",
+            "filter_uptime": "",
+            "filter_word": "",
+            "is_paid": "",
+            "order": "",
+            "tags": "[]",
+            "up_status": "",
+            "use_daguan": "0",
         })
+
+    def iter_search_books(self, keyword: str, max_pages: int = None,
+                          count: int = 10):
+        """分页搜索并按 book_id 去重。"""
+        yield from self._iter_book_pages(
+            lambda page: self.search_books(keyword, page=page, count=count)
+            .get("data", {}).get("book_list", []),
+            max_pages=max_pages,
+        )
+
+    # ---- Book city / whole site ----
+
+    def get_bookcity_books(self, page: int = 0, count: int = 100,
+                           order: str = "uptime") -> list[dict]:
+        """获取书城全量列表的一页。
+
+        `order=uptime` 实测可稳定连续分页；`newtime` 只覆盖较小的新书窗口。
+        """
+        count = max(1, min(int(count), 100))
+        data = self._call("/bookcity/get_filter_book_list", {
+            "tab_type": "200",
+            "count": str(count),
+            "page": str(page),
+            "order": order,
+        })
+        return data.get("data", {}).get("book_list", [])
+
+    def iter_all_books(self, max_pages: int = None, count: int = 100,
+                       order: str = "uptime"):
+        """遍历书城列表，遇空页或整页重复时停止。"""
+        yield from self._iter_book_pages(
+            lambda page: self.get_bookcity_books(
+                page=page, count=count, order=order),
+            max_pages=max_pages,
+        )
+
+    @staticmethod
+    def _iter_book_pages(fetch_page, max_pages: int = None):
+        seen_ids = set()
+        seen_pages = set()
+        page = 0
+        while max_pages is None or page < max_pages:
+            books = list(fetch_page(page) or [])
+            if not books:
+                break
+            signature = tuple(str(item.get("book_id", "")) for item in books)
+            if signature in seen_pages:
+                break
+            seen_pages.add(signature)
+            added = 0
+            for book in books:
+                book_id = str(book.get("book_id", ""))
+                if not book_id or book_id in seen_ids:
+                    continue
+                seen_ids.add(book_id)
+                added += 1
+                yield book
+            if added == 0:
+                break
+            page += 1

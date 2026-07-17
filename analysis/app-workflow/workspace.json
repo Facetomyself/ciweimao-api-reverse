@@ -1,0 +1,87 @@
+{
+  "_schema": "reverse-coordinator-workspace-v1",
+  "target": {
+    "path": "analysis/anonymous-reader/input/ciweimao-2.9.362.apk",
+    "type": "Android APK",
+    "arch": "ARM64 / ARMv7",
+    "size_bytes": 136899174
+  },
+  "pipeline": {
+    "phase": "review",
+    "analysis_depth": "L3",
+    "primary_skill": "apk-reverse",
+    "fallback_skill": "native-reverse / radare2"
+  },
+  "phases": {
+    "classification": {
+      "status": "completed",
+      "started": "2026-07-17T15:35:00+08:00",
+      "completed": "2026-07-17T15:38:00+08:00",
+      "notes": "APK, 360 Jiagu, Native curl"
+    },
+    "recon": {
+      "status": "completed",
+      "started": "2026-07-17T15:38:00+08:00",
+      "completed": "2026-07-17T16:14:31+08:00",
+      "notes": "logcat + Flow + endpoint inventory"
+    },
+    "decision": {
+      "status": "completed",
+      "started": "2026-07-17T16:14:31+08:00",
+      "completed": "2026-07-17T16:25:00+08:00",
+      "notes": "响应解密位于 libcwmhttps.so"
+    },
+    "deep_dive": {
+      "status": "completed",
+      "started": "2026-07-17T16:25:00+08:00",
+      "completed": "2026-07-17T17:05:00+08:00",
+      "notes": "Native AES branch and HMAC recovered; live requests matched App"
+    },
+    "rebuild": {
+      "status": "completed",
+      "started": "2026-07-17T17:05:00+08:00",
+      "completed": "2026-07-17T17:20:00+08:00",
+      "notes": "Python current/legacy transport and client refactor"
+    },
+    "review": {
+      "status": "completed",
+      "started": "2026-07-17T17:20:00+08:00",
+      "completed": "2026-07-17T17:35:00+08:00",
+      "notes": "17 unit tests, live current-protocol search/bookcity/catalog, JSON and sensitive-data review passed"
+    }
+  },
+  "markers": {
+    "file_format": "APK + ELF64",
+    "has_native": true,
+    "has_wasm": false,
+    "has_obfuscation": true,
+    "has_anti_debug": false,
+    "has_jni": true,
+    "has_crypto": true,
+    "strings_of_interest": [
+      "CenterDataAPI::aes_256_cbc_decode",
+      "get_filter_search_book_list",
+      "get_filter_book_list",
+      "get_updated_chapter_by_division_new"
+    ]
+  },
+  "artifacts": {
+    "report": "analysis/app-workflow/report.md",
+    "findings": "analysis/app-workflow/findings.json",
+    "triage": "analysis/app-workflow/triage.md",
+    "supporting": [
+      "analysis/app-workflow/evidence/runtime-summary.json",
+      "analysis/app-workflow/evidence/endpoint-counts.json",
+      "analysis/app-workflow/evidence/native-response-crypto.txt"
+    ]
+  },
+  "review_gate": {
+    "all_claims_have_evidence": true,
+    "triage_items_documented": true,
+    "artifact_paths_recorded": true,
+    "rebuild_scripts_tested": true,
+    "sensitive_data_redacted": true,
+    "finding_redaction_metadata_complete": true,
+    "ready_for_delivery": true
+  }
+}

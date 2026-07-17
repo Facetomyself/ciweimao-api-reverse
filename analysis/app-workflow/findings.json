@@ -1,0 +1,253 @@
+{
+  "_schema": "reverse-coordinator-findings-v1",
+  "target": {
+    "path": "analysis/anonymous-reader/input/ciweimao-2.9.362.apk",
+    "type": "Android APK + ELF",
+    "arch": "ARM64 / ARMv7"
+  },
+  "analysis_depth": "L3",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "network",
+      "claim": "Native 业务 API 与代理感知的 CDN/图片链路分离",
+      "location": {
+        "file": "captures/",
+        "class": "",
+        "method": "Native curl / CDN transport",
+        "address": "",
+        "line": 0
+      },
+      "description": "Native 业务 API 与代理感知的 CDN/图片链路分离",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "84 Native API log records; 0 business POSTs in Flow; 7 CDN GETs"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "原始 captures 含凭据，仅本机 Git exclude"
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-002",
+      "category": "signature",
+      "claim": "2.9.362 请求 HMAC 签名已恢复并经 84/84 请求验证",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "",
+        "method": "CenterDataAPI request builder",
+        "address": "",
+        "line": 0
+      },
+      "description": "2.9.362 请求 HMAC 签名已恢复并经 84/84 请求验证",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "84/84 HMAC-SHA256 recomputations matched"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "签名 source 的真实 account 已省略"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-003",
+      "category": "crypto",
+      "claim": "mode=1 使用 current response key，SHA-256 派生后以零 IV 做 AES-256-CBC",
+      "location": {
+        "file": "analysis/app-workflow/work/native/libcwmhttps.so",
+        "class": "",
+        "method": "CenterDataAPI::aes_256_cbc_decode",
+        "address": "0x80D6C",
+        "line": 0
+      },
+      "description": "mode=1 使用 current response key，SHA-256 派生后以零 IV 做 AES-256-CBC",
+      "evidence": {
+        "type": "disasm",
+        "source": "analysis/app-workflow/evidence/native-response-crypto.txt",
+        "value": "mode compare 0x80D94; current key ref 0x80DB0; SHA256 0x80DF0; zero IV 0x80DF4"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-004",
+      "category": "logic",
+      "claim": "搜索 page 从 0 开始、count=10，跨页按 book_id 去重",
+      "location": {
+        "file": "/bookcity/get_filter_search_book_list",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "搜索 page 从 0 开始、count=10，跨页按 book_id 去重",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "pages 0..5: 60 rows, 59 unique IDs"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "真实身份字段已省略"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-005",
+      "category": "logic",
+      "claim": "书城 tab_type=200/order=uptime/count=100 可连续枚举",
+      "location": {
+        "file": "/bookcity/get_filter_book_list",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "书城 tab_type=200/order=uptime/count=100 可连续枚举",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "live pages 0..2: 100/100/100 rows, 300 unique IDs"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "真实请求凭据未落盘"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-006",
+      "category": "logic",
+      "claim": "division_id=0 一次返回全部分卷和内嵌章节目录",
+      "location": {
+        "file": "/chapter/get_updated_chapter_by_division_new",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "division_id=0 一次返回全部分卷和内嵌章节目录",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "catalog samples: 2 divisions/433 chapters and 1 division/78 chapters"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "原始响应中的账号字段未进入摘要"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-007",
+      "category": "logic",
+      "claim": "免费可抓取边界必须同时满足 is_paid=0 和 auth_access=1",
+      "location": {
+        "file": "chapter catalog / chapter_info",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "免费可抓取边界必须同时满足 is_paid=0 和 auth_access=1",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "433 chapters: 50 free-authorized, 5 free-unauthorized, 378 paid-unauthorized"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-008",
+      "category": "crypto",
+      "claim": "正文 CDN 为 HTTP gzip 后再 zlib，最终 UTF-8 HTML fragment",
+      "location": {
+        "file": "e6.kuangxiangit.com/*.txt",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "正文 CDN 为 HTTP gzip 后再 zlib，最终 UTF-8 HTML fragment",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-workflow/evidence/runtime-summary.json",
+        "value": "7/7 samples: gzip magic -> zlib 0x789c -> HTML marker"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": true,
+        "notes": "正文内容省略，仅保留格式与哈希"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/"
+    }
+  ],
+  "triage_items": [
+    {
+      "id": "T-001",
+      "description": "全站末页和总书量未跑到终点",
+      "severity": "low",
+      "reason": "避免对线上服务执行无界任务；当前只验证前三页",
+      "suggested_next": "正式 crawl-all 任务保留 checkpoint 并记录最终空页"
+    },
+    {
+      "id": "T-002",
+      "description": "LDPlayer proxy-off 清理不完整",
+      "severity": "medium",
+      "reason": "环境脚本未删除全部 global proxy 分项",
+      "suggested_next": "在 D:/reverse_ENV 环境仓单独修复并清理模板"
+    }
+  ],
+  "session": {
+    "started": "2026-07-17T16:05:54+08:00",
+    "skills_used": [
+      "reverse-coordinator",
+      "apk-reverse",
+      "native-reverse",
+      "radare2"
+    ],
+    "mcp_tools_called": []
+  }
+}
