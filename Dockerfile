@@ -1,9 +1,8 @@
-# syntax=docker/dockerfile:1
 FROM docker.m.daocloud.io/library/python:3.11-slim
 
 ARG APP_UID=10001
 ARG APP_GID=10001
-ARG PIP_INDEX_URL=https://pypi.org/simple
+ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple/
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

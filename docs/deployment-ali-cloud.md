@@ -49,6 +49,8 @@ docker-compose -p ciweimao-api-reverse up -d
 docker-compose -p ciweimao-api-reverse ps
 ```
 
+Docker 基础镜像默认使用 DaoCloud 的 Python 镜像，Python 依赖默认使用阿里云 PyPI 镜像；可通过 `PIP_INDEX_URL` 覆盖。所有镜像源设置仅存在于本项目 build，不修改宿主 Docker daemon 或系统 pip 配置。
+
 更新时只操作本项目：
 
 ```bash
