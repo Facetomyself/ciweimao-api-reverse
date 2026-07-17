@@ -1,4 +1,4 @@
-FROM docker.m.daocloud.io/library/python:3.11-slim
+FROM docker.m.daocloud.io/library/python:3.13-slim
 
 ARG APP_UID=10001
 ARG APP_GID=10001
