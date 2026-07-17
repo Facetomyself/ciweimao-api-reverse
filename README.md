@@ -220,6 +220,7 @@ Invoke-RestMethod -Method Post `
 | `CIWEIMAO_HTTP_MAX_RETRIES` | `2` | 连接断开/超时后的有限重试次数 |
 | `CIWEIMAO_HTTP_RETRY_BACKOFF` | `0.25` | 指数退避基数（秒） |
 | `CIWEIMAO_HTTP_TRANSIENT_API_RETRIES` | `1` | App 临时业务码 `320002` 重试次数 |
+| `CIWEIMAO_PROXY_URL` | 空 | 可选 HTTP/SOCKS5 出口代理，仅作用于 App API/CDN 请求 |
 | `CIWEIMAO_LIST_REQUEST_DELAY` | `0.25` | 列表页/榜单规格之间的间隔（秒） |
 | `CIWEIMAO_CHAPTER_CONCURRENCY` | `3` | 单本书章节有界并发数 |
 
@@ -237,7 +238,7 @@ mkdir -p runtime/data runtime/output
 docker-compose -p ciweimao-api-reverse up -d --build
 ```
 
-Compose 固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 的部署边界与运维命令见 `docs/deployment-ali-cloud.md`。
+Compose 固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 部署额外包含一个只对本 Compose network 开放的 SSH SOCKS egress sidecar，避免云厂商出口触发 App 的 `320002` 策略；不会改变宿主或其他容器路由。完整边界见 `docs/deployment-ali-cloud.md`。
 
 ## 验证
 

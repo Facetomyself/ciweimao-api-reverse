@@ -178,7 +178,8 @@ class Session(_ProtocolMixin):
                  base_url: str = None, rand_factory=None,
                  timeout: float = 30, impersonate: str = None,
                  max_retries: int = 2, retry_backoff: float = 0.25,
-                 transient_api_retries: int = 1):
+                 transient_api_retries: int = 1,
+                 proxy: str = None):
         self._init_protocol(
             login_token, account, device_token, app_version,
             base_url, rand_factory, timeout)
@@ -189,6 +190,7 @@ class Session(_ProtocolMixin):
         self._session = CurlSession(
             headers=self.headers,
             impersonate=impersonate,
+            proxy=proxy,
         )
 
     def close(self):
@@ -380,7 +382,8 @@ class AsyncSession(_ProtocolMixin):
                  timeout: float = 30, impersonate: str = None,
                  max_clients: int = 10, max_retries: int = 2,
                  retry_backoff: float = 0.25,
-                 transient_api_retries: int = 1):
+                 transient_api_retries: int = 1,
+                 proxy: str = None):
         self._init_protocol(
             login_token, account, device_token, app_version,
             base_url, rand_factory, timeout)
@@ -392,6 +395,7 @@ class AsyncSession(_ProtocolMixin):
             headers=self.headers,
             impersonate=impersonate,
             max_clients=max(1, int(max_clients)),
+            proxy=proxy,
         )
 
     async def __aenter__(self):

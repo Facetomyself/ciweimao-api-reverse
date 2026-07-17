@@ -1,6 +1,6 @@
 """FastAPI 服务配置与本地凭据加载。"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
@@ -61,6 +61,7 @@ class Settings:
     http_retry_backoff: float = 0.25
     http_transient_api_retries: int = 1
     http_impersonate: str | None = None
+    http_proxy_url: str | None = field(default=None, repr=False)
     list_request_delay: float = 0.25
     chapter_concurrency: int = 3
     chapter_delay: float = 0.05
@@ -99,6 +100,8 @@ class Settings:
             http_transient_api_retries=_env_int(
                 "CIWEIMAO_HTTP_TRANSIENT_API_RETRIES", 1, 0),
             http_impersonate=impersonate or None,
+            http_proxy_url=(
+                os.getenv("CIWEIMAO_PROXY_URL", "").strip() or None),
             list_request_delay=_env_float(
                 "CIWEIMAO_LIST_REQUEST_DELAY", 0.25, 0),
             chapter_concurrency=_env_int(

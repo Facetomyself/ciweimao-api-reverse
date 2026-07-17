@@ -19,8 +19,11 @@ from service.schemas import (
 
 
 class FakeAppSession:
+    instances = []
+
     def __init__(self, **kwargs):
         self.kwargs = kwargs
+        self.__class__.instances.append(self)
 
     async def __aenter__(self):
         return self
@@ -104,6 +107,7 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             scheduler_enabled=False,
             queue_workers=2,
             chapter_delay=0,
+            http_proxy_url="socks5://egress:1080",
         )
         self.database = Database(self.settings.database_path)
         await self.database.initialize()
@@ -129,6 +133,7 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
         self.fail(f"任务超时: {task_id}")
 
     async def test_download_rankings_and_new_books_flow(self):
+        FakeAppSession.instances.clear()
         download = await self.queue.submit(
             "download_by_name",
             DownloadByNameRequest(
@@ -171,3 +176,8 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             "new_books", "newtime")
         self.assertEqual(1, ranking_snapshot["item_count"])
         self.assertEqual("new-1", new_snapshot["items"][0]["book_id"])
+        self.assertTrue(FakeAppSession.instances)
+        self.assertTrue(all(
+            session.kwargs["proxy"] == "socks5://egress:1080"
+            for session in FakeAppSession.instances
+        ))

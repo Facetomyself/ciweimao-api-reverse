@@ -8,13 +8,23 @@
 | 服务器目录 | `/opt/ciweimao-api-reverse` |
 | Compose project | `ciweimao-api-reverse` |
 | Service | `api` |
+| Egress service | `egress`，Compose 私网内 `socks5://egress:1080` |
 | 宿主监听 | `127.0.0.1:18086` |
 | 容器监听 | `0.0.0.0:8000` |
 | 数据目录 | `runtime/data/` |
 | 下载目录 | `runtime/output/` |
 | 运行凭据 | `runtime/app.env`，权限 `0600`，不入 Git |
+| SSH egress key | `runtime/ssh/id_rsa`，权限 `0600`，不入 Git/镜像 |
 
-服务不复用其他项目的 network、volume、container name 或公开端口。宿主的 80 端口由 1Panel 管理，本部署不修改 1Panel、Nginx、iptables 或云安全组。
+服务不复用其他项目的 network、volume、container name 或公开端口。宿主的 80 端口由 1Panel 管理，本部署不修改 1Panel、Nginx、iptables、云安全组或宿主默认路由。
+
+刺猬猫 App API 对 ali-cloud 数据中心出口返回业务码 `320002`，而同一凭据从本机出口可用。Compose 因此增加 `egress` sidecar，通过 SSH 动态 SOCKS 转发到 `self-server:44001`：
+
+```text
+api container -> socks5://egress:1080 -> SSH -> self-server -> App API/CDN
+```
+
+SOCKS 端口不发布到宿主，仅 `ciweimao-api-reverse_default` network 内可见。App 使用 `socks5://`，目标域名由 app 容器解析后把目标 IP 交给 self-server，规避 self-server 自身 DNS 缺口。
 
 ## 资源限制
 
@@ -24,6 +34,8 @@
 - PIDs：`128`；
 - Queue worker：`1`；
 - Uvicorn worker：`1`。
+
+Egress sidecar 单独限制为 `0.15 CPU / 96 MiB / 64 PIDs`。
 
 ## 运行凭据
 
@@ -36,6 +48,8 @@ CIWEIMAO_DEVICE_TOKEN=<local-secret>
 ```
 
 文件由部署流程从本地忽略的 capture 内存提取后通过 SSH stdin 写入，不在命令行、日志、镜像层或 Git 中出现。
+
+`runtime/ssh/id_rsa` 使用 `ali-cloud-ssh` skill 已安装的同一身份，`known_hosts` 从已认证的 `self-server` 会话读取。两个文件均只读挂载到 egress sidecar，不复制进镜像层。
 
 ## Compose 操作
 

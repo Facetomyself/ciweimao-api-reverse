@@ -18,11 +18,18 @@ COPY requirements.txt ./requirements.txt
 RUN python -m pip install --index-url "${PIP_INDEX_URL}" \
     --no-cache-dir -r requirements.txt
 
+RUN sed -i 's|deb.debian.org|mirrors.aliyun.com|g' \
+        /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY client ./client
 COPY service ./service
 
-RUN mkdir -p /app/data /app/output_api \
-    && chown -R app:app /app
+RUN mkdir -p /app/data /app/output_api /home/app/.ssh \
+    && chmod 0700 /home/app/.ssh \
+    && chown -R app:app /app /home/app/.ssh
 
 USER app
 

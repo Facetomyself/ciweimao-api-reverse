@@ -83,6 +83,8 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 
 列表请求采用短生命周期 `curl_cffi.requests.AsyncSession`，避免同一连接池连续混跑不同 App 列表时出现服务端断链或临时码。下载阶段使用单独 session，默认 `max_clients=5`。
 
+所有 Session 可通过 `CIWEIMAO_PROXY_URL` 注入统一 HTTP/SOCKS5 代理。该配置只作用于 App API 与正文 CDN 请求，不修改进程外的系统代理或宿主路由。`ali-cloud` 部署使用 Compose 私网内的 SSH SOCKS sidecar，原因是 App API 对数据中心直连出口返回 `320002`。
+
 - 榜单：按规格顺序请求，每个规格独立 session；
 - 新书与搜索：按页顺序请求，每页独立 session；
 - 单本下载：章节使用 `asyncio.Semaphore(3)`，每章内部按 `command -> metadata/CDN` 顺序执行；

@@ -64,6 +64,7 @@ class CiweimaoService:
             retry_backoff=self.settings.http_retry_backoff,
             transient_api_retries=(
                 self.settings.http_transient_api_retries),
+            proxy=self.settings.http_proxy_url,
         )
         async with session:
             yield session
