@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from service.config import Settings
+from client.api import ApiError
+from service.config import Credentials, Settings
 from service.core import CiweimaoService
 from service.database import Database
 from service.queue import PersistentTaskQueue
@@ -88,6 +89,28 @@ class FakeAppSession:
             "book_name": "新书一号",
             "author_name": "新书作者",
         }] if page == 0 else [])
+
+
+class RefreshingSession(FakeAppSession):
+    async def search_books(self, keyword, page=0, count=10):
+        if self.kwargs["login_token"] == "fixture-token":
+            raise ApiError("320002", "网络出错，请重试或重新登录")
+        return await super().search_books(
+            keyword, page=page, count=count)
+
+
+class FakeCredentialBootstrap:
+    def __init__(self, settings):
+        self.settings = settings
+        self.calls = 0
+
+    async def refresh(self, failed_credentials):
+        self.calls += 1
+        self.settings.save_credentials(Credentials(
+            login_token="fresh-token",
+            account="fresh-account",
+            device_token=failed_credentials.device_token,
+        ))
 
 
 class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
@@ -181,3 +204,22 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             session.kwargs["proxy"] == "socks5://egress:1080"
             for session in FakeAppSession.instances
         ))
+
+    async def test_invalid_guest_is_refreshed_and_request_retried(self):
+        bootstrap = FakeCredentialBootstrap(self.settings)
+        service = CiweimaoService(
+            self.settings,
+            self.database,
+            session_factory=RefreshingSession,
+            credential_bootstrap=bootstrap,
+        )
+
+        books = await service.search_books(
+            "离线测试书", max_pages=1, count=10)
+
+        self.assertEqual(1, bootstrap.calls)
+        self.assertEqual("100", books[0]["book_id"])
+        self.assertEqual(
+            "fresh-token",
+            self.settings.load_credentials().login_token,
+        )

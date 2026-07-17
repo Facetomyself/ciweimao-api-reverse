@@ -33,6 +33,7 @@ APScheduler
 - `api.Session`：同步 `curl_cffi` 会话，兼容原 CLI；
 - `api.AsyncSession`：FastAPI、worker 和 scheduler 任务使用的异步会话；
 - `guest.py`：复现 App `auto_reg_v2`，创建与当前网络出口绑定的游客身份；
+- `ssh_exec_socks.py`：Compose 私网 SOCKS5；通过普通 SSH exec channel 在 NAS 远端内存执行 TCP relay，只允许 80/443；
 - `async_downloader`：章节有界并发、免费章过滤、TXT 原子落盘；
 - 签名、AES response 解密、章节解密与 CDN 解码继续复用现有协议模块。
 
@@ -85,12 +86,12 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 
 列表请求采用短生命周期 `curl_cffi.requests.AsyncSession`，避免同一连接池连续混跑不同 App 列表时出现服务端断链或临时码。下载阶段使用单独 session，默认 `max_clients=5`。
 
-所有 Session 可通过 `CIWEIMAO_PROXY_URL` 注入统一 HTTP/SOCKS5 代理。该配置只作用于 App API 与正文 CDN 请求，不修改进程外的系统代理或宿主路由。`ali-cloud` 部署使用 Compose 私网内的 SSH SOCKS sidecar，原因是 App API 对数据中心直连出口返回 `320002`。
+所有 Session 可通过 `CIWEIMAO_PROXY_URL` 注入统一 HTTP/SOCKS5 代理。该配置只作用于 App API 与正文 CDN 请求，不修改进程外的系统代理或宿主路由。`ali-cloud` 部署使用 `socks5h://egress:1080`：域名由 NAS 解析，SOCKS sidecar 只在 Compose network 内监听。NAS SSH 禁用了 `direct-tcpip`，因此 sidecar 复用一个密码认证、host-key pinned 的 Paramiko transport，并为每个目标创建普通 session channel，在 NAS 内存执行 Python TCP relay；NAS 不落脚本、不开放新端口、不修改 sshd。
 
 - 榜单：按规格顺序请求，每个规格独立 session；
 - 新书与搜索：按页顺序请求，每页独立 session；
 - 单本下载：章节使用 `asyncio.Semaphore(3)`，每章内部按 `command -> metadata/CDN` 顺序执行；
-- App API/CDN 遇连接断开或 timeout 时默认最多重试 2 次，并按 0.25 秒基数指数退避；仅 App 明确提示重试的 `320002` 额外重试 1 次，其他业务错误和解密错误不重试；
+- App API/CDN 遇连接断开或 timeout 时默认最多重试 2 次，并按 0.25 秒基数指数退避；App `320002` 先在当前会话额外重试 1 次，仍失败或遇 `200100` 时由 credential bootstrap 单锁注册新游客，整个业务操作再重试 1 次；其他业务错误和解密错误不重试；
 - 文件写入：通过 `asyncio.to_thread` 执行，不阻塞 event loop；
 - 落盘：先写 `.txt.part`，完成后 `os.replace`。
 
@@ -136,6 +137,9 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 当前支持的默认拓扑：
 
 ```text
+1 private NAS SSH exec SOCKS sidecar
+  + 1 pinned SSH transport
+  + per-target session-channel relay (80/443 only)
 1 FastAPI process
   + 1 APScheduler
   + 1 queue worker
@@ -161,6 +165,7 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 | TXT 写入中断 | 仅遗留 `.part`，不会覆盖成功文件；finally 清理临时文件 |
 | Scheduler 暂停多周期 | `coalesce=True` 合并错过的执行 |
 | 凭据缺失/跨出口失效 | lifespan 经当前 proxy 校验，按需注册游客后才启动队列与 scheduler |
+| 运行中 `200100` / 持久 `320002` | 单锁刷新 token 文件；并发请求复用已刷新的游客，原业务操作重试 1 次 |
 | 凭据文件更新 | 下个任务重新读取 `tokens.json`，无需重启服务 |
 
 ## 迁移 PostgreSQL 的边界

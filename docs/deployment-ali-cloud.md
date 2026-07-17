@@ -8,23 +8,31 @@
 | 服务器目录 | `/opt/ciweimao-api-reverse` |
 | Compose project | `ciweimao-api-reverse` |
 | Service | `api` |
-| Egress service | `egress`，Compose 私网内 `socks5://egress:1080` |
+| Egress service | `egress`，Compose 私网内 `socks5h://egress:1080` |
 | 宿主监听 | `127.0.0.1:18086` |
 | 容器监听 | `0.0.0.0:8000` |
 | 数据目录 | `runtime/data/` |
 | 下载目录 | `runtime/output/` |
 | 运行凭据 | `runtime/data/guest-tokens.json`，权限 `0600`，不入 Git |
-| SSH egress key | `runtime/ssh/id_rsa`，权限 `0600`，不入 Git/镜像 |
+| NAS SSH 配置 | `runtime/nas-egress/connection.env`，权限 `0600` |
+| NAS SSH 密码 | `runtime/nas-egress/password`，权限 `0600` |
+| NAS host key | `runtime/nas-egress/known_hosts`，权限 `0600` |
 
 服务不复用其他项目的 network、volume、container name 或公开端口。宿主的 80 端口由 1Panel 管理，本部署不修改 1Panel、Nginx、iptables、云安全组或宿主默认路由。
 
-刺猬猫 App API 对 ali-cloud 数据中心出口返回业务码 `320002`，而同一凭据从本机出口可用。Compose 因此增加 `egress` sidecar，通过 SSH 动态 SOCKS 转发到 `self-server:44001`：
+在线 A/B 已确认：ali-cloud 直连、`self-server:44001` 和 `self-server:44005` 均能调用 `auto_reg_v2`，但新游客随后的搜索/个人信息接口仍返回 `320002`；因此不是 token 搬运、DNS 或 SSH 隧道故障，而是数据中心/专线出口策略。NAS 住宅出口下，同一套 `curl_cffi` 注册与搜索返回 `code=100000`、10 本。
+
+NAS SSH 禁用了 OpenSSH `direct-tcpip`。Compose 的 `egress` sidecar 不修改 NAS sshd，而是复用一个 Paramiko transport；每个 SOCKS CONNECT 创建普通 SSH session channel，在 NAS 内存执行 Python TCP relay：
 
 ```text
-api container -> socks5://egress:1080 -> SSH -> self-server -> App API/CDN
+api container
+  -> socks5h://egress:1080
+  -> Paramiko password SSH + pinned host key
+  -> NAS session channel / in-memory Python relay
+  -> App API/CDN
 ```
 
-SOCKS 端口不发布到宿主，仅 `ciweimao-api-reverse_default` network 内可见。App 使用 `socks5://`，目标域名由 app 容器解析后把目标 IP 交给 self-server，规避 self-server 自身 DNS 缺口。
+SOCKS 端口不发布到宿主，仅 `ciweimao-api-reverse_default` network 内可见。目标域名由 NAS 解析；sidecar 仅允许转发 80/443，容器使用只读 root filesystem、`cap_drop: ALL` 和 `no-new-privileges`。NAS 不落脚本、不新增监听端口，也不改现有容器或系统配置。
 
 ## 资源限制
 
@@ -35,26 +43,41 @@ SOCKS 端口不发布到宿主，仅 `ciweimao-api-reverse_default` network 内�
 - Queue worker：`1`；
 - Uvicorn worker：`1`。
 
-Egress sidecar 单独限制为 `0.15 CPU / 96 MiB / 64 PIDs`。
+Egress sidecar 单独限制为 `0.25 CPU / 160 MiB / 64 PIDs`。
 
 ## 运行凭据
 
 API 设置 `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED=1` 和
 `CIWEIMAO_TOKEN_PATH=/app/data/guest-tokens.json`。启动阶段先通过 Compose 私网内的
-`socks5://egress:1080` 校验已有游客；文件缺失，或服务端返回 `200100` / `320002`
+`socks5h://egress:1080` 校验已有游客；文件缺失，或服务端返回 `200100` / `320002`
 时，才调用 `auto_reg_v2` 创建与当前出口绑定的新游客。新凭据在容器内以 `0600`
-权限原子写入 bind mount，不进入环境变量、命令行、日志、镜像层或 Git。
+权限原子写入 bind mount，不进入环境变量、命令行、日志、镜像层或 Git。运行中
+出现 `200100` 或当前会话重试后仍为 `320002` 时，credential bootstrap 使用单锁
+刷新游客；其他并发请求检测到 token 文件已更新后直接复用，原业务操作重试一次。
 
 旧版 `runtime/app.env` 不再被 Compose 读取，升级验证成功后应只删除本项目目录下的
 该陈旧文件，避免后续误用。
 
-`runtime/ssh/id_rsa` 使用 `ali-cloud-ssh` skill 已安装的同一身份，`known_hosts` 从已认证的 `self-server` 会话读取。两个文件均只读挂载到 egress sidecar，不复制进镜像层。
+NAS SSH secret 只在部署时从本机 `%USERPROFILE%\.nas\credentials.json` 注入：
+
+```dotenv
+# runtime/nas-egress/connection.env
+SSH_EXEC_HOST=<local-secret>
+SSH_EXEC_PORT=<local-secret>
+SSH_EXEC_USERNAME=<local-secret>
+```
+
+密码单独写入 `runtime/nas-egress/password`，host key 写入
+`runtime/nas-egress/known_hosts`。三个文件均为 `0600`、归容器 uid `10001` 读取，
+只读挂载且不复制进镜像层。`known_hosts` 必须来自已认证的 NAS 会话，禁止运行时
+`AutoAddPolicy` 或盲信 `ssh-keyscan`。
 
 启动顺序固定为：
 
 ```text
 egress healthy
-  -> API lifespan 校验/创建游客
+  -> pinned SSH transport ready
+  -> API lifespan 经 NAS 出口校验/创建游客
   -> SQLite 初始化
   -> queue worker 启动
   -> scheduler 启动

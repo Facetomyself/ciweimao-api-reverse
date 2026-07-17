@@ -9,34 +9,23 @@ services:
       args:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
     command:
-      - ssh
-      - -NT
-      - -D
-      - 0.0.0.0:1080
-      - -p
-      - "44001"
-      - -i
-      - /home/app/.ssh/id_rsa
-      - -o
-      - BatchMode=yes
-      - -o
-      - IdentitiesOnly=yes
-      - -o
-      - StrictHostKeyChecking=yes
-      - -o
-      - UserKnownHostsFile=/home/app/.ssh/known_hosts
-      - -o
-      - ExitOnForwardFailure=yes
-      - -o
-      - ServerAliveInterval=30
-      - -o
-      - ServerAliveCountMax=3
-      - root@211.144.221.229
+      - python
+      - -m
+      - client.ssh_exec_socks
     restart: unless-stopped
     init: true
+    env_file:
+      - ./runtime/nas-egress/connection.env
+    environment:
+      SSH_EXEC_PASSWORD_FILE: /run/secrets/ssh_password
+      SSH_EXEC_KNOWN_HOSTS_FILE: /run/secrets/known_hosts
+      SSH_EXEC_LISTEN_HOST: 0.0.0.0
+      SSH_EXEC_LISTEN_PORT: "1080"
+      SSH_EXEC_ALLOWED_PORTS: 80,443
+      SSH_EXEC_KEEPALIVE_SECONDS: "30"
     volumes:
-      - ./runtime/ssh/id_rsa:/home/app/.ssh/id_rsa:ro
-      - ./runtime/ssh/known_hosts:/home/app/.ssh/known_hosts:ro
+      - ./runtime/nas-egress/password:/run/secrets/ssh_password:ro
+      - ./runtime/nas-egress/known_hosts:/run/secrets/known_hosts:ro
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
@@ -44,9 +33,9 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    mem_limit: 96m
-    mem_reservation: 32m
-    cpus: 0.15
+    mem_limit: 160m
+    mem_reservation: 64m
+    cpus: 0.25
     pids_limit: 64
     healthcheck:
       test:
@@ -68,7 +57,7 @@ services:
         max-file: "2"
     labels:
       com.zhangxuemin.project: ciweimao-api-reverse
-      com.zhangxuemin.role: isolated-ssh-egress
+      com.zhangxuemin.role: isolated-nas-ssh-exec-egress
 
   api:
     image: ciweimao-api-reverse:local
@@ -91,7 +80,7 @@ services:
       CIWEIMAO_GUEST_BOOTSTRAP_ENABLED: "1"
       CIWEIMAO_SCHEDULER_ENABLED: "1"
       CIWEIMAO_QUEUE_WORKERS: "1"
-      CIWEIMAO_PROXY_URL: socks5://egress:1080
+      CIWEIMAO_PROXY_URL: socks5h://egress:1080
       TZ: Asia/Shanghai
     ports:
       - "${CIWEIMAO_BIND_IP:-127.0.0.1}:${CIWEIMAO_HOST_PORT:-18086}:8000"

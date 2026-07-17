@@ -23,6 +23,12 @@
 - **验证**：两次干净安装确认固定预注册签名占位符；纯 `curl_cffi` 注册、AES 解密和搜索均成功。
 - **当前状态**：已恢复为服务启动前的自动校验/注册流程，凭据跟随 Compose egress 创建。
 
+### R-003：ali-cloud / self-server 出口持续 `320002`
+
+- **原因**：数据中心和专线出口可注册游客，但业务接口仍被目标策略拒绝；44001/44005 实际落到同一出口。
+- **验证**：直连与两个 SSH 端口均失败；NAS SSH 禁用 `direct-tcpip`，但普通 exec channel 内存 relay 下注册和搜索均 `100000`。
+- **当前状态**：Compose 使用 NAS SSH exec SOCKS sidecar，host key pinned、密码文件只读挂载、目标端口限 80/443；运行中凭据失效会单锁刷新并重试一次。
+
 ## 环境风险
 
 ### G-001：proxy-off 清理不完整

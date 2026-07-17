@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock
 
 from client import config, protocol
 from client.guest import GuestCredentials, register_guest
-from service.config import Settings
+from service.config import Credentials, Settings
 from service.credentials import GuestCredentialBootstrapper
 
 
@@ -61,8 +61,9 @@ class FakeValidationSession:
     async def __aexit__(self, exc_type, exc, traceback):
         return None
 
-    async def get_my_info(self):
-        return {"code": "100000", "data": {}}
+    async def search_books(self, keyword, page=0, count=1):
+        del keyword, page, count
+        return {"code": "100000", "data": {"book_list": []}}
 
 
 class GuestRegistrationTests(unittest.IsolatedAsyncioTestCase):
@@ -138,6 +139,43 @@ class CredentialBootstrapTests(unittest.IsolatedAsyncioTestCase):
                     stat.S_IMODE(settings.token_path.stat().st_mode),
                 )
             self.assertFalse(list(root.glob(".*.tmp")))
+
+    async def test_runtime_refresh_registers_once_for_stale_credentials(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "data.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "guest-tokens.json",
+                guest_bootstrap_enabled=True,
+                scheduler_enabled=False,
+            )
+            stale = Credentials(
+                login_token="stale-token",
+                account="stale-account",
+                device_token="ciweimao_",
+            )
+            settings.save_credentials(stale)
+            registrar = AsyncMock(return_value=GuestCredentials(
+                login_token="fresh-token",
+                account="fresh-account",
+                device_token="ciweimao_",
+            ))
+            bootstrapper = GuestCredentialBootstrapper(
+                settings,
+                session_factory=FakeValidationSession,
+                registrar=registrar,
+            )
+
+            first = await bootstrapper.refresh(stale)
+            second = await bootstrapper.refresh(stale)
+
+            self.assertTrue(first.created)
+            self.assertFalse(second.created)
+            self.assertEqual("token-file-refreshed", second.source)
+            self.assertEqual(1, registrar.await_count)
+            current = settings.load_credentials()
+            self.assertEqual("fresh-token", current.login_token)
 
 
 if __name__ == "__main__":

@@ -246,8 +246,11 @@ docker-compose -p ciweimao-api-reverse up -d --build
 Compose 将游客凭据持久化为 `runtime/data/guest-tokens.json`，不再依赖人工复制的
 `runtime/app.env`。固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root
 filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 部署额外包含一个
-只对本 Compose network 开放的 SSH SOCKS egress sidecar，游客注册与后续 App API
-使用同一出口，避免跨出口复用 token 触发 `320002`；不会改变宿主或其他容器路由。
+只对本 Compose network 开放的 NAS SSH exec SOCKS sidecar：它不依赖 NAS 开启
+`direct-tcpip`，而是按连接通过普通 SSH session channel 在远端内存执行 TCP relay，
+且只允许目标端口 80/443。游客注册与后续 App API/CDN 使用同一住宅出口；运行中
+若收到 `200100` / `320002`，服务会单锁创建新游客并重试原操作一次。该链路不会
+改变宿主或其他容器路由。
 完整边界见 `docs/deployment-ali-cloud.md`。
 
 ## 验证

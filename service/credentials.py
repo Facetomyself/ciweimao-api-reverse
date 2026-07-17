@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import hashlib
 import logging
 
 from client import config as client_config
@@ -69,6 +70,25 @@ class GuestCredentialBootstrapper:
                 source="environment" if env_credentials else "token-file",
             )
 
+    async def refresh(
+            self, failed_credentials: Credentials) -> CredentialBootstrapResult:
+        """失效请求触发刷新；并发请求只允许第一个真正注册。"""
+        async with self._lock:
+            if self.settings.env_credentials_configured():
+                raise ConfigurationError(
+                    "CIWEIMAO_* 环境凭据已失效，自动游客不能覆盖环境变量")
+            try:
+                current = self.settings.load_credentials()
+            except ConfigurationError:
+                return await self._register_and_persist("runtime-missing")
+            if (_credential_fingerprint(current)
+                    != _credential_fingerprint(failed_credentials)):
+                return CredentialBootstrapResult(
+                    created=False,
+                    source="token-file-refreshed",
+                )
+            return await self._register_and_persist("runtime-invalid")
+
     async def _register_and_persist(
             self, reason: str) -> CredentialBootstrapResult:
         LOGGER.info("guest credential bootstrap started: %s", reason)
@@ -113,4 +133,19 @@ class GuestCredentialBootstrapper:
             proxy=self.settings.http_proxy_url,
         )
         async with session:
-            await session.get_my_info()
+            await session.search_books("魔法", page=0, count=1)
+
+
+def _credential_fingerprint(credentials: Credentials) -> str:
+    digest = hashlib.sha256()
+    digest.update(credentials.account.encode("utf-8"))
+    digest.update(b"\0")
+    digest.update(credentials.login_token.encode("utf-8"))
+    return digest.hexdigest()
+
+
+def is_invalid_credentials_error(exc: BaseException) -> bool:
+    if isinstance(exc, ApiError):
+        return exc.code in INVALID_CREDENTIAL_CODES
+    return (isinstance(exc, RuntimeError)
+            and "login_token 已过期" in str(exc))

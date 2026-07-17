@@ -9,6 +9,10 @@ from client import async_downloader, config as client_config
 from client.api import AsyncSession
 
 from .config import Settings
+from .credentials import (
+    GuestCredentialBootstrapper,
+    is_invalid_credentials_error,
+)
 from .database import Database
 from .schemas import (
     DownloadByNameRequest,
@@ -36,10 +40,16 @@ def _file_digest(path: str) -> tuple[int, str]:
 
 class CiweimaoService:
     def __init__(self, settings: Settings, database: Database,
-                 session_factory=AsyncSession):
+                 session_factory=AsyncSession,
+                 credential_bootstrap: GuestCredentialBootstrapper | None = None):
         self.settings = settings
         self.database = database
         self.session_factory = session_factory
+        self.credential_bootstrap = credential_bootstrap
+
+    def set_credential_bootstrap(
+            self, bootstrap: GuestCredentialBootstrapper | None) -> None:
+        self.credential_bootstrap = bootstrap
 
     @property
     def task_handlers(self):
@@ -50,8 +60,8 @@ class CiweimaoService:
         }
 
     @asynccontextmanager
-    async def client(self):
-        credentials = self.settings.load_credentials()
+    async def client(self, credentials=None):
+        credentials = credentials or self.settings.load_credentials()
         session = self.session_factory(
             login_token=credentials.login_token,
             account=credentials.account,
@@ -69,15 +79,29 @@ class CiweimaoService:
         async with session:
             yield session
 
+    async def _run_with_client(self, operation):
+        for attempt in range(2):
+            credentials = self.settings.load_credentials()
+            try:
+                async with self.client(credentials) as session:
+                    return await operation(session)
+            except Exception as exc:
+                if (attempt == 0
+                        and self.credential_bootstrap is not None
+                        and is_invalid_credentials_error(exc)):
+                    await self.credential_bootstrap.refresh(credentials)
+                    continue
+                raise
+
     async def search_books(self, keyword: str, max_pages: int = 1,
                            count: int = 10) -> list[dict]:
         books = []
         seen_ids: set[str] = set()
         seen_pages: set[tuple[str, ...]] = set()
         for page in range(max_pages):
-            async with self.client() as session:
-                data = await session.search_books(
-                    keyword, page=page, count=count)
+            data = await self._run_with_client(
+                lambda session: session.search_books(
+                    keyword, page=page, count=count))
             fresh, stop = self._dedupe_page(
                 data.get("data", {}).get("book_list", []),
                 seen_ids,
@@ -153,8 +177,8 @@ class CiweimaoService:
         if not book_id:
             raise BookNotFoundError(
                 f"搜索结果缺少 book_id: {request.book_name}")
-        async with self.client() as session:
-            output_path = await async_downloader.download_book(
+        output_path = await self._run_with_client(
+            lambda session: async_downloader.download_book(
                 session,
                 book_id,
                 output_dir=str(self.settings.output_dir),
@@ -164,7 +188,7 @@ class CiweimaoService:
                 include_book_id=request.include_book_id,
                 chapter_delay=self.settings.chapter_delay,
                 chapter_concurrency=self.settings.chapter_concurrency,
-            )
+            ))
 
         file_size, sha256 = await asyncio.to_thread(
             _file_digest, output_path)
@@ -192,14 +216,14 @@ class CiweimaoService:
         request = SyncRankingsRequest.model_validate(payload)
         snapshots = []
         for index, spec in enumerate(request.specs):
-            async with self.client() as session:
-                books = await session.get_rank_books(
+            books = await self._run_with_client(
+                lambda session: session.get_rank_books(
                     order=spec.order,
                     time_type=spec.time_type,
                     page=0,
                     count=request.count,
                     category_index=request.category_index,
-                )
+                ))
             snapshot = await self.database.create_snapshot(
                 kind="ranking",
                 source_key=spec.source_key,
@@ -230,9 +254,9 @@ class CiweimaoService:
         seen_ids: set[str] = set()
         seen_pages: set[tuple[str, ...]] = set()
         for page in range(request.max_pages):
-            async with self.client() as session:
-                page_books = await session.get_bookcity_books(
-                    page=page, count=request.count, order="newtime")
+            page_books = await self._run_with_client(
+                lambda session: session.get_bookcity_books(
+                    page=page, count=request.count, order="newtime"))
             fresh, stop = self._dedupe_page(
                 page_books, seen_ids, seen_pages)
             books.extend(fresh)

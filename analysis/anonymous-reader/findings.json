@@ -141,6 +141,33 @@
       "confidence": "high",
       "rebuild_status": "implemented",
       "rebuild_path": "client/guest.py; service/credentials.py"
+    },
+    {
+      "id": "F-006",
+      "category": "network",
+      "claim": "ali-cloud 与 self-server 数据中心/专线出口可注册游客但业务接口返回 320002；NAS SSH exec relay 的住宅出口可完成注册和搜索。",
+      "location": {
+        "file": "client/ssh_exec_socks.py",
+        "class": "SSHExecTransport / SOCKS5Server",
+        "method": "session-channel remote TCP relay",
+        "address": "",
+        "line": 0
+      },
+      "description": "44001/44005 实际复用同一出口；NAS 禁止 direct-tcpip，但普通 SSH session channel 可在远端内存运行 Python relay。生产类实测注册 code=100000、搜索 code=100000/10 本。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/anonymous-reader/evidence/egress-policy-summary.json",
+        "value": "datacenter/direct routes rejected with 320002; NAS exec relay accepted with search_count=10"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "NAS endpoint、用户名、密码、host key、游客 token 均未写入 tracked evidence。"
+      },
+      "confidence": "high",
+      "rebuild_status": "implemented",
+      "rebuild_path": "client/ssh_exec_socks.py; compose.yaml; service/credentials.py; service/core.py"
     }
   ],
   "triage_items": [

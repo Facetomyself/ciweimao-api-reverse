@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-07-18T00:05:02+08:00",
+  "app_version": "2.9.362",
+  "matrix": [
+    {
+      "egress": "ali-cloud-direct",
+      "guest_registration_code": "100000",
+      "authenticated_search_code": "320002",
+      "result": "rejected"
+    },
+    {
+      "egress": "self-server-44001",
+      "guest_registration_code": "100000",
+      "authenticated_search_code": "320002",
+      "my_info_code": "320002",
+      "result": "rejected"
+    },
+    {
+      "egress": "self-server-44005",
+      "same_public_egress_as_44001": true,
+      "guest_registration_code": "100000",
+      "authenticated_search_result": "timeout_or_rejected",
+      "result": "rejected"
+    },
+    {
+      "egress": "nas-ssh-direct-tcpip",
+      "ssh_channel_result": "administratively_prohibited",
+      "result": "not_supported"
+    },
+    {
+      "egress": "nas-ssh-exec-relay-prototype",
+      "guest_registration_code": "100000",
+      "authenticated_search_code": "100000",
+      "search_count": 10,
+      "result": "accepted"
+    },
+    {
+      "egress": "nas-ssh-exec-relay-production-class",
+      "guest_registration_code": "100000",
+      "authenticated_search_code": "100000",
+      "search_count": 10,
+      "result": "accepted"
+    }
+  ],
+  "implementation": {
+    "module": "client/ssh_exec_socks.py",
+    "listen_scope": "compose network only",
+    "ssh_host_key_policy": "pinned known_hosts / RejectPolicy",
+    "ssh_channel": "session exec, not direct-tcpip",
+    "remote_artifact": "none; Python relay executes in memory",
+    "allowed_target_ports": [
+      80,
+      443
+    ],
+    "runtime_guest_refresh": true
+  },
+  "redaction": {
+    "credentials_in_artifact": false,
+    "nas_endpoint_in_artifact": false,
+    "raw_tokens_in_artifact": false
+  }
+}

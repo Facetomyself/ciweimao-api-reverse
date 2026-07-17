@@ -20,6 +20,7 @@
 4. 补齐同端口的 mitmproxy 与 `adb reverse` 后，CDN 连续返回 HTTP 200，ReaderActivity4 正常渲染正文。
 5. “未登录”并非完全匿名：App 首次启动会自动创建未绑定的游客账号，并在请求中携带游客 `account/login_token`。游客可读免费章，付费章仍由 `auth_access=0` 拒绝。
 6. 两次干净安装的 `auto_reg_v2` 独立样本使用同一固定预注册签名占位符，UUID 与最终游客账号均不同；现有 HMAC 和 AES 实现可直接完成注册、解密及随后搜索。
+7. ali-cloud 直连及两个 self-server SSH 端口均能注册游客，但业务接口统一返回 `320002`；NAS 住宅出口经 SSH exec relay 注册与搜索均成功，说明限制落在出口策略，而不是注册算法或 token 文件格式。
 
 ## 关键发现
 
@@ -58,6 +59,13 @@
 - **结论**：服务器必须从自己的 egress 创建游客，不能复制其他出口产生的 token；FastAPI 可在 lifespan 阶段自动完成该 bootstrap。
 - **置信度**：`high`
 
+### F-006：数据中心/专线出口被业务接口拒绝，NAS 住宅出口可用
+
+- **位置**：ali-cloud Compose egress A/B、`client/ssh_exec_socks.py`
+- **证据**：ali-cloud 直连、self-server 44001/44005 的 `auto_reg_v2` 均为 `100000`，但后续搜索/个人信息为 `320002`；同一协议经 NAS SSH exec relay 注册为 `100000`，搜索返回 10 本。
+- **结论**：部署不能仅追求“国内 IP”或“同出口注册”，还需要目标接受的住宅出口。NAS 无需开启 `direct-tcpip`；普通 session channel 内存 relay 已完成真实验证。
+- **置信度**：`high`
+
 ## 数据流
 
 ```text
@@ -85,6 +93,7 @@ App 首次启动
 - mitmproxy、logcat 监听与 `adb reverse` 已停止；项目实例的全部 global proxy 分项已手工清理。
 - 后续若再次启用代理，关闭时仍需完整删除 host、port、exclusion list 与 PAC，并重启 App 进程，不能只删除 `http_proxy`。
 - 已将游客注册复现为 `client/guest.py`，Docker 部署由 FastAPI lifespan 经项目专属 egress 校验或创建游客，凭据原子写入私有 token 文件。
+- ali-cloud 部署的 egress 已从无效的 self-server 动态 SOCKS 路径改为 NAS SSH exec relay；sidecar 仅在 Compose 私网监听并只允许 80/443。
 
 ## 脱敏说明
 

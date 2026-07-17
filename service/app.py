@@ -35,6 +35,8 @@ def create_app(settings: Settings | None = None,
         database = Database(active_settings.database_path)
         await database.initialize()
         service = service_factory(active_settings, database)
+        if hasattr(service, "set_credential_bootstrap"):
+            service.set_credential_bootstrap(credential_bootstrap)
         queue = PersistentTaskQueue(
             database,
             service.task_handlers,
@@ -100,6 +102,8 @@ def create_app(settings: Settings | None = None,
                     if request.app.state.credential_bootstrap_result
                     else None
                 ),
+                "runtime_refresh": bool(
+                    request.app.state.credential_bootstrap),
             },
         }
 
