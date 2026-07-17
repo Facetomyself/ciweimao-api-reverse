@@ -88,6 +88,11 @@ account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><
 
 可使用 App 自动创建的游客身份，无需绑定正式账号。`tokens.json` 只保存在本机并已排除 Git。
 
+FastAPI / Docker 部署可设置 `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED=1`。服务会在
+lifespan 启动阶段先通过当前 `CIWEIMAO_PROXY_URL` 校验凭据；文件缺失，或服务端
+返回 `200100` / `320002` 时，才调用 App 的 `auto_reg_v2` 创建新游客并以 `0600`
+权限原子写入 `CIWEIMAO_TOKEN_PATH`。queue 与 scheduler 只会在凭据可用后启动。
+
 从 Root 设备提取当前 App 身份：
 
 ```powershell
@@ -212,6 +217,7 @@ Invoke-RestMethod -Method Post `
 | `CIWEIMAO_DB_PATH` | `data/ciweimao.sqlite3` | SQLite 路径 |
 | `CIWEIMAO_OUTPUT_DIR` | `output_api/` | TXT 输出目录 |
 | `CIWEIMAO_TOKEN_PATH` | `tokens.json` | App 游客/登录凭据文件 |
+| `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED` | `0` | 启动时校验并按需创建当前出口绑定的游客身份 |
 | `CIWEIMAO_SCHEDULER_ENABLED` | `1` | 是否在当前进程启动 scheduler |
 | `CIWEIMAO_RANKING_INTERVAL_MINUTES` | `30` | 榜单同步周期 |
 | `CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES` | `10` | 新书同步周期 |
@@ -234,11 +240,15 @@ Invoke-RestMethod -Method Post `
 
 ```bash
 mkdir -p runtime/data runtime/output
-# runtime/app.env 写入 CIWEIMAO_LOGIN_TOKEN / ACCOUNT / DEVICE_TOKEN
 docker-compose -p ciweimao-api-reverse up -d --build
 ```
 
-Compose 固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 部署额外包含一个只对本 Compose network 开放的 SSH SOCKS egress sidecar，避免云厂商出口触发 App 的 `320002` 策略；不会改变宿主或其他容器路由。完整边界见 `docs/deployment-ali-cloud.md`。
+Compose 将游客凭据持久化为 `runtime/data/guest-tokens.json`，不再依赖人工复制的
+`runtime/app.env`。固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root
+filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 部署额外包含一个
+只对本 Compose network 开放的 SSH SOCKS egress sidecar，游客注册与后续 App API
+使用同一出口，避免跨出口复用 token 触发 `320002`；不会改变宿主或其他容器路由。
+完整边界见 `docs/deployment-ali-cloud.md`。
 
 ## 验证
 

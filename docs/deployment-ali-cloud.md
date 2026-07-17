@@ -13,7 +13,7 @@
 | 容器监听 | `0.0.0.0:8000` |
 | 数据目录 | `runtime/data/` |
 | 下载目录 | `runtime/output/` |
-| 运行凭据 | `runtime/app.env`，权限 `0600`，不入 Git |
+| 运行凭据 | `runtime/data/guest-tokens.json`，权限 `0600`，不入 Git |
 | SSH egress key | `runtime/ssh/id_rsa`，权限 `0600`，不入 Git/镜像 |
 
 服务不复用其他项目的 network、volume、container name 或公开端口。宿主的 80 端口由 1Panel 管理，本部署不修改 1Panel、Nginx、iptables、云安全组或宿主默认路由。
@@ -39,17 +39,26 @@ Egress sidecar 单独限制为 `0.15 CPU / 96 MiB / 64 PIDs`。
 
 ## 运行凭据
 
-`runtime/app.env` 只包含运行时变量：
+API 设置 `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED=1` 和
+`CIWEIMAO_TOKEN_PATH=/app/data/guest-tokens.json`。启动阶段先通过 Compose 私网内的
+`socks5://egress:1080` 校验已有游客；文件缺失，或服务端返回 `200100` / `320002`
+时，才调用 `auto_reg_v2` 创建与当前出口绑定的新游客。新凭据在容器内以 `0600`
+权限原子写入 bind mount，不进入环境变量、命令行、日志、镜像层或 Git。
 
-```dotenv
-CIWEIMAO_LOGIN_TOKEN=<local-secret>
-CIWEIMAO_ACCOUNT=<local-secret>
-CIWEIMAO_DEVICE_TOKEN=<local-secret>
-```
-
-文件由部署流程从本地忽略的 capture 内存提取后通过 SSH stdin 写入，不在命令行、日志、镜像层或 Git 中出现。
+旧版 `runtime/app.env` 不再被 Compose 读取，升级验证成功后应只删除本项目目录下的
+该陈旧文件，避免后续误用。
 
 `runtime/ssh/id_rsa` 使用 `ali-cloud-ssh` skill 已安装的同一身份，`known_hosts` 从已认证的 `self-server` 会话读取。两个文件均只读挂载到 egress sidecar，不复制进镜像层。
+
+启动顺序固定为：
+
+```text
+egress healthy
+  -> API lifespan 校验/创建游客
+  -> SQLite 初始化
+  -> queue worker 启动
+  -> scheduler 启动
+```
 
 ## Compose 操作
 
@@ -99,6 +108,7 @@ http://127.0.0.1:18086/health
 ## 持久化与备份
 
 - SQLite：`/opt/ciweimao-api-reverse/runtime/data/ciweimao.sqlite3`；
+- 游客凭据：`/opt/ciweimao-api-reverse/runtime/data/guest-tokens.json`；
 - TXT：`/opt/ciweimao-api-reverse/runtime/output/`；
 - Compose 重建不会删除这两个 bind mount 目录；
 - 备份 SQLite 前优先停止本项目，或使用 SQLite backup API，不直接复制活跃 WAL 文件组中的单个主库文件。

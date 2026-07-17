@@ -114,6 +114,33 @@
       "confidence": "high",
       "rebuild_status": "not_applicable",
       "rebuild_path": ""
+    },
+    {
+      "id": "F-005",
+      "category": "protocol",
+      "claim": "App 2.9.362 的游客身份可通过 auto_reg_v2 脱离 App 自动创建，且必须从后续请求使用的同一出口注册。",
+      "location": {
+        "file": "client/guest.py",
+        "class": "guest identity bootstrap",
+        "method": "/signup/auto_reg_v2",
+        "address": "",
+        "line": 0
+      },
+      "description": "两次干净安装使用同一预注册签名占位符，UUID 与最终游客账号不同；curl_cffi 注册、AES 解密和搜索门禁全部成功。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/anonymous-reader/evidence/guest-bootstrap-summary.json",
+        "value": "same preregistration account hash; signature 2/2; registration code=100000; follow-up search count=10"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "hash",
+        "raw_value_stored": true,
+        "notes": "原始 logcat 仅位于 gitignored work/；tracked evidence 只保存长度与 SHA-256 前缀。"
+      },
+      "confidence": "high",
+      "rebuild_status": "implemented",
+      "rebuild_path": "client/guest.py; service/credentials.py"
     }
   ],
   "triage_items": [

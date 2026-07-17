@@ -6,6 +6,7 @@ from fastapi import Body, FastAPI, HTTPException, Query, Request, status
 
 from .config import ConfigurationError, Settings
 from .core import CiweimaoService
+from .credentials import GuestCredentialBootstrapper
 from .database import Database
 from .queue import PersistentTaskQueue
 from .scheduler import build_scheduler, task_dedupe_key
@@ -18,10 +19,19 @@ from .schemas import (
 
 
 def create_app(settings: Settings | None = None,
-               service_factory=CiweimaoService) -> FastAPI:
+               service_factory=CiweimaoService,
+               credential_bootstrap_factory=(
+                   GuestCredentialBootstrapper)) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         active_settings = settings or Settings.from_env()
+        credential_bootstrap = None
+        credential_bootstrap_result = None
+        if active_settings.guest_bootstrap_enabled:
+            credential_bootstrap = credential_bootstrap_factory(
+                active_settings)
+            credential_bootstrap_result = (
+                await credential_bootstrap.ensure())
         database = Database(active_settings.database_path)
         await database.initialize()
         service = service_factory(active_settings, database)
@@ -37,6 +47,9 @@ def create_app(settings: Settings | None = None,
             scheduler.start()
 
         application.state.settings = active_settings
+        application.state.credential_bootstrap = credential_bootstrap
+        application.state.credential_bootstrap_result = (
+            credential_bootstrap_result)
         application.state.database = database
         application.state.service = service
         application.state.queue = queue
@@ -76,6 +89,18 @@ def create_app(settings: Settings | None = None,
                 "running": bool(scheduler and scheduler.running),
             },
             "credentials_configured": settings_.credentials_configured(),
+            "guest_bootstrap": {
+                "enabled": settings_.guest_bootstrap_enabled,
+                "created": bool(
+                    request.app.state.credential_bootstrap_result
+                    and request.app.state.credential_bootstrap_result.created
+                ),
+                "source": (
+                    request.app.state.credential_bootstrap_result.source
+                    if request.app.state.credential_bootstrap_result
+                    else None
+                ),
+            },
         }
 
     @application.get("/api/books/search")

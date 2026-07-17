@@ -82,13 +82,13 @@ services:
     depends_on:
       egress:
         condition: service_healthy
-    env_file:
-      - ./runtime/app.env
     environment:
       CIWEIMAO_HOST: 0.0.0.0
       CIWEIMAO_PORT: "8000"
       CIWEIMAO_DB_PATH: /app/data/ciweimao.sqlite3
+      CIWEIMAO_TOKEN_PATH: /app/data/guest-tokens.json
       CIWEIMAO_OUTPUT_DIR: /app/output_api
+      CIWEIMAO_GUEST_BOOTSTRAP_ENABLED: "1"
       CIWEIMAO_SCHEDULER_ENABLED: "1"
       CIWEIMAO_QUEUE_WORKERS: "1"
       CIWEIMAO_PROXY_URL: socks5://egress:1080

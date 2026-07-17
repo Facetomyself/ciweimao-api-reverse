@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
+import secrets
 
 from client import config as client_config
 
@@ -50,6 +51,7 @@ class Settings:
     database_path: Path
     output_dir: Path
     token_path: Path
+    guest_bootstrap_enabled: bool = False
     scheduler_enabled: bool = True
     scheduler_timezone: str = "Asia/Shanghai"
     ranking_interval_minutes: int = 30
@@ -82,6 +84,8 @@ class Settings:
                 "CIWEIMAO_TOKEN_PATH",
                 str(PROJECT_ROOT / "tokens.json"),
             )).expanduser().resolve(),
+            guest_bootstrap_enabled=_env_bool(
+                "CIWEIMAO_GUEST_BOOTSTRAP_ENABLED", False),
             scheduler_enabled=_env_bool(
                 "CIWEIMAO_SCHEDULER_ENABLED", True),
             scheduler_timezone=os.getenv(
@@ -110,12 +114,14 @@ class Settings:
                 "CIWEIMAO_CHAPTER_DELAY", 0.05, 0),
         )
 
-    def credentials_configured(self) -> bool:
-        env_ready = bool(
+    def env_credentials_configured(self) -> bool:
+        return bool(
             os.getenv("CIWEIMAO_LOGIN_TOKEN")
             and os.getenv("CIWEIMAO_ACCOUNT")
         )
-        return env_ready or self.token_path.is_file()
+
+    def credentials_configured(self) -> bool:
+        return self.env_credentials_configured() or self.token_path.is_file()
 
     def load_credentials(self) -> Credentials:
         login_token = os.getenv("CIWEIMAO_LOGIN_TOKEN", "").strip()
@@ -142,3 +148,41 @@ class Settings:
             device_token=(device_token
                           or client_config.DEVICE_TOKEN_PREFIX),
         )
+
+    def save_credentials(self, credentials: Credentials,
+                         *, reader_id: str = "") -> None:
+        """以 0600 权限原子写入凭据文件。"""
+        self.token_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "login_token": credentials.login_token,
+            "account": credentials.account,
+            "device_token": credentials.device_token,
+        }
+        if reader_id:
+            payload["reader_id"] = str(reader_id)
+        text = json.dumps(
+            payload, ensure_ascii=False, separators=(",", ":")) + "\n"
+        temp_path = self.token_path.with_name(
+            f".{self.token_path.name}.{os.getpid()}."
+            f"{secrets.token_hex(4)}.tmp"
+        )
+        descriptor = None
+        try:
+            descriptor = os.open(
+                temp_path,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+            )
+            with os.fdopen(
+                    descriptor, "w", encoding="utf-8", newline="\n") as handle:
+                descriptor = None
+                handle.write(text)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_path, self.token_path)
+            os.chmod(self.token_path, 0o600)
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+            if temp_path.exists():
+                temp_path.unlink()

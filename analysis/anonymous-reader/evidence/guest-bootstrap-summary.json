@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-07-17T23:13:06+08:00",
+  "app_version": "2.9.362",
+  "endpoint": "/signup/auto_reg_v2",
+  "sample_count": 2,
+  "samples": [
+    {
+      "source": "analysis/anonymous-reader/work/guest-auto-reg-splash.log (gitignored)",
+      "pre_registration_account": {
+        "length": 6,
+        "sha256_prefix": "b4352460",
+        "ascii": true
+      },
+      "device_token": {
+        "length": 9,
+        "sha256_prefix": "79f5d9c1"
+      },
+      "uuid": {
+        "length": 43,
+        "sha256_prefix": "7bec7afd"
+      },
+      "signature_recomputed": true,
+      "response_code": "100000",
+      "result_account": {
+        "length": 9,
+        "sha256_prefix": "c453c3b0"
+      },
+      "is_bind": "0"
+    },
+    {
+      "source": "analysis/anonymous-reader/work/guest-auto-reg-second.log (gitignored)",
+      "pre_registration_account": {
+        "length": 6,
+        "sha256_prefix": "b4352460",
+        "ascii": true
+      },
+      "device_token": {
+        "length": 9,
+        "sha256_prefix": "79f5d9c1"
+      },
+      "uuid": {
+        "length": 43,
+        "sha256_prefix": "7e893811"
+      },
+      "signature_recomputed": true,
+      "response_code": "100000",
+      "result_account": {
+        "length": 9,
+        "sha256_prefix": "2236a1d7"
+      },
+      "is_bind": "0"
+    }
+  ],
+  "comparison": {
+    "same_pre_registration_account": true,
+    "different_uuid": true,
+    "different_result_account": true,
+    "signature_matches": "2/2"
+  },
+  "direct_protocol_probe": {
+    "transport": "curl_cffi.AsyncSession",
+    "http_status": 200,
+    "encrypted_body_length": 1472,
+    "decrypted_code": "100000",
+    "login_token_length": 32,
+    "result_account_length": 9,
+    "is_bind": "0",
+    "followup_search_count": 10
+  },
+  "redaction": {
+    "raw_credentials_in_artifact": false,
+    "method": "length + sha256 prefix only"
+  }
+}

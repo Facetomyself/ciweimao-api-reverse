@@ -32,12 +32,14 @@ APScheduler
 
 - `api.Session`：同步 `curl_cffi` 会话，兼容原 CLI；
 - `api.AsyncSession`：FastAPI、worker 和 scheduler 任务使用的异步会话；
+- `guest.py`：复现 App `auto_reg_v2`，创建与当前网络出口绑定的游客身份；
 - `async_downloader`：章节有界并发、免费章过滤、TXT 原子落盘；
 - 签名、AES response 解密、章节解密与 CDN 解码继续复用现有协议模块。
 
 ### `service`
 
 - `config.py`：无密钥配置与凭据惰性加载；
+- `credentials.py`：lifespan 前置凭据校验、游客自举和 `0600` 原子落盘；
 - `database.py`：SQLite schema 和 repository；
 - `queue.py`：任务恢复、claim、执行和状态迁移；
 - `core.py`：搜索、按书名下载、榜单、新书业务 handler；
@@ -158,7 +160,8 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 | 同任务重复触发 | active partial unique index 返回已有任务 |
 | TXT 写入中断 | 仅遗留 `.part`，不会覆盖成功文件；finally 清理临时文件 |
 | Scheduler 暂停多周期 | `coalesce=True` 合并错过的执行 |
-| 凭据更新 | 下个任务重新读取 env 或 `tokens.json`，无需重启服务 |
+| 凭据缺失/跨出口失效 | lifespan 经当前 proxy 校验，按需注册游客后才启动队列与 scheduler |
+| 凭据文件更新 | 下个任务重新读取 `tokens.json`，无需重启服务 |
 
 ## 迁移 PostgreSQL 的边界
 

@@ -19,6 +19,7 @@
 3. App 随后的 CDN GET 被导向 `127.0.0.1:8083`，但当时没有 `adb reverse` 和 mitmproxy 监听，最终 `ECONNREFUSED`。
 4. 补齐同端口的 mitmproxy 与 `adb reverse` 后，CDN 连续返回 HTTP 200，ReaderActivity4 正常渲染正文。
 5. “未登录”并非完全匿名：App 首次启动会自动创建未绑定的游客账号，并在请求中携带游客 `account/login_token`。游客可读免费章，付费章仍由 `auth_access=0` 拒绝。
+6. 两次干净安装的 `auto_reg_v2` 独立样本使用同一固定预注册签名占位符，UUID 与最终游客账号均不同；现有 HMAC 和 AES 实现可直接完成注册、解密及随后搜索。
 
 ## 关键发现
 
@@ -50,11 +51,18 @@
 - **结论**：完成同进程、同章节链路的 A/B 验证。
 - **置信度**：`high`
 
+### F-005：游客身份可脱离 App 自动创建
+
+- **位置**：`/signup/auto_reg_v2`、`client/guest.py`
+- **证据**：两次干净安装的预注册占位符长度/hash 一致，UUID 与最终游客账号不同；`2/2` 请求签名重算一致。纯 `curl_cffi` 请求返回 HTTP 200，完整响应经当前 AES key 解密为 `code=100000`，随后搜索返回 10 本。
+- **结论**：服务器必须从自己的 egress 创建游客，不能复制其他出口产生的 token；FastAPI 可在 lifespan 阶段自动完成该 bootstrap。
+- **置信度**：`high`
+
 ## 数据流
 
 ```text
 App 首次启动
-  -> 自动创建游客 reader identity
+  -> /signup/auto_reg_v2 创建游客 reader identity
   -> 榜单 / 评论 / 搜索类业务 API
 
 进入免费章节
@@ -76,6 +84,7 @@ App 首次启动
 - 本轮操作抓包已完成，Flow 和 logcat 已归档到本地 `captures/`。
 - mitmproxy、logcat 监听与 `adb reverse` 已停止；项目实例的全部 global proxy 分项已手工清理。
 - 后续若再次启用代理，关闭时仍需完整删除 host、port、exclusion list 与 PAC，并重启 App 进程，不能只删除 `http_proxy`。
+- 已将游客注册复现为 `client/guest.py`，Docker 部署由 FastAPI lifespan 经项目专属 egress 校验或创建游客，凭据原子写入私有 token 文件。
 
 ## 脱敏说明
 
@@ -86,4 +95,5 @@ App 首次启动
 
 1. 修正 LDPlayer `proxy-off` 的完整清理逻辑，并清理模板残留代理状态。
 2. 搜索、全站书目分页、免费章边界和 2.9.362 新响应解密结论见 `analysis/app-workflow/`。
-3. 下载格式能力不再作为本轮逆向目标；后续只有遇到新 App 版本协议变化时再定向复核。
+3. 游客 bootstrap 已恢复；后续只有新 App 版本改变注册字段、签名或响应 key 时再定向复核。
+4. 下载格式能力不再作为本轮逆向目标。
