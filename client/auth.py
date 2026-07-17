@@ -11,7 +11,8 @@ Token 刷新：
 """
 
 import json
-import requests
+from curl_cffi.requests import Session as CurlSession
+
 from . import crypto
 from . import config
 
@@ -40,18 +41,17 @@ class AuthManager:
         }
 
         url = f"{config.LEGACY_BASE_URL}/signup/login"
-        resp = requests.post(
-            url,
-            data=params,
-            headers={
-                "User-Agent": (
-                    "Android com.kuangxiangciweimao.novel "
-                    f"{config.LEGACY_APP_VERSION}"
-                ),
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            timeout=15,
-        )
+        session = CurlSession(headers={
+            "User-Agent": (
+                "Android com.kuangxiangciweimao.novel "
+                f"{config.LEGACY_APP_VERSION}"
+            ),
+            "Content-Type": "application/x-www-form-urlencoded",
+        })
+        try:
+            resp = session.post(url, data=params, timeout=15)
+        finally:
+            session.close()
 
         if resp.status_code != 200:
             print(f"[ERR] 登录 HTTP {resp.status_code}: {resp.text[:200]}")

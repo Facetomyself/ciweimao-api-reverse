@@ -12,6 +12,7 @@ from unittest.mock import Mock
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 
 from client.api import ApiError, Session
 from client import config, content, crypto, downloader, protocol
@@ -149,6 +150,25 @@ class ProtocolTests(unittest.TestCase):
             "RTemA7/IKa4GppnByNkaz0tVeAk1Cn8LnSM5NZ993Qc=",
             call.kwargs["data"]["p"],
         )
+
+    def test_sync_session_retries_transient_connection_error(self):
+        session = Session(
+            login_token="token",
+            account="fixture-account",
+            rand_factory=lambda: "10072263a65a4345",
+            max_retries=1,
+            retry_backoff=0,
+        )
+        response = Mock(status_code=200, text=CURRENT_RESPONSE_SAMPLE)
+        session._session = Mock()
+        session._session.post.side_effect = [
+            CurlConnectionError("connection reset", 56), response,
+        ]
+
+        command = session.get_chapter_command("113769038")
+
+        self.assertEqual("7dc685cb3c7116e05b99081d52cc42b1", command)
+        self.assertEqual(2, session._session.post.call_count)
 
 
 class ContentTests(unittest.TestCase):

@@ -5,10 +5,12 @@
 本仓当前只负责：
 
 - 复现 App 2.9.362 的请求签名与响应解密；
+- 使用 `curl_cffi` 提供同步 CLI 与异步服务两套会话；
 - 按关键词从第 0 页开始搜索并按 `book_id` 去重；
 - 从书城入口按更新时间连续遍历书籍；
 - 一次请求获取整本分卷与章节目录；
-- 仅处理 `is_paid=0` 且 `auth_access=1` 的免费可读章节。
+- 仅处理 `is_paid=0` 且 `auth_access=1` 的免费可读章节；
+- 通过 FastAPI、SQLite durable queue 和 APScheduler 主动同步榜单与新书。
 
 TXT / EPUB、插图和 App 本地缓存等既有下载格式能力不在本轮重复逆向；本仓的抓取命令只复用现有 TXT 落盘链。
 
@@ -79,7 +81,7 @@ account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><
 只使用 `D:\reverse_ENV` 项目环境：
 
 ```powershell
-& "D:\reverse_ENV\.venv\Scripts\python.exe" -m pip install requests pycryptodome
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m pip install -r "D:\reverse_ENV\workspace\ciweimao-api-reverse\requirements.txt"
 ```
 
 ## 凭据
@@ -133,10 +135,102 @@ account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><
 & "D:\reverse_ENV\.venv\Scripts\python.exe" -m client download-all
 ```
 
+## FastAPI 服务
+
+启动入口固定为单 worker：
+
+```powershell
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m service
+
+# 等价方式；不要把 workers 改成大于 1
+& "D:\reverse_ENV\.venv\Scripts\uvicorn.exe" service.app:app --host 127.0.0.1 --port 8000 --workers 1
+```
+
+Swagger UI：`http://127.0.0.1:8000/docs`。
+
+常用接口：
+
+| Method | Path | 用途 |
+|---|---|---|
+| `GET` | `/health` | 数据库、队列、调度器与凭据配置状态 |
+| `GET` | `/api/books/search?q=书名` | 直接异步搜索并更新书籍索引 |
+| `POST` | `/api/downloads/by-name` | 按书名投递免费章节 TXT 下载任务 |
+| `POST` | `/api/sync/rankings` | 手动投递榜单同步任务 |
+| `POST` | `/api/sync/new-books` | 手动投递新书同步任务 |
+| `GET` | `/api/tasks` | 查询任务列表 |
+| `GET` | `/api/tasks/{task_id}` | 查询任务状态与结果 |
+| `GET` | `/api/rankings/latest` | 获取各榜单最新快照 |
+| `GET` | `/api/new-books/latest` | 获取最新新书快照 |
+| `GET` | `/api/scheduler/jobs` | 查看下次调度时间 |
+
+按书名下载示例：
+
+```powershell
+$body = @{
+  book_name = "目标书名"
+  author_name = "作者名"
+  exact_match = $true
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method Post `
+  -Uri "http://127.0.0.1:8000/api/downloads/by-name" `
+  -ContentType "application/json" -Body $body
+```
+
+接口返回 `202` 和任务 ID。实际搜索、目录抓取、免费章下载、文件校验与数据库登记均由 worker 异步完成。
+
+### 定时任务
+
+- 榜单默认每 30 分钟投递一次；
+- 新书默认每 10 分钟投递一次；
+- `coalesce=True`、`max_instances=1`；
+- Scheduler 不直接访问 App API，只向持久化队列投递任务；
+- 相同 payload 的 `queued/running` 任务通过 `dedupe_key` 合并。
+
+默认同步 13 个 App 榜单组合，包括 `fans_value` 周/月/总榜，以及点击、月票、字数、追读、完本、刀片、新书月票、推荐、间贴和收藏榜。榜单请求按顺序执行，不会一次性高并发打向同一 host。
+
+### 数据存储
+
+默认数据库：`data/ciweimao.sqlite3`，运行时启用 SQLite WAL。默认下载目录：`output_api/`。
+
+| 表 | 内容 |
+|---|---|
+| `tasks` | durable queue、payload、去重键、状态、尝试次数、结果和错误 |
+| `books` | 书籍当前索引及原始 App JSON |
+| `snapshots` | 榜单或新书的一次抓取批次 |
+| `observations` | 快照内书籍位置和当次原始数据 |
+| `downloads` | 下载任务、文件路径、大小和 SHA-256 |
+
+正文文件放文件系统，SQLite 只存元数据与校验值，避免把大段文本塞进单库。仓储操作封装在 `service/database.py`，后续切 PostgreSQL 时业务 handler 和 API 路由无需改写。
+
+完整架构与扩容边界见 `docs/architecture.md`。
+
+### 配置
+
+| 环境变量 | 默认值 | 说明 |
+|---|---|---|
+| `CIWEIMAO_DB_PATH` | `data/ciweimao.sqlite3` | SQLite 路径 |
+| `CIWEIMAO_OUTPUT_DIR` | `output_api/` | TXT 输出目录 |
+| `CIWEIMAO_TOKEN_PATH` | `tokens.json` | App 游客/登录凭据文件 |
+| `CIWEIMAO_SCHEDULER_ENABLED` | `1` | 是否在当前进程启动 scheduler |
+| `CIWEIMAO_RANKING_INTERVAL_MINUTES` | `30` | 榜单同步周期 |
+| `CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES` | `10` | 新书同步周期 |
+| `CIWEIMAO_QUEUE_WORKERS` | `1` | 任务 worker 数；默认串行避免同 host 任务互相干扰 |
+| `CIWEIMAO_HTTP_MAX_CLIENTS` | `5` | 单个 `curl_cffi.AsyncSession` 连接上限 |
+| `CIWEIMAO_HTTP_MAX_RETRIES` | `2` | 连接断开/超时后的有限重试次数 |
+| `CIWEIMAO_HTTP_RETRY_BACKOFF` | `0.25` | 指数退避基数（秒） |
+| `CIWEIMAO_HTTP_TRANSIENT_API_RETRIES` | `1` | App 临时业务码 `320002` 重试次数 |
+| `CIWEIMAO_LIST_REQUEST_DELAY` | `0.25` | 列表页/榜单规格之间的间隔（秒） |
+| `CIWEIMAO_CHAPTER_CONCURRENCY` | `3` | 单本书章节有界并发数 |
+
+也可通过 `CIWEIMAO_LOGIN_TOKEN`、`CIWEIMAO_ACCOUNT` 和 `CIWEIMAO_DEVICE_TOKEN` 注入凭据；这些值不会写入数据库或接口响应。
+
+同一进程内 Scheduler 与 API 共存时必须使用 `--workers 1`。如果部署多个 API replica，只允许一个实例设置 `CIWEIMAO_SCHEDULER_ENABLED=1`，其余设为 `0`；再往上扩容时应拆独立 scheduler/worker 进程并将 SQLite repository 替换为 PostgreSQL。
+
 ## 验证
 
 ```powershell
-& "D:\reverse_ENV\.venv\Scripts\python.exe" -m compileall -q client test_client.py smoke_test.py
+& "D:\reverse_ENV\.venv\Scripts\python.exe" -m compileall -q .
 & "D:\reverse_ENV\.venv\Scripts\python.exe" -m unittest -v
 ```
 
@@ -144,3 +238,4 @@ account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><
 
 - `analysis/anonymous-reader/`
 - `analysis/app-workflow/`
+- `analysis/service-architecture/`

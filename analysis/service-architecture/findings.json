@@ -1,0 +1,160 @@
+{
+  "_schema": "reverse-coordinator-findings-v1",
+  "target": {
+    "path": "D:/reverse_ENV/workspace/ciweimao-api-reverse",
+    "type": "python-app-api-collector",
+    "arch": "portable"
+  },
+  "analysis_depth": "L1",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "network",
+      "claim": "同步 CLI 与异步服务可共享同一 App 签名和响应解密协议层。",
+      "location": {
+        "file": "client/api.py",
+        "class": "_ProtocolMixin",
+        "method": "_request_params/_decode_response",
+        "address": "",
+        "line": 24
+      },
+      "description": "curl_cffi Session 与 AsyncSession 只负责 I/O，App 协议参数和解密逻辑保持单一实现。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "test_client.py; test_async_client.py",
+        "value": "同步与异步离线回归均通过"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "synthetic",
+        "raw_value_stored": false,
+        "notes": "测试凭据为 synthetic fixture"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-002",
+      "category": "logic",
+      "claim": "SQLite tasks 表是 durable queue 的事实源，运行中任务可在重启后恢复。",
+      "location": {
+        "file": "service/database.py",
+        "class": "Database",
+        "method": "reset_running_tasks/claim_task",
+        "address": "",
+        "line": 260
+      },
+      "description": "asyncio.Queue 仅作唤醒；状态、payload、结果、错误和去重键均持久化。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "test_service_storage.py::test_active_dedupe_and_restart_recovery",
+        "value": "running -> queued 恢复与 active dedupe 通过"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "不含敏感值"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "service/database.py; service/queue.py"
+    },
+    {
+      "id": "F-003",
+      "category": "logic",
+      "claim": "榜单和新书使用 append-only snapshots/observations 保存历史位置。",
+      "location": {
+        "file": "service/database.py",
+        "class": "Database",
+        "method": "create_snapshot",
+        "address": "",
+        "line": 430
+      },
+      "description": "books 负责当前索引，observations 负责每次抓取顺序，避免 upsert 覆盖历史。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "test_service_storage.py::test_snapshot_round_trip",
+        "value": "快照 item_count 与 position round-trip 通过"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "测试书籍为 synthetic fixture"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "service/database.py"
+    },
+    {
+      "id": "F-004",
+      "category": "config",
+      "claim": "APScheduler 只投递任务，手动与定时入口共享 handler 和 payload 去重。",
+      "location": {
+        "file": "service/scheduler.py",
+        "class": "",
+        "method": "build_scheduler",
+        "address": "",
+        "line": 24
+      },
+      "description": "默认两个 interval job，均调用 PersistentTaskQueue.submit。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "test_service_app.py::test_http_queue_and_scheduler_lifecycle",
+        "value": "FastAPI lifespan 中 scheduler jobs=2，HTTP 任务执行成功"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "不含敏感值"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "service/scheduler.py; service/app.py"
+    },
+    {
+      "id": "F-005",
+      "category": "network",
+      "claim": "搜索页、榜单规格和新书页使用独立 curl_cffi AsyncSession 可避开同连接池连续列表请求的临时码 320002。",
+      "location": {
+        "file": "service/core.py",
+        "class": "CiweimaoService",
+        "method": "search_books/handle_sync_rankings/handle_sync_new_books",
+        "address": "",
+        "line": 75
+      },
+      "description": "同 session 混跑三类列表可持续收到 320002；短 session 策略下真实搜索、榜单、新书及 SQLite 快照门禁通过。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/service-architecture/real-gate.json; captures/app_actions_20260717_160554.log",
+        "value": "search=10, ranking=10, new_books=100, snapshots=10/100, journal_mode=wal"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "凭据仅在内存提取；证据只保留数量和策略"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "service/core.py"
+    }
+  ],
+  "triage_items": [
+    {
+      "id": "T-001",
+      "description": "多 Uvicorn worker 会各自启动 scheduler，当前部署必须保持单 worker。",
+      "severity": "medium",
+      "reason": "APScheduler 3.x 使用进程内 job store，未提供跨进程 leader election。",
+      "suggested_next": "多 replica 时只启一个 scheduler；多 worker 扩容前切 PostgreSQL/独立 broker。"
+    }
+  ],
+  "session": {
+    "started": "2026-07-17",
+    "skills_used": ["protocol-recovery", "search-layer", "github-solution-research"],
+    "mcp_tools_called": []
+  }
+}

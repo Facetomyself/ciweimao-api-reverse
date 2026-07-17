@@ -1,0 +1,33 @@
+{
+  "tested_at": "2026-07-17",
+  "protocol_version": "2.9.362",
+  "credential_source": "ignored local capture; extracted in memory only",
+  "credential_values_persisted": false,
+  "strategy": "independent curl_cffi AsyncSession per search page, ranking spec and new-books page",
+  "checks": {
+    "search_page": {
+      "keyword": "方舟",
+      "page": 0,
+      "count": 10,
+      "received": 10
+    },
+    "ranking": {
+      "source_key": "fans_value:week",
+      "page": 0,
+      "count": 10,
+      "received": 10,
+      "snapshot_items": 10
+    },
+    "new_books": {
+      "order": "newtime",
+      "page": 0,
+      "count": 100,
+      "received": 100,
+      "snapshot_items": 100
+    },
+    "database": {
+      "journal_mode": "wal"
+    }
+  },
+  "result": "passed"
+}

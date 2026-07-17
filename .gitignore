@@ -5,6 +5,11 @@ tokens.json
 output/
 output_api/
 
+# 服务运行数据
+data/
+*.sqlite3-wal
+*.sqlite3-shm
+
 # 逆向原始材料（仅本机留存）
 captures/
 analysis/**/input/
