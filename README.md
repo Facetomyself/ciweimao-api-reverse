@@ -227,6 +227,18 @@ Invoke-RestMethod -Method Post `
 
 同一进程内 Scheduler 与 API 共存时必须使用 `--workers 1`。如果部署多个 API replica，只允许一个实例设置 `CIWEIMAO_SCHEDULER_ENABLED=1`，其余设为 `0`；再往上扩容时应拆独立 scheduler/worker 进程并将 SQLite repository 替换为 PostgreSQL。
 
+## Docker Compose
+
+仓库提供 `Dockerfile` 与 `compose.yaml`。默认以独立 project `ciweimao-api-reverse` 运行，只绑定宿主 `127.0.0.1:18086`，数据与下载文件分别持久化到 `runtime/data/` 和 `runtime/output/`。
+
+```bash
+mkdir -p runtime/data runtime/output
+# runtime/app.env 写入 CIWEIMAO_LOGIN_TOKEN / ACCOUNT / DEVICE_TOKEN
+docker-compose -p ciweimao-api-reverse up -d --build
+```
+
+Compose 固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 的部署边界与运维命令见 `docs/deployment-ali-cloud.md`。
+
 ## 验证
 
 ```powershell
