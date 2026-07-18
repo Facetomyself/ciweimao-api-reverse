@@ -39,9 +39,10 @@ class FakeKdlClient:
         self.auth_calls = 0
         self.dps_calls = 0
 
-    def get_proxy_authorization(self, plain_text=0):
+    def get_proxy_authorization(self, plain_text=0, sign_type="token"):
         self.auth_calls += 1
         self.assert_plain_text = plain_text
+        self.auth_sign_type = sign_type
         return {"username": "u name", "password": "p@ss"}
 
     def get_dps(self, **kwargs):
@@ -120,8 +121,10 @@ class ProxyLeaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual("http://u%20name:p%40ss@1.2.3.4:5678", proxy_url)
         self.assertEqual(1, client.auth_calls)
         self.assertEqual(1, client.dps_calls)
+        self.assertEqual("hmacsha1", client.auth_sign_type)
         self.assertEqual(1, client.kwargs["num"])
         self.assertEqual(1, client.kwargs["pt"])
+        self.assertEqual("hmacsha1", client.kwargs["sign_type"])
 
 
 if __name__ == "__main__":

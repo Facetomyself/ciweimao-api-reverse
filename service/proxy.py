@@ -145,7 +145,10 @@ class KuaidailiDpsProvider:
             return self._authorization
 
         try:
-            payload = client.get_proxy_authorization(plain_text=1)
+            payload = client.get_proxy_authorization(
+                plain_text=1,
+                sign_type="hmacsha1",
+            )
         except Exception as exc:
             if self._auth_mode == "required":
                 raise ProxyAcquisitionError(
@@ -196,7 +199,7 @@ class KuaidailiDpsProvider:
         params = {
             "num": 1,
             "format": "json",
-            "sign_type": "token",
+            "sign_type": "hmacsha1",
             "pt": 1,
         }
         if self._area:
