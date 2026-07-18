@@ -250,6 +250,7 @@ mkdir -p runtime/data runtime/output runtime/secrets
 # 将订单级 SecretId / SecretKey 分别写入下列 0600 文件
 install -m 600 /dev/null runtime/secrets/kdl_secret_id
 install -m 600 /dev/null runtime/secrets/kdl_secret_key
+chown 10001:10001 runtime/secrets/kdl_secret_id runtime/secrets/kdl_secret_key
 docker-compose -p ciweimao-api-reverse up -d --build
 ```
 

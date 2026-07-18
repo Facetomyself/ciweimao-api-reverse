@@ -57,9 +57,11 @@ FastAPI / queue worker
 install -d -m 700 runtime/secrets
 install -m 600 /dev/null runtime/secrets/kdl_secret_id
 install -m 600 /dev/null runtime/secrets/kdl_secret_key
+chown 10001:10001 runtime/secrets/kdl_secret_id runtime/secrets/kdl_secret_key
 ```
 
-将订单级 `SecretId` 和 `SecretKey` 分别写入上述文件。Compose 通过
+将订单级 `SecretId` 和 `SecretKey` 分别写入上述文件，保持容器 uid `10001` 所有、
+权限 `0600`。Compose 通过
 `KDL_SECRET_ID_FILE` / `KDL_SECRET_KEY_FILE` 挂载到 `/run/secrets/`。代理用户名和
 密码默认在第一次实际提取前通过 `GetProxyAuthorization` 获取；该调用不启动 DPS
 有效期。生产 Compose 使用 `required`，鉴权信息取不到就不会调用 `GetDPS`，避免浪费
