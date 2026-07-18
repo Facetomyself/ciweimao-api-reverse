@@ -6,6 +6,7 @@ import asyncio
 from dataclasses import dataclass, field
 import ipaddress
 import logging
+import re
 import time
 from typing import Callable, Protocol
 from urllib.parse import quote
@@ -23,10 +24,30 @@ from .config import ConfigurationError, Settings
 
 
 LOGGER = logging.getLogger(__name__)
+_PROXY_AUTH_PATTERN = re.compile(
+    r"(?P<scheme>(?:https?|socks5h?)://)[^\s/@:]+(?::[^\s/@]*)?@",
+    re.IGNORECASE,
+)
+_SECRET_FIELD_PATTERN = re.compile(
+    r"(?i)\b(secret_?id|secret_?key|login_token|device_token)"
+    r"(?P<separator>\s*[=:]\s*)[^\s,;&]+"
+)
 
 
 class ProxyAcquisitionError(RuntimeError):
     """代理供应商没有返回可用租约。"""
+
+
+def redact_error_text(value: object) -> str:
+    """删除错误文本中的代理账密和常见身份字段。"""
+    text = str(value)
+    text = _PROXY_AUTH_PATTERN.sub(
+        lambda match: f"{match.group('scheme')}***:***@", text)
+    return _SECRET_FIELD_PATTERN.sub(
+        lambda match: (
+            f"{match.group(1)}{match.group('separator')}***"),
+        text,
+    )
 
 
 class ProxyProvider(Protocol):

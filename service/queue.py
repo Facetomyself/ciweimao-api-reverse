@@ -5,6 +5,7 @@ import logging
 from typing import Awaitable, Callable
 
 from .database import Database
+from .proxy import redact_error_text
 
 
 TaskHandler = Callable[[dict, str], Awaitable[dict | None]]
@@ -88,7 +89,14 @@ class PersistentTaskQueue:
                 raise
             except Exception as exc:
                 if claimed:
-                    await self.database.fail_task(task_id, str(exc))
-                logger.exception("任务执行失败: task_id=%s", task_id)
+                    safe_error = redact_error_text(exc)
+                    await self.database.fail_task(task_id, safe_error)
+                else:
+                    safe_error = redact_error_text(exc)
+                logger.error(
+                    "任务执行失败: task_id=%s error=%s",
+                    task_id,
+                    safe_error,
+                )
             finally:
                 self._queue.task_done()

@@ -12,6 +12,7 @@ from .credentials import (
 )
 from .database import Database
 from .queue import PersistentTaskQueue
+from .proxy import redact_error_text
 from .scheduler import build_scheduler, task_dedupe_key
 from .schemas import (
     DownloadByNameRequest,
@@ -143,7 +144,10 @@ def create_app(settings: Settings | None = None,
         except ConfigurationError as exc:
             raise HTTPException(status_code=503, detail=str(exc)) from exc
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=502,
+                detail=redact_error_text(exc),
+            ) from exc
         return {"query": q, "count": len(books), "books": books}
 
     @application.post(

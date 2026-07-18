@@ -3,7 +3,11 @@
 import asyncio
 import unittest
 
-from service.proxy import KuaidailiDpsProvider, ProxyLeaseManager
+from service.proxy import (
+    KuaidailiDpsProvider,
+    ProxyLeaseManager,
+    redact_error_text,
+)
 
 
 class FakeClock:
@@ -47,6 +51,17 @@ class FakeKdlClient:
 
 
 class ProxyLeaseTests(unittest.IsolatedAsyncioTestCase):
+    async def test_error_text_redacts_proxy_auth_and_tokens(self):
+        text = redact_error_text(
+            "proxy=http://user:p%40ss@1.2.3.4:8000 "
+            "secret_key=abc123 login_token: token-value")
+
+        self.assertNotIn("user", text)
+        self.assertNotIn("p%40ss", text)
+        self.assertNotIn("abc123", text)
+        self.assertNotIn("token-value", text)
+        self.assertIn("http://***:***@1.2.3.4:8000", text)
+
     async def test_lazy_reuse_force_refresh_and_expiry(self):
         clock = FakeClock()
         provider = FakeProvider()
