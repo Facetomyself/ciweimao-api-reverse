@@ -2,11 +2,14 @@
 
 from contextlib import asynccontextmanager
 import asyncio
+from datetime import datetime, timedelta, timezone
 import hashlib
 from pathlib import Path
+from typing import Awaitable, Callable
 
 from client import async_downloader, config as client_config
 from client.api import AsyncSession
+from client.downloader import NoDownloadableChapters
 
 from .config import ConfigurationError, Settings
 from .credentials import (
@@ -19,13 +22,18 @@ from .proxy import (
     ProxyLeaseManager,
     build_proxy_manager,
     is_proxy_failure_error,
+    redact_error_text,
 )
 from .schemas import (
+    DownloadBookRequest,
     DownloadByNameRequest,
     SyncAllRequest,
     SyncNewBooksRequest,
     SyncRankingsRequest,
 )
+
+
+TaskSubmitter = Callable[[str, dict, str | None], Awaitable[dict]]
 
 
 class BookNotFoundError(RuntimeError):
@@ -45,6 +53,14 @@ def _file_digest(path: str) -> tuple[int, str]:
     return target.stat().st_size, digest.hexdigest()
 
 
+def _utc_after(*, minutes: int = 0, hours: int = 0) -> str:
+    value = datetime.now(timezone.utc) + timedelta(
+        minutes=max(0, int(minutes)),
+        hours=max(0, int(hours)),
+    )
+    return value.isoformat(timespec="milliseconds")
+
+
 class CiweimaoService:
     def __init__(self, settings: Settings, database: Database,
                  session_factory=AsyncSession,
@@ -55,6 +71,7 @@ class CiweimaoService:
         self.session_factory = session_factory
         self.credential_bootstrap = credential_bootstrap
         self.proxy_manager = proxy_manager or build_proxy_manager(settings)
+        self._task_submitter: TaskSubmitter | None = None
         # 游客身份与出口相关，所有 App 网络工作流必须串行切换租约。
         self._workflow_lock = asyncio.Lock()
 
@@ -62,10 +79,14 @@ class CiweimaoService:
             self, bootstrap: GuestCredentialBootstrapper | None) -> None:
         self.credential_bootstrap = bootstrap
 
+    def set_task_submitter(self, submitter: TaskSubmitter) -> None:
+        self._task_submitter = submitter
+
     @property
     def task_handlers(self):
         return {
             "download_by_name": self.handle_download_by_name,
+            "download_book": self.handle_download_book,
             "sync_rankings": self.handle_sync_rankings,
             "sync_new_books": self.handle_sync_new_books,
             "sync_all": self.handle_sync_all,
@@ -238,6 +259,48 @@ class CiweimaoService:
             return books[0]
         raise BookNotFoundError(f"未找到书籍: {request.book_name}")
 
+    async def _download_book(self, *, book: dict, task_id: str,
+                             query: str,
+                             proxy_context: ProxyLeaseContext,
+                             skip_existing: bool,
+                             include_book_id: bool) -> dict:
+        book_id = str(book.get("book_id", "")).strip()
+        if not book_id:
+            raise BookNotFoundError("下载目标缺少 book_id")
+        output_path = await self._run_with_client(
+            lambda session: async_downloader.download_book(
+                session,
+                book_id,
+                output_dir=str(self.settings.output_dir),
+                book_info=book,
+                skip_existing=skip_existing,
+                free_only=True,
+                include_book_id=include_book_id,
+                chapter_delay=self.settings.chapter_delay,
+                chapter_concurrency=self.settings.chapter_concurrency,
+            ),
+            proxy_context,
+        )
+        file_size, sha256 = await asyncio.to_thread(
+            _file_digest, output_path)
+        artifact = await self.database.record_download(
+            task_id=task_id,
+            query=query,
+            book=book,
+            output_path=str(Path(output_path).resolve()),
+            file_size=file_size,
+            sha256=sha256,
+        )
+        return {
+            "book_id": book_id,
+            "book_name": book.get("book_name", ""),
+            "author_name": book.get("author_name", ""),
+            "output_path": artifact["output_path"],
+            "file_size": artifact["file_size"],
+            "sha256": artifact["sha256"],
+            "free_only": True,
+        }
+
     async def handle_download_by_name(self, payload: dict,
                                       task_id: str) -> dict:
         request = DownloadByNameRequest.model_validate(payload)
@@ -251,44 +314,71 @@ class CiweimaoService:
                 proxy_context=proxy_context,
             )
             selected = self._select_book(books, request)
-            book_id = str(selected.get("book_id", ""))
-            if not book_id:
-                raise BookNotFoundError(
-                    f"搜索结果缺少 book_id: {request.book_name}")
-            output_path = await self._run_with_client(
-                lambda session: async_downloader.download_book(
-                    session,
-                    book_id,
-                    output_dir=str(self.settings.output_dir),
-                    book_info=selected,
-                    skip_existing=request.skip_existing,
-                    free_only=True,
-                    include_book_id=request.include_book_id,
-                    chapter_delay=self.settings.chapter_delay,
-                    chapter_concurrency=self.settings.chapter_concurrency,
-                ),
-                proxy_context,
+            return await self._download_book(
+                book=selected,
+                task_id=task_id,
+                query=request.book_name,
+                proxy_context=proxy_context,
+                skip_existing=request.skip_existing,
+                include_book_id=request.include_book_id,
             )
 
-        file_size, sha256 = await asyncio.to_thread(
-            _file_digest, output_path)
-        artifact = await self.database.record_download(
-            task_id=task_id,
-            query=request.book_name,
-            book=selected,
-            output_path=str(Path(output_path).resolve()),
-            file_size=file_size,
-            sha256=sha256,
-        )
-        return {
-            "book_id": book_id,
-            "book_name": selected.get("book_name", ""),
-            "author_name": selected.get("author_name", ""),
-            "output_path": artifact["output_path"],
-            "file_size": artifact["file_size"],
-            "sha256": artifact["sha256"],
-            "free_only": True,
+    async def handle_download_book(self, payload: dict,
+                                   task_id: str) -> dict:
+        request = DownloadBookRequest.model_validate(payload)
+        book = {
+            "book_id": request.book_id,
+            "book_name": request.book_name,
+            "author_name": request.author_name,
         }
+        await self.database.upsert_books([book])
+        await self.database.mark_auto_download_running(
+            request.book_id, task_id)
+        try:
+            async with self._workflow(
+                    force_new_proxy=False,
+                    reason="download_book") as proxy_context:
+                result = await self._download_book(
+                    book=book,
+                    task_id=task_id,
+                    query=f"auto:{request.source}",
+                    proxy_context=proxy_context,
+                    skip_existing=request.skip_existing,
+                    include_book_id=request.include_book_id,
+                )
+        except NoDownloadableChapters as exc:
+            retry_after = _utc_after(
+                hours=self.settings.auto_download_no_free_retry_hours)
+            await self.database.finish_auto_download(
+                request.book_id,
+                task_id,
+                "no_free",
+                error=str(exc),
+                retry_after=retry_after,
+            )
+            return {
+                "book_id": request.book_id,
+                "book_name": request.book_name,
+                "status": "no_free",
+                "retry_after": retry_after,
+            }
+        except Exception as exc:
+            retry_after = _utc_after(
+                minutes=self.settings.auto_download_failure_retry_minutes)
+            await self.database.finish_auto_download(
+                request.book_id,
+                task_id,
+                "failed",
+                error=redact_error_text(exc),
+                retry_after=retry_after,
+            )
+            raise
+
+        await self.database.finish_auto_download(
+            request.book_id, task_id, "succeeded")
+        result["status"] = "downloaded"
+        result["source"] = request.source
+        return result
 
     async def _sync_rankings(self, request: SyncRankingsRequest,
                              proxy_context: ProxyLeaseContext) -> dict:
@@ -361,6 +451,50 @@ class CiweimaoService:
             "captured_at": snapshot["captured_at"],
         }
 
+    async def _enqueue_auto_downloads(self) -> dict:
+        if not self.settings.auto_download_enabled:
+            return {
+                "enabled": False,
+                "selected": 0,
+                "queued": 0,
+                "deduplicated": 0,
+            }
+        if self._task_submitter is None:
+            raise RuntimeError("自动下载未绑定持久化任务队列")
+
+        candidates = await self.database.list_auto_download_candidates(
+            self.settings.auto_download_batch_size)
+        queued = 0
+        deduplicated = 0
+        for book in candidates:
+            request = DownloadBookRequest(
+                book_id=str(book.get("book_id", "")),
+                book_name=str(book.get("book_name", "")),
+                author_name=str(book.get("author_name", "")),
+                source="sync_all",
+                skip_existing=True,
+                include_book_id=True,
+            )
+            task_payload = request.model_dump(mode="json")
+            task = await self._task_submitter(
+                "download_book",
+                task_payload,
+                f"download_book:{request.book_id}",
+            )
+            await self.database.mark_auto_download_queued(
+                request.book_id, task["id"])
+            if task.get("deduplicated"):
+                deduplicated += 1
+            else:
+                queued += 1
+        return {
+            "enabled": True,
+            "batch_size": self.settings.auto_download_batch_size,
+            "selected": len(candidates),
+            "queued": queued,
+            "deduplicated": deduplicated,
+        }
+
     async def handle_sync_rankings(self, payload: dict,
                                    task_id: str) -> dict:
         del task_id
@@ -390,7 +524,9 @@ class CiweimaoService:
                 request.rankings, proxy_context)
             new_books = await self._sync_new_books(
                 request.new_books, proxy_context)
+        auto_download = await self._enqueue_auto_downloads()
         return {
             "rankings": rankings,
             "new_books": new_books,
+            "auto_download": auto_download,
         }

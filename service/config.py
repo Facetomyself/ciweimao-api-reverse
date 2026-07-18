@@ -69,6 +69,10 @@ class Settings:
     scheduler_enabled: bool = True
     scheduler_timezone: str = "Asia/Shanghai"
     sync_interval_minutes: int = 30
+    auto_download_enabled: bool = True
+    auto_download_batch_size: int = 100
+    auto_download_failure_retry_minutes: int = 60
+    auto_download_no_free_retry_hours: int = 24
     queue_workers: int = 1
     http_timeout: float = 30
     http_max_clients: int = 5
@@ -125,6 +129,14 @@ class Settings:
             scheduler_timezone=os.getenv(
                 "CIWEIMAO_SCHEDULER_TIMEZONE", "Asia/Shanghai"),
             sync_interval_minutes=sync_interval_minutes,
+            auto_download_enabled=_env_bool(
+                "CIWEIMAO_AUTO_DOWNLOAD_ENABLED", True),
+            auto_download_batch_size=_env_int(
+                "CIWEIMAO_AUTO_DOWNLOAD_BATCH_SIZE", 100),
+            auto_download_failure_retry_minutes=_env_int(
+                "CIWEIMAO_AUTO_DOWNLOAD_FAILURE_RETRY_MINUTES", 60),
+            auto_download_no_free_retry_hours=_env_int(
+                "CIWEIMAO_AUTO_DOWNLOAD_NO_FREE_RETRY_HOURS", 24),
             queue_workers=_env_int("CIWEIMAO_QUEUE_WORKERS", 1),
             http_timeout=_env_float("CIWEIMAO_HTTP_TIMEOUT", 30, 0.1),
             http_max_clients=_env_int("CIWEIMAO_HTTP_MAX_CLIENTS", 5),

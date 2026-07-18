@@ -37,6 +37,8 @@ FastAPI / queue worker
 - 容器启动、FastAPI lifespan、healthcheck 和 scheduler 投递阶段均不调用 `GetDPS`；
 - scheduler 每 30 分钟只投递一个 `sync_all`；
 - `sync_all` 开始执行时提取 1 个新 IP，榜单和新书全程共享同一个租约；
+- 同步完成后默认投递最多 100 本未下载书籍；这些 `download_book` 任务优先复用刚才的租约；
+- 积压下载跨过 20 分钟租约或遇到出口失败时才按需提取下一 IP；
 - 指定书名下载优先复用当前仍有效的 IP；没有租约、租约到期或代理失败时才提取；
 - 搜索接口与指定书下载使用相同的复用规则；
 - `320002` 先在当前 IP 下刷新游客身份；新游客校验仍失败时才判定出口不可用并换 IP；
@@ -45,7 +47,8 @@ FastAPI / queue worker
 
 默认租约为 `1200` 秒，并预留 `30` 秒安全窗口。应用不会调用额外的代理测速接口，
 第一次 App 业务请求本身就是可用性验证，避免浪费有效期。
-按默认 30 分钟周期且无失败刷新时，定时同步约消耗 2 个 IP/小时。
+首次回填积压时代理消耗取决于实际下载时长；积压清空后，若每轮新增书能在单租约内完成，
+常态同步约消耗 2 个 IP/小时。
 
 游客身份与出口有关，因此 App 网络工作流在单进程内串行切换代理。生产配置仍固定
 `CIWEIMAO_QUEUE_WORKERS=1` 和单 Uvicorn worker。
@@ -112,7 +115,8 @@ curl --fail --silent http://127.0.0.1:18086/health
 
 只有随后执行真实搜索或投递同步/下载任务时才允许 `acquired` 变为 `true`。端到端验证
 至少覆盖搜索 10 本、一次 `sync_all` 合并同步和一次指定书名免费章节下载；合并任务结果
-应同时包含榜单与新书统计，正常路径下 proxy generation 只增加 1。
+应同时包含榜单、新书和 `auto_download.queued`。随后检查 `/api/downloads/stats`、任务队列和
+`runtime/output/`，确认 `downloaded_books` 与 TXT 文件数持续增长。
 
 ## 持久化与备份
 

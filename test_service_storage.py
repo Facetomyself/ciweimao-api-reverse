@@ -58,6 +58,31 @@ class DatabaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([1, 2], [
             item["position"] for item in snapshot["items"]])
 
+    async def test_auto_download_candidates_respect_task_and_retry_state(self):
+        await self.database.upsert_books([{
+            "book_id": "1", "book_name": "第一本",
+        }, {
+            "book_id": "2", "book_name": "第二本",
+        }, {
+            "book_id": "3", "book_name": "第三本",
+        }])
+        task, _ = await self.database.create_task(
+            "download_book", {"book_id": "1"}, "download_book:1")
+        await self.database.mark_auto_download_queued("1", task["id"])
+        await self.database.finish_auto_download(
+            "2", "no-free-task", "no_free",
+            retry_after="9999-12-31T23:59:59.000+00:00",
+        )
+
+        candidates = await self.database.list_auto_download_candidates()
+        self.assertEqual(["3"], [
+            book["book_id"] for book in candidates])
+
+        await self.database.cancel_task(task["id"])
+        candidates = await self.database.list_auto_download_candidates()
+        self.assertEqual({"1", "3"}, {
+            book["book_id"] for book in candidates})
+
 
 class QueueTests(unittest.IsolatedAsyncioTestCase):
     async def test_queue_executes_and_persists_result(self):

@@ -55,6 +55,8 @@ def create_app(settings: Settings | None = None,
             service.task_handlers,
             workers=active_settings.queue_workers,
         )
+        if hasattr(service, "set_task_submitter"):
+            service.set_task_submitter(queue.submit)
         await queue.start()
         scheduler = None
         if active_settings.scheduler_enabled:
@@ -159,6 +161,10 @@ def create_app(settings: Settings | None = None,
         dedupe_key = task_dedupe_key("download_by_name", task_payload)
         return await request.app.state.queue.submit(
             "download_by_name", task_payload, dedupe_key)
+
+    @application.get("/api/downloads/stats")
+    async def download_stats(request: Request):
+        return await request.app.state.database.get_download_stats()
 
     @application.post(
         "/api/sync/rankings", status_code=status.HTTP_202_ACCEPTED)

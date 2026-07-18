@@ -13,6 +13,7 @@ from service.database import Database
 from service.queue import PersistentTaskQueue
 from service.proxy import ProxyLeaseManager
 from service.schemas import (
+    DownloadBookRequest,
     DownloadByNameRequest,
     RankingSpec,
     SyncAllRequest,
@@ -146,6 +147,23 @@ class ProxyRefreshingSession(FakeAppSession):
             keyword, page=page, count=count)
 
 
+class NoFreeSession(FakeAppSession):
+    async def get_book_catalog(self, book_id):
+        del book_id
+        return {"data": {"chapter_list": [{
+            "division_id": "d1",
+            "division_name": "正文",
+            "chapter_list": [{
+                "chapter_id": "paid-1",
+                "chapter_index": "1",
+                "chapter_title": "付费章",
+                "word_count": "2",
+                "is_paid": "1",
+                "auth_access": "1",
+            }],
+        }]}}
+
+
 class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tempdir = tempfile.TemporaryDirectory()
@@ -174,6 +192,7 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
         )
         self.queue = PersistentTaskQueue(
             self.database, self.service.task_handlers, workers=2)
+        self.service.set_task_submitter(self.queue.submit)
         await self.queue.start()
 
     async def asyncTearDown(self):
@@ -300,6 +319,16 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             session_factory=FakeAppSession,
             proxy_manager=manager,
         )
+        submitted = []
+
+        async def submit(task_type, task_payload, dedupe_key=None):
+            task, created = await self.database.create_task(
+                task_type, task_payload, dedupe_key)
+            task["deduplicated"] = not created
+            submitted.append(task)
+            return task
+
+        service.set_task_submitter(submit)
         payload = SyncAllRequest(
             rankings=SyncRankingsRequest(specs=[RankingSpec(
                 order="fans_value", time_type="week")]),
@@ -312,12 +341,92 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(1, result["rankings"]["snapshot_count"])
         self.assertEqual(1, result["rankings"]["item_count"])
         self.assertEqual(1, result["new_books"]["item_count"])
+        self.assertEqual(2, result["auto_download"]["queued"])
+        self.assertEqual(2, len(submitted))
+        self.assertTrue(all(
+            task["task_type"] == "download_book"
+            for task in submitted
+        ))
         ranking_snapshot = await self.database.get_latest_snapshot(
             "ranking", "fans_value:week")
         new_snapshot = await self.database.get_latest_snapshot(
             "new_books", "newtime")
         self.assertEqual(1, ranking_snapshot["item_count"])
         self.assertEqual(1, new_snapshot["item_count"])
+
+    async def test_sync_all_queue_chains_auto_download_tasks(self):
+        payload = SyncAllRequest(
+            rankings=SyncRankingsRequest(specs=[RankingSpec(
+                order="fans_value", time_type="week")]),
+            new_books=SyncNewBooksRequest(),
+        ).model_dump(mode="json")
+        submitted = await self.queue.submit(
+            "sync_all", payload, "sync-all:chain")
+
+        sync_task = await self._wait(submitted["id"])
+        await self.queue.join()
+
+        self.assertEqual("succeeded", sync_task["status"])
+        self.assertEqual(2, sync_task["result"]["auto_download"]["queued"])
+        download_tasks = await self.database.list_tasks(
+            task_type="download_book", limit=10)
+        self.assertEqual(2, len(download_tasks))
+        self.assertTrue(all(
+            task["status"] == "succeeded" for task in download_tasks
+        ))
+        stats = await self.database.get_download_stats()
+        self.assertEqual(2, stats["downloaded_books"])
+
+    async def test_auto_download_records_file_and_terminal_state(self):
+        payload = DownloadBookRequest(
+            book_id="100",
+            book_name="离线测试书",
+            author_name="测试作者",
+        ).model_dump(mode="json")
+        task, _ = await self.database.create_task(
+            "download_book", payload, "download_book:100")
+        await self.database.claim_task(task["id"])
+
+        result = await self.service.handle_download_book(
+            payload, task["id"])
+        await self.database.complete_task(task["id"], result)
+
+        self.assertEqual("downloaded", result["status"])
+        self.assertTrue(Path(result["output_path"]).is_file())
+        state = await self.database.get_auto_download_state("100")
+        self.assertEqual("succeeded", state["status"])
+        stats = await self.database.get_download_stats()
+        self.assertEqual(1, stats["downloaded_books"])
+
+    async def test_auto_download_no_free_is_deferred(self):
+        service = CiweimaoService(
+            self.settings,
+            self.database,
+            session_factory=NoFreeSession,
+        )
+        payload = DownloadBookRequest(
+            book_id="no-free",
+            book_name="暂无免费章",
+        ).model_dump(mode="json")
+        await self.database.upsert_books([{
+            "book_id": "no-free",
+            "book_name": "暂无免费章",
+        }])
+        task, _ = await self.database.create_task(
+            "download_book", payload, "download_book:no-free")
+        await self.database.claim_task(task["id"])
+
+        result = await service.handle_download_book(payload, task["id"])
+        await self.database.complete_task(task["id"], result)
+
+        self.assertEqual("no_free", result["status"])
+        state = await self.database.get_auto_download_state("no-free")
+        self.assertEqual("no_free", state["status"])
+        self.assertIsNotNone(state["retry_after"])
+        candidates = await self.database.list_auto_download_candidates()
+        self.assertNotIn("no-free", {
+            book["book_id"] for book in candidates
+        })
 
     async def test_proxy_320002_refreshes_ip_once(self):
         provider = FakeDynamicProxyProvider()

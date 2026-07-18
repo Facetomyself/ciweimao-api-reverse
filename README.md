@@ -161,6 +161,7 @@ Swagger UI：`http://127.0.0.1:8000/docs`。
 | `GET` | `/health` | 数据库、队列、调度器与凭据配置状态 |
 | `GET` | `/api/books/search?q=书名` | 直接异步搜索并更新书籍索引 |
 | `POST` | `/api/downloads/by-name` | 按书名投递免费章节 TXT 下载任务 |
+| `GET` | `/api/downloads/stats` | 查看索引、下载和自动下载状态统计 |
 | `POST` | `/api/sync/all` | 手动投递榜单 + 新书合并同步任务 |
 | `POST` | `/api/sync/rankings` | 手动投递榜单同步任务 |
 | `POST` | `/api/sync/new-books` | 手动投递新书同步任务 |
@@ -190,11 +191,13 @@ Invoke-RestMethod -Method Post `
 
 - 每 30 分钟只投递一个 `sync_all`，顺序同步榜单和新书；
 - 两段同步共享同一个 `ProxyLease`，正常情况下整轮只提取一个快代理 IP；
+- 同步完成后从全部已索引书籍中选择最多 100 本未下载书籍，投递 durable `download_book` 任务；
+- 自动下载按 `book_id` 去重并复用当前有效代理；无免费章的书 24 小时后再检查，普通失败 60 分钟后重试；
 - `coalesce=True`、`max_instances=1`；
 - Scheduler 不直接访问 App API，只向持久化队列投递任务；
 - 相同 payload 的 `queued/running` 任务通过 `dedupe_key` 合并。
 
-默认同步 13 个 App 榜单组合，包括 `fans_value` 周/月/总榜，以及点击、月票、字数、追读、完本、刀片、新书月票、推荐、间贴和收藏榜。榜单请求按顺序执行，不会一次性高并发打向同一 host。按默认周期且无失败刷新时，定时任务约消耗 2 个 IP/小时。
+默认同步 13 个 App 榜单组合，包括 `fans_value` 周/月/总榜，以及点击、月票、字数、追读、完本、刀片、新书月票、推荐、间贴和收藏榜。榜单请求按顺序执行，不会一次性高并发打向同一 host。积压下载阶段会持续复用租约，只有租约到期或出口失败才额外提取 IP；积压清空后，常态同步约消耗 2 个 IP/小时。
 
 ### 数据存储
 
@@ -207,6 +210,7 @@ Invoke-RestMethod -Method Post `
 | `snapshots` | 榜单或新书的一次抓取批次 |
 | `observations` | 快照内书籍位置和当次原始数据 |
 | `downloads` | 下载任务、文件路径、大小和 SHA-256 |
+| `auto_download_states` | 每本书的自动下载状态、尝试次数、重试时间和最后任务 |
 
 正文文件放文件系统，SQLite 只存元数据与校验值，避免把大段文本塞进单库。仓储操作封装在 `service/database.py`，后续切 PostgreSQL 时业务 handler 和 API 路由无需改写。
 
@@ -222,6 +226,10 @@ Invoke-RestMethod -Method Post `
 | `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED` | `0` | 静态出口启动校验；动态出口首次使用时按需创建游客 |
 | `CIWEIMAO_SCHEDULER_ENABLED` | `1` | 是否在当前进程启动 scheduler |
 | `CIWEIMAO_SYNC_INTERVAL_MINUTES` | `30` | 榜单 + 新书合并同步周期 |
+| `CIWEIMAO_AUTO_DOWNLOAD_ENABLED` | `1` | 同步完成后自动投递免费章节下载 |
+| `CIWEIMAO_AUTO_DOWNLOAD_BATCH_SIZE` | `100` | 每轮最多投递的未下载书籍数 |
+| `CIWEIMAO_AUTO_DOWNLOAD_FAILURE_RETRY_MINUTES` | `60` | 普通下载失败后的重试间隔 |
+| `CIWEIMAO_AUTO_DOWNLOAD_NO_FREE_RETRY_HOURS` | `24` | 暂无免费章时的复查间隔 |
 | `CIWEIMAO_QUEUE_WORKERS` | `1` | 任务 worker 数；默认串行避免同 host 任务互相干扰 |
 | `CIWEIMAO_HTTP_MAX_CLIENTS` | `5` | 单个 `curl_cffi.AsyncSession` 连接上限 |
 | `CIWEIMAO_HTTP_MAX_RETRIES` | `2` | 连接断开/超时后的有限重试次数 |
@@ -256,9 +264,9 @@ docker-compose -p ciweimao-api-reverse up -d --build
 
 Compose 将游客凭据持久化为 `runtime/data/guest-tokens.json`，快代理 API 密钥通过
 Compose secrets 只读挂载。部署只有一个 API 容器，不再包含 NAS SSH egress sidecar。
-合并同步任务每轮开始提取一个新 IP，并让榜单和新书共享该租约；指定书下载与搜索复用
-仍有效租约，到期或出口失败才换。所有代理只作用于本项目的 App API/CDN 请求，不改变
-宿主或其他容器路由。
+合并同步任务每轮开始提取一个新 IP，并让榜单、新书以及随后执行的自动下载优先复用
+该租约；指定书下载与搜索也复用仍有效租约，到期或出口失败才换。所有代理只作用于
+本项目的 App API/CDN 请求，不改变宿主或其他容器路由。
 完整边界见 `docs/deployment-ali-cloud.md`。
 
 ## 验证

@@ -26,6 +26,8 @@ FastAPI routes
 
 APScheduler
   -> only enqueue sync_all
+       -> sync metadata and persist snapshots
+       -> enqueue deduplicated download_book tasks
 ```
 
 ### `client`
@@ -41,9 +43,9 @@ APScheduler
 - `config.py`：无密钥配置与凭据惰性加载；
 - `proxy.py`：快代理 DPS 按需提取、20 分钟租约缓存、到期与失败刷新；
 - `credentials.py`：静态出口 lifespan 校验、动态出口首次使用自举和 `0600` 原子落盘；
-- `database.py`：SQLite schema 和 repository；
+- `database.py`：SQLite schema、下载候选选择和 repository；
 - `queue.py`：任务恢复、claim、执行和状态迁移；
-- `core.py`：搜索、按书名下载、榜单、新书与合并同步业务 handler；
+- `core.py`：搜索、按书名下载、按 ID 自动下载、榜单、新书与合并同步 handler；
 - `scheduler.py`：APScheduler 定时投递；
 - `app.py`：FastAPI lifespan 与路由。
 
@@ -75,6 +77,8 @@ WHERE id = ? AND status = 'queued';
 APScheduler 3.11 使用 `AsyncIOScheduler`：
 
 - `sync-all`：每 30 分钟顺序同步榜单和新书；
+- `sync_all` 成功写入快照后，按首次发现顺序选择最多 100 本可下载候选并投递 `download_book`；
+- `download_book:<book_id>` 作为 active dedupe key，阻止同一本书同时排队或执行多次；
 - `coalesce=True`；
 - `max_instances=1`；
 - 定时函数只调用 `queue.submit()`。
@@ -91,6 +95,8 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 提取 IP。当前租约只在进程内保存，不修改系统代理、宿主路由或其他容器网络。
 
 - `sync_all` 每轮开始时强制获取一个新租约，榜单与新书在同一个 `ProxyLeaseContext` 中顺序执行；
+- 随后排队的自动下载使用 `force_new_proxy=False`，优先复用同步任务留下的有效租约；
+- 下载积压超过租约有效期时，下一本书按需获取新 IP；代理或请求失败也只在确认后刷新；
 - 榜单和新书单项 handler 手动执行时仍各自获取新租约；
 - 搜索和指定书下载复用仍有效的当前租约，到期或失败后才刷新；
 - 游客身份与出口相关，完整 App 网络工作流通过单锁串行执行，避免不同代理同时覆盖 token；
@@ -127,6 +133,10 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 ### `downloads`
 
 保存任务、查询书名、实际 `book_id`、输出路径、文件大小与 SHA-256。正文保留在文件系统，数据库不存完整章节文本。
+
+### `auto_download_states`
+
+保存每本书最近一次自动下载任务、状态、尝试次数、错误摘要与 `retry_after`。成功下载由 `downloads` 作为事实源；`no_free` 默认 24 小时后复查，普通失败默认 60 分钟后重试。候选选择优先从未尝试书籍开始，避免少数持续失败目标阻塞整个积压。
 
 ## SQLite 运行参数
 
@@ -167,6 +177,8 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 | API 请求失败 | 任务标记 `failed`，错误摘要写入 `tasks.error` |
 | 进程在运行中退出 | 下次启动把 `running` 重置为 `queued` |
 | 同任务重复触发 | active partial unique index 返回已有任务 |
+| 自动下载暂无免费章 | 任务正常完成并记为 `no_free`，24 小时后重新检查 |
+| 自动下载普通失败 | 任务标记 `failed`，状态表设置退避时间，后续同步再投递 |
 | TXT 写入中断 | 仅遗留 `.part`，不会覆盖成功文件；finally 清理临时文件 |
 | Scheduler 暂停多周期 | `coalesce=True` 合并错过的执行 |
 | 凭据缺失/跨出口失效 | 第一次真实 App 请求持有代理后再按需注册游客；启动阶段不提取 IP |
@@ -181,6 +193,6 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 - 任务：`create/get/list/claim/complete/fail/requeue/cancel`；
 - 书籍：`upsert_books`；
 - 快照：`create_snapshot/get_latest_snapshot(s)`；
-- 下载：`record_download`。
+- 下载：`record_download/list_auto_download_candidates/finish_auto_download/get_download_stats`。
 
 不建议在当前规模提前引入 Redis、Celery 或独立 broker。先用真实负载证明 SQLite 的写竞争、队列吞吐或多机部署确实成为瓶颈，再迁移。

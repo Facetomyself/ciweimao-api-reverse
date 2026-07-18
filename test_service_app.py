@@ -78,6 +78,10 @@ class FastApiTests(unittest.TestCase):
                     "/api/books/search", params={"q": "书名"})
                 self.assertEqual("书名", search.json()["books"][0]["book_name"])
 
+                stats = client.get("/api/downloads/stats")
+                self.assertEqual(200, stats.status_code)
+                self.assertEqual(0, stats.json()["downloaded_books"])
+
                 response = client.post("/api/downloads/by-name", json={
                     "book_name": "书名",
                 })

@@ -13,6 +13,9 @@ import aiosqlite
 TASK_STATUSES = {
     "queued", "running", "succeeded", "failed", "cancelled",
 }
+AUTO_DOWNLOAD_TERMINAL_STATUSES = {
+    "succeeded", "no_free", "failed",
+}
 
 
 def utc_now() -> str:
@@ -147,7 +150,24 @@ class Database:
                 CREATE INDEX IF NOT EXISTS idx_downloads_book
                     ON downloads(book_id, created_at DESC);
 
-                PRAGMA user_version = 1;
+                CREATE TABLE IF NOT EXISTS auto_download_states (
+                    book_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    attempts INTEGER NOT NULL DEFAULT 0,
+                    last_task_id TEXT,
+                    last_error TEXT,
+                    retry_after TEXT,
+                    updated_at TEXT NOT NULL,
+                    CHECK (status IN (
+                        'queued', 'running', 'succeeded',
+                        'no_free', 'failed'
+                    )),
+                    FOREIGN KEY (book_id) REFERENCES books(book_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_auto_download_retry
+                    ON auto_download_states(status, retry_after, updated_at);
+
+                PRAGMA user_version = 2;
             """)
             await connection.commit()
 
@@ -545,4 +565,190 @@ class Database:
             "file_size": row["file_size"],
             "sha256": row["sha256"],
             "created_at": row["created_at"],
+        }
+
+    @staticmethod
+    def _book_from_row(row) -> dict:
+        raw = _json_loads(row["raw_json"], {})
+        raw.setdefault("book_id", row["book_id"])
+        raw.setdefault("book_name", row["book_name"])
+        raw.setdefault("author_name", row["author_name"])
+        raw.setdefault("cover", row["cover"])
+        raw.setdefault("is_paid", row["is_paid"])
+        raw.setdefault("total_word_count", row["total_word_count"])
+        return raw
+
+    async def list_auto_download_candidates(
+            self, limit: int = 100) -> list[dict]:
+        """返回未下载且当前允许重试的书籍，优先从未尝试者。"""
+        now = utc_now()
+        async with self.connect() as connection:
+            cursor = await connection.execute("""
+                SELECT b.*
+                FROM books AS b
+                LEFT JOIN auto_download_states AS s
+                    ON s.book_id = b.book_id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM downloads AS d
+                    WHERE d.book_id = b.book_id
+                )
+                  AND (
+                    s.book_id IS NULL
+                    OR (
+                        s.status IN ('failed', 'no_free')
+                        AND (s.retry_after IS NULL OR s.retry_after <= ?)
+                    )
+                    OR (
+                        s.status IN ('queued', 'running')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM tasks AS t
+                            WHERE t.id = s.last_task_id
+                              AND t.status IN ('queued', 'running')
+                        )
+                    )
+                  )
+                ORDER BY
+                    CASE WHEN s.book_id IS NULL THEN 0 ELSE 1 END ASC,
+                    COALESCE(s.updated_at, b.first_seen_at) ASC,
+                    b.book_id ASC
+                LIMIT ?
+            """, (now, max(1, min(int(limit), 1000))))
+            rows = await cursor.fetchall()
+            await cursor.close()
+        return [self._book_from_row(row) for row in rows]
+
+    async def mark_auto_download_queued(
+            self, book_id: str, task_id: str) -> None:
+        now = utc_now()
+        async with self.connect() as connection:
+            await connection.execute("""
+                INSERT INTO auto_download_states (
+                    book_id, status, attempts, last_task_id,
+                    last_error, retry_after, updated_at
+                ) VALUES (?, 'queued', 0, ?, NULL, NULL, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    status = 'queued',
+                    last_task_id = excluded.last_task_id,
+                    last_error = NULL,
+                    retry_after = NULL,
+                    updated_at = excluded.updated_at
+                WHERE auto_download_states.last_task_id
+                        IS NOT excluded.last_task_id
+                   OR auto_download_states.status = 'queued'
+            """, (str(book_id), str(task_id), now))
+            await connection.commit()
+
+    async def mark_auto_download_running(
+            self, book_id: str, task_id: str) -> None:
+        now = utc_now()
+        async with self.connect() as connection:
+            await connection.execute("""
+                INSERT INTO auto_download_states (
+                    book_id, status, attempts, last_task_id,
+                    last_error, retry_after, updated_at
+                ) VALUES (?, 'running', 1, ?, NULL, NULL, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    status = 'running',
+                    attempts = auto_download_states.attempts + 1,
+                    last_task_id = excluded.last_task_id,
+                    last_error = NULL,
+                    retry_after = NULL,
+                    updated_at = excluded.updated_at
+            """, (str(book_id), str(task_id), now))
+            await connection.commit()
+
+    async def finish_auto_download(
+            self, book_id: str, task_id: str, status: str,
+            *, error: str | None = None,
+            retry_after: str | None = None) -> None:
+        if status not in AUTO_DOWNLOAD_TERMINAL_STATUSES:
+            raise ValueError(f"非法自动下载状态: {status}")
+        now = utc_now()
+        async with self.connect() as connection:
+            await connection.execute("""
+                INSERT INTO auto_download_states (
+                    book_id, status, attempts, last_task_id,
+                    last_error, retry_after, updated_at
+                ) VALUES (?, ?, 1, ?, ?, ?, ?)
+                ON CONFLICT(book_id) DO UPDATE SET
+                    status = excluded.status,
+                    last_task_id = excluded.last_task_id,
+                    last_error = excluded.last_error,
+                    retry_after = excluded.retry_after,
+                    updated_at = excluded.updated_at
+            """, (
+                str(book_id), status, str(task_id),
+                str(error)[:4000] if error else None,
+                retry_after, now,
+            ))
+            await connection.commit()
+
+    async def get_auto_download_state(
+            self, book_id: str) -> dict | None:
+        async with self.connect() as connection:
+            cursor = await connection.execute(
+                "SELECT * FROM auto_download_states WHERE book_id = ?",
+                (str(book_id),),
+            )
+            row = await cursor.fetchone()
+            await cursor.close()
+        return dict(row) if row is not None else None
+
+    async def get_download_stats(self) -> dict:
+        now = utc_now()
+        async with self.connect() as connection:
+            cursor = await connection.execute(
+                "SELECT COUNT(*) FROM books")
+            indexed_books = int((await cursor.fetchone())[0])
+            await cursor.close()
+            cursor = await connection.execute("""
+                SELECT COUNT(*) AS records,
+                       COUNT(DISTINCT book_id) AS books
+                FROM downloads
+            """)
+            download_row = await cursor.fetchone()
+            await cursor.close()
+            cursor = await connection.execute("""
+                SELECT status, COUNT(*) AS count
+                FROM auto_download_states
+                GROUP BY status
+            """)
+            state_rows = await cursor.fetchall()
+            await cursor.close()
+            cursor = await connection.execute("""
+                SELECT COUNT(*)
+                FROM books AS b
+                LEFT JOIN auto_download_states AS s
+                    ON s.book_id = b.book_id
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM downloads AS d
+                    WHERE d.book_id = b.book_id
+                )
+                  AND (
+                    s.book_id IS NULL
+                    OR (
+                        s.status IN ('failed', 'no_free')
+                        AND (s.retry_after IS NULL OR s.retry_after <= ?)
+                    )
+                    OR (
+                        s.status IN ('queued', 'running')
+                        AND NOT EXISTS (
+                            SELECT 1 FROM tasks AS t
+                            WHERE t.id = s.last_task_id
+                              AND t.status IN ('queued', 'running')
+                        )
+                    )
+                  )
+            """, (now,))
+            eligible = int((await cursor.fetchone())[0])
+            await cursor.close()
+        return {
+            "indexed_books": indexed_books,
+            "download_records": int(download_row["records"]),
+            "downloaded_books": int(download_row["books"]),
+            "eligible_books": eligible,
+            "auto_states": {
+                row["status"]: int(row["count"])
+                for row in state_rows
+            },
         }

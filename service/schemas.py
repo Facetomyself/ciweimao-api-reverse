@@ -49,6 +49,17 @@ class DownloadByNameRequest(StrictModel):
     include_book_id: bool = True
 
 
+class DownloadBookRequest(StrictModel):
+    """由同步任务发现后按 book_id 投递的免费章节下载。"""
+
+    book_id: str = Field(min_length=1, max_length=64)
+    book_name: str = Field(default="", max_length=200)
+    author_name: str = Field(default="", max_length=100)
+    source: str = Field(default="sync_all", min_length=1, max_length=64)
+    skip_existing: bool = True
+    include_book_id: bool = True
+
+
 class SyncRankingsRequest(StrictModel):
     specs: list[RankingSpec] = Field(
         default_factory=default_ranking_specs,
