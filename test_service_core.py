@@ -11,6 +11,7 @@ from service.config import Credentials, Settings
 from service.core import CiweimaoService
 from service.database import Database
 from service.queue import PersistentTaskQueue
+from service.proxy import ProxyLeaseManager
 from service.schemas import (
     DownloadByNameRequest,
     RankingSpec,
@@ -103,14 +104,45 @@ class FakeCredentialBootstrap:
     def __init__(self, settings):
         self.settings = settings
         self.calls = 0
+        self.proxy_urls = []
 
-    async def refresh(self, failed_credentials):
+    async def refresh(self, failed_credentials, proxy_url=None):
         self.calls += 1
+        self.proxy_urls.append(proxy_url)
         self.settings.save_credentials(Credentials(
             login_token="fresh-token",
             account="fresh-account",
             device_token=failed_credentials.device_token,
         ))
+
+    async def ensure(self, proxy_url=None):
+        self.proxy_urls.append(proxy_url)
+        self.settings.save_credentials(Credentials(
+            login_token="fresh-token",
+            account="fresh-account",
+            device_token="ciweimao_fixture",
+        ))
+
+
+class FakeDynamicProxyProvider:
+    name = "fake_dynamic"
+    dynamic = True
+    lease_seconds = 1200
+
+    def __init__(self):
+        self.calls = 0
+
+    async def acquire(self):
+        self.calls += 1
+        return f"http://proxy-{self.calls}.test:8000"
+
+
+class ProxyRefreshingSession(FakeAppSession):
+    async def search_books(self, keyword, page=0, count=10):
+        if self.kwargs["proxy"] == "http://proxy-1.test:8000":
+            raise ApiError("320002", "当前代理不可用")
+        return await super().search_books(
+            keyword, page=page, count=count)
 
 
 class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
@@ -223,3 +255,58 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             "fresh-token",
             self.settings.load_credentials().login_token,
         )
+
+    async def test_scheduled_sync_refreshes_but_download_reuses_proxy(self):
+        provider = FakeDynamicProxyProvider()
+        manager = ProxyLeaseManager(provider, expiry_safety_seconds=0)
+        service = CiweimaoService(
+            self.settings,
+            self.database,
+            session_factory=FakeAppSession,
+            proxy_manager=manager,
+        )
+
+        await service.handle_sync_rankings(
+            SyncRankingsRequest(specs=[RankingSpec(
+                order="fans_value", time_type="week")]
+            ).model_dump(mode="json"),
+            "ranking-task",
+        )
+        download_payload = DownloadByNameRequest(
+            book_name="离线测试书",
+            author_name="测试作者",
+        ).model_dump(mode="json")
+        download_task, _ = await self.database.create_task(
+            "download_by_name", download_payload)
+        await service.handle_download_by_name(
+            download_payload,
+            download_task["id"],
+        )
+        self.assertEqual(1, provider.calls)
+
+        await service.handle_sync_new_books(
+            SyncNewBooksRequest().model_dump(mode="json"),
+            "new-books-task",
+        )
+        self.assertEqual(2, provider.calls)
+
+    async def test_proxy_320002_refreshes_ip_once(self):
+        provider = FakeDynamicProxyProvider()
+        manager = ProxyLeaseManager(provider, expiry_safety_seconds=0)
+        bootstrap = FakeCredentialBootstrap(self.settings)
+        service = CiweimaoService(
+            self.settings,
+            self.database,
+            session_factory=ProxyRefreshingSession,
+            credential_bootstrap=bootstrap,
+            proxy_manager=manager,
+        )
+
+        books = await service.search_books(
+            "离线测试书", max_pages=1, count=10)
+
+        self.assertEqual("100", books[0]["book_id"])
+        self.assertEqual(2, provider.calls)
+        self.assertEqual(1, bootstrap.calls)
+        self.assertEqual(
+            ["http://proxy-1.test:8000"], bootstrap.proxy_urls)

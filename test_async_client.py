@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, Mock
 from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError
 
 from client import async_downloader
-from client.api import AsyncSession
+from client.api import ApiError, AsyncSession
 from client.downloader import NoDownloadableChapters
 
 
@@ -164,3 +164,18 @@ class AsyncDownloaderTests(unittest.IsolatedAsyncioTestCase):
                     free_only=True,
                     chapter_delay=0,
                 )
+
+    async def test_proxy_failure_is_not_written_into_txt(self):
+        session = self._session()
+        session.get_chapter_command.side_effect = ApiError(
+            "320002", "代理失效")
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ApiError):
+                await async_downloader.download_book(
+                    session,
+                    "100",
+                    output_dir=tmp,
+                    free_only=True,
+                    chapter_delay=0,
+                )
+            self.assertFalse(list(Path(tmp).glob("*.txt")))

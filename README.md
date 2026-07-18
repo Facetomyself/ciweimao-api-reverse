@@ -10,7 +10,8 @@
 - 从书城入口按更新时间连续遍历书籍；
 - 一次请求获取整本分卷与章节目录；
 - 仅处理 `is_paid=0` 且 `auth_access=1` 的免费可读章节；
-- 通过 FastAPI、SQLite durable queue 和 APScheduler 主动同步榜单与新书。
+- 通过 FastAPI、SQLite durable queue 和 APScheduler 主动同步榜单与新书；
+- 在 ali-cloud 上按需提取快代理 20 分钟 DPS，不启动任务就不消耗 IP。
 
 TXT / EPUB、插图和 App 本地缓存等既有下载格式能力不在本轮重复逆向；本仓的抓取命令只复用现有 TXT 落盘链。
 
@@ -88,10 +89,10 @@ account=<percent-encoded>&app_version=2.9.362&rand_str=<16hex>&signatures=<key><
 
 可使用 App 自动创建的游客身份，无需绑定正式账号。`tokens.json` 只保存在本机并已排除 Git。
 
-FastAPI / Docker 部署可设置 `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED=1`。服务会在
-lifespan 启动阶段先通过当前 `CIWEIMAO_PROXY_URL` 校验凭据；文件缺失，或服务端
-返回 `200100` / `320002` 时，才调用 App 的 `auto_reg_v2` 创建新游客并以 `0600`
-权限原子写入 `CIWEIMAO_TOKEN_PATH`。queue 与 scheduler 只会在凭据可用后启动。
+FastAPI / Docker 部署可设置 `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED=1`。静态代理模式可
+在 lifespan 校验凭据；快代理动态租约模式会延迟到第一次真实搜索、同步或下载，先
+按需提取 IP，再通过同一出口校验或调用 `auto_reg_v2`。新游客以 `0600` 权限原子写入
+`CIWEIMAO_TOKEN_PATH`，服务启动和 healthcheck 不会提前消耗代理。
 
 从 Root 设备提取当前 App 身份：
 
@@ -217,7 +218,7 @@ Invoke-RestMethod -Method Post `
 | `CIWEIMAO_DB_PATH` | `data/ciweimao.sqlite3` | SQLite 路径 |
 | `CIWEIMAO_OUTPUT_DIR` | `output_api/` | TXT 输出目录 |
 | `CIWEIMAO_TOKEN_PATH` | `tokens.json` | App 游客/登录凭据文件 |
-| `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED` | `0` | 启动时校验并按需创建当前出口绑定的游客身份 |
+| `CIWEIMAO_GUEST_BOOTSTRAP_ENABLED` | `0` | 静态出口启动校验；动态出口首次使用时按需创建游客 |
 | `CIWEIMAO_SCHEDULER_ENABLED` | `1` | 是否在当前进程启动 scheduler |
 | `CIWEIMAO_RANKING_INTERVAL_MINUTES` | `30` | 榜单同步周期 |
 | `CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES` | `10` | 新书同步周期 |
@@ -226,7 +227,13 @@ Invoke-RestMethod -Method Post `
 | `CIWEIMAO_HTTP_MAX_RETRIES` | `2` | 连接断开/超时后的有限重试次数 |
 | `CIWEIMAO_HTTP_RETRY_BACKOFF` | `0.25` | 指数退避基数（秒） |
 | `CIWEIMAO_HTTP_TRANSIENT_API_RETRIES` | `1` | App 临时业务码 `320002` 重试次数 |
-| `CIWEIMAO_PROXY_URL` | 空 | 可选 HTTP/SOCKS5 出口代理，仅作用于 App API/CDN 请求 |
+| `CIWEIMAO_PROXY_PROVIDER` | `auto` | `direct`、`static` 或 `kuaidaili_dps` |
+| `CIWEIMAO_PROXY_URL` | 空 | `static` 模式的 HTTP/SOCKS5 代理 URL |
+| `CIWEIMAO_PROXY_LEASE_SECONDS` | `1200` | 动态代理租约时长 |
+| `CIWEIMAO_PROXY_EXPIRY_SAFETY_SECONDS` | `30` | 到期前安全窗口 |
+| `KDL_SECRET_ID(_FILE)` | 空 | 快代理订单级 SecretId 或 Docker secret 路径 |
+| `KDL_SECRET_KEY(_FILE)` | 空 | 快代理订单级 SecretKey 或 Docker secret 路径 |
+| `CIWEIMAO_KDL_AUTH_MODE` | `auto` | `auto`、`required` 或 `whitelist` |
 | `CIWEIMAO_LIST_REQUEST_DELAY` | `0.25` | 列表页/榜单规格之间的间隔（秒） |
 | `CIWEIMAO_CHAPTER_CONCURRENCY` | `3` | 单本书章节有界并发数 |
 
@@ -239,18 +246,17 @@ Invoke-RestMethod -Method Post `
 仓库提供 `Dockerfile` 与 `compose.yaml`。默认以独立 project `ciweimao-api-reverse` 运行，只绑定宿主 `127.0.0.1:18086`，数据与下载文件分别持久化到 `runtime/data/` 和 `runtime/output/`。
 
 ```bash
-mkdir -p runtime/data runtime/output
+mkdir -p runtime/data runtime/output runtime/secrets
+# 将订单级 SecretId / SecretKey 分别写入下列 0600 文件
+install -m 600 /dev/null runtime/secrets/kdl_secret_id
+install -m 600 /dev/null runtime/secrets/kdl_secret_key
 docker-compose -p ciweimao-api-reverse up -d --build
 ```
 
-Compose 将游客凭据持久化为 `runtime/data/guest-tokens.json`，不再依赖人工复制的
-`runtime/app.env`。固定单 Uvicorn/queue worker，并设置 healthcheck、只读 root
-filesystem、cap drop、384 MiB 内存和 0.75 CPU 上限。`ali-cloud` 部署额外包含一个
-只对本 Compose network 开放的 NAS SSH exec SOCKS sidecar：它不依赖 NAS 开启
-`direct-tcpip`，而是按连接通过普通 SSH session channel 在远端内存执行 TCP relay，
-且只允许目标端口 80/443。游客注册与后续 App API/CDN 使用同一住宅出口；运行中
-若收到 `200100` / `320002`，服务会单锁创建新游客并重试原操作一次。该链路不会
-改变宿主或其他容器路由。
+Compose 将游客凭据持久化为 `runtime/data/guest-tokens.json`，快代理 API 密钥通过
+Compose secrets 只读挂载。部署只有一个 API 容器，不再包含 NAS SSH egress sidecar。
+榜单和新书任务每轮开始提取一个新 IP；指定书下载与搜索复用仍有效租约，到期或出口
+失败才换。所有代理只作用于本项目的 App API/CDN 请求，不改变宿主或其他容器路由。
 完整边界见 `docs/deployment-ali-cloud.md`。
 
 ## 验证

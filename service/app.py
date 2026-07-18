@@ -6,7 +6,10 @@ from fastapi import Body, FastAPI, HTTPException, Query, Request, status
 
 from .config import ConfigurationError, Settings
 from .core import CiweimaoService
-from .credentials import GuestCredentialBootstrapper
+from .credentials import (
+    CredentialBootstrapResult,
+    GuestCredentialBootstrapper,
+)
 from .database import Database
 from .queue import PersistentTaskQueue
 from .scheduler import build_scheduler, task_dedupe_key
@@ -25,16 +28,24 @@ def create_app(settings: Settings | None = None,
     @asynccontextmanager
     async def lifespan(application: FastAPI):
         active_settings = settings or Settings.from_env()
+        database = Database(active_settings.database_path)
+        await database.initialize()
+        service = service_factory(active_settings, database)
         credential_bootstrap = None
         credential_bootstrap_result = None
         if active_settings.guest_bootstrap_enabled:
             credential_bootstrap = credential_bootstrap_factory(
                 active_settings)
-            credential_bootstrap_result = (
-                await credential_bootstrap.ensure())
-        database = Database(active_settings.database_path)
-        await database.initialize()
-        service = service_factory(active_settings, database)
+            proxy_manager = getattr(service, "proxy_manager", None)
+            if proxy_manager is not None and proxy_manager.dynamic:
+                credential_bootstrap_result = CredentialBootstrapResult(
+                    created=False,
+                    source="deferred-until-first-use",
+                )
+            else:
+                credential_bootstrap_result = (
+                    await credential_bootstrap.ensure(
+                        proxy_url=active_settings.http_proxy_url))
         if hasattr(service, "set_credential_bootstrap"):
             service.set_credential_bootstrap(credential_bootstrap)
         queue = PersistentTaskQueue(
@@ -105,6 +116,18 @@ def create_app(settings: Settings | None = None,
                 "runtime_refresh": bool(
                     request.app.state.credential_bootstrap),
             },
+            "proxy": (
+                request.app.state.service.proxy_manager.snapshot()
+                if hasattr(request.app.state.service, "proxy_manager")
+                else {
+                    "provider": "unmanaged",
+                    "dynamic": False,
+                    "acquired": False,
+                    "active": False,
+                    "generation": 0,
+                    "remaining_seconds": None,
+                }
+            ),
         }
 
     @application.get("/api/books/search")

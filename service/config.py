@@ -39,6 +39,20 @@ def _env_float(name: str, default: float, minimum: float = 0) -> float:
     return max(minimum, value)
 
 
+def _env_secret(name: str, file_name: str) -> str | None:
+    value = os.getenv(name, "").strip()
+    if value:
+        return value
+    secret_path = os.getenv(file_name, "").strip()
+    if not secret_path:
+        return None
+    try:
+        return Path(secret_path).read_text(encoding="utf-8").strip() or None
+    except OSError as exc:
+        raise ConfigurationError(
+            f"读取密钥文件失败: {file_name}={secret_path}") from exc
+
+
 @dataclass(frozen=True, repr=False)
 class Credentials:
     login_token: str
@@ -64,6 +78,15 @@ class Settings:
     http_transient_api_retries: int = 1
     http_impersonate: str | None = None
     http_proxy_url: str | None = field(default=None, repr=False)
+    proxy_provider: str = "auto"
+    proxy_lease_seconds: float = 1200
+    proxy_expiry_safety_seconds: float = 30
+    kdl_secret_id: str | None = field(default=None, repr=False)
+    kdl_secret_key: str | None = field(default=None, repr=False)
+    kdl_area: str = ""
+    kdl_auth_mode: str = "auto"
+    kdl_proxy_username: str | None = field(default=None, repr=False)
+    kdl_proxy_password: str | None = field(default=None, repr=False)
     list_request_delay: float = 0.25
     chapter_concurrency: int = 3
     chapter_delay: float = 0.05
@@ -106,6 +129,23 @@ class Settings:
             http_impersonate=impersonate or None,
             http_proxy_url=(
                 os.getenv("CIWEIMAO_PROXY_URL", "").strip() or None),
+            proxy_provider=os.getenv(
+                "CIWEIMAO_PROXY_PROVIDER", "auto").strip().lower(),
+            proxy_lease_seconds=_env_float(
+                "CIWEIMAO_PROXY_LEASE_SECONDS", 1200, 1),
+            proxy_expiry_safety_seconds=_env_float(
+                "CIWEIMAO_PROXY_EXPIRY_SAFETY_SECONDS", 30, 0),
+            kdl_secret_id=_env_secret(
+                "KDL_SECRET_ID", "KDL_SECRET_ID_FILE"),
+            kdl_secret_key=_env_secret(
+                "KDL_SECRET_KEY", "KDL_SECRET_KEY_FILE"),
+            kdl_area=os.getenv("CIWEIMAO_KDL_AREA", "").strip(),
+            kdl_auth_mode=os.getenv(
+                "CIWEIMAO_KDL_AUTH_MODE", "auto").strip().lower(),
+            kdl_proxy_username=_env_secret(
+                "KDL_PROXY_USERNAME", "KDL_PROXY_USERNAME_FILE"),
+            kdl_proxy_password=_env_secret(
+                "KDL_PROXY_PASSWORD", "KDL_PROXY_PASSWORD_FILE"),
             list_request_delay=_env_float(
                 "CIWEIMAO_LIST_REQUEST_DELAY", 0.25, 0),
             chapter_concurrency=_env_int(

@@ -35,7 +35,10 @@ class GuestCredentialBootstrapper:
         self.registrar = registrar
         self._lock = asyncio.Lock()
 
-    async def ensure(self) -> CredentialBootstrapResult:
+    async def ensure(
+            self, proxy_url: str | None = None) -> CredentialBootstrapResult:
+        if proxy_url is None:
+            proxy_url = self.settings.http_proxy_url
         async with self._lock:
             env_credentials = self.settings.env_credentials_configured()
             try:
@@ -43,10 +46,11 @@ class GuestCredentialBootstrapper:
             except ConfigurationError:
                 if env_credentials:
                     raise
-                return await self._register_and_persist("missing")
+                return await self._register_and_persist(
+                    "missing", proxy_url)
 
             try:
-                await self._validate(credentials)
+                await self._validate(credentials, proxy_url)
             except ApiError as exc:
                 if exc.code not in INVALID_CREDENTIAL_CODES:
                     raise
@@ -55,7 +59,7 @@ class GuestCredentialBootstrapper:
                         "CIWEIMAO_* 环境凭据已失效，自动游客不能覆盖环境变量"
                     ) from exc
                 return await self._register_and_persist(
-                    f"invalid-{exc.code}")
+                    f"invalid-{exc.code}", proxy_url)
             except RuntimeError as exc:
                 if "login_token 已过期" not in str(exc):
                     raise
@@ -63,7 +67,8 @@ class GuestCredentialBootstrapper:
                     raise ConfigurationError(
                         "CIWEIMAO_* 环境凭据已失效，自动游客不能覆盖环境变量"
                     ) from exc
-                return await self._register_and_persist("expired")
+                return await self._register_and_persist(
+                    "expired", proxy_url)
 
             return CredentialBootstrapResult(
                 created=False,
@@ -71,8 +76,11 @@ class GuestCredentialBootstrapper:
             )
 
     async def refresh(
-            self, failed_credentials: Credentials) -> CredentialBootstrapResult:
+            self, failed_credentials: Credentials,
+            proxy_url: str | None = None) -> CredentialBootstrapResult:
         """失效请求触发刷新；并发请求只允许第一个真正注册。"""
+        if proxy_url is None:
+            proxy_url = self.settings.http_proxy_url
         async with self._lock:
             if self.settings.env_credentials_configured():
                 raise ConfigurationError(
@@ -80,23 +88,26 @@ class GuestCredentialBootstrapper:
             try:
                 current = self.settings.load_credentials()
             except ConfigurationError:
-                return await self._register_and_persist("runtime-missing")
+                return await self._register_and_persist(
+                    "runtime-missing", proxy_url)
             if (_credential_fingerprint(current)
                     != _credential_fingerprint(failed_credentials)):
                 return CredentialBootstrapResult(
                     created=False,
                     source="token-file-refreshed",
                 )
-            return await self._register_and_persist("runtime-invalid")
+            return await self._register_and_persist(
+                "runtime-invalid", proxy_url)
 
     async def _register_and_persist(
-            self, reason: str) -> CredentialBootstrapResult:
+            self, reason: str,
+            proxy_url: str | None) -> CredentialBootstrapResult:
         LOGGER.info("guest credential bootstrap started: %s", reason)
         guest = await self.registrar(
             app_version=client_config.APP_VERSION,
             timeout=self.settings.http_timeout,
             impersonate=self.settings.http_impersonate,
-            proxy=self.settings.http_proxy_url,
+            proxy=proxy_url,
             max_retries=self.settings.http_max_retries,
             retry_backoff=self.settings.http_retry_backoff,
         )
@@ -105,7 +116,7 @@ class GuestCredentialBootstrapper:
             account=guest.account,
             device_token=guest.device_token,
         )
-        await self._validate(credentials)
+        await self._validate(credentials, proxy_url)
         await asyncio.to_thread(
             self.settings.save_credentials,
             credentials,
@@ -117,7 +128,8 @@ class GuestCredentialBootstrapper:
             source="guest-registration",
         )
 
-    async def _validate(self, credentials: Credentials) -> None:
+    async def _validate(self, credentials: Credentials,
+                        proxy_url: str | None) -> None:
         session = self.session_factory(
             login_token=credentials.login_token,
             account=credentials.account,
@@ -130,7 +142,7 @@ class GuestCredentialBootstrapper:
             retry_backoff=self.settings.http_retry_backoff,
             transient_api_retries=(
                 self.settings.http_transient_api_retries),
-            proxy=self.settings.http_proxy_url,
+            proxy=proxy_url,
         )
         async with session:
             await session.search_books("魔法", page=0, count=1)

@@ -8,12 +8,18 @@ from pathlib import Path
 from client import async_downloader, config as client_config
 from client.api import AsyncSession
 
-from .config import Settings
+from .config import ConfigurationError, Settings
 from .credentials import (
     GuestCredentialBootstrapper,
     is_invalid_credentials_error,
 )
 from .database import Database
+from .proxy import (
+    ProxyLeaseContext,
+    ProxyLeaseManager,
+    build_proxy_manager,
+    is_proxy_failure_error,
+)
 from .schemas import (
     DownloadByNameRequest,
     SyncNewBooksRequest,
@@ -41,11 +47,15 @@ def _file_digest(path: str) -> tuple[int, str]:
 class CiweimaoService:
     def __init__(self, settings: Settings, database: Database,
                  session_factory=AsyncSession,
-                 credential_bootstrap: GuestCredentialBootstrapper | None = None):
+                 credential_bootstrap: GuestCredentialBootstrapper | None = None,
+                 proxy_manager: ProxyLeaseManager | None = None):
         self.settings = settings
         self.database = database
         self.session_factory = session_factory
         self.credential_bootstrap = credential_bootstrap
+        self.proxy_manager = proxy_manager or build_proxy_manager(settings)
+        # 游客身份与出口相关，所有 App 网络工作流必须串行切换租约。
+        self._workflow_lock = asyncio.Lock()
 
     def set_credential_bootstrap(
             self, bootstrap: GuestCredentialBootstrapper | None) -> None:
@@ -60,7 +70,7 @@ class CiweimaoService:
         }
 
     @asynccontextmanager
-    async def client(self, credentials=None):
+    async def client(self, credentials=None, proxy_url: str | None = None):
         credentials = credentials or self.settings.load_credentials()
         session = self.session_factory(
             login_token=credentials.login_token,
@@ -74,34 +84,96 @@ class CiweimaoService:
             retry_backoff=self.settings.http_retry_backoff,
             transient_api_retries=(
                 self.settings.http_transient_api_retries),
-            proxy=self.settings.http_proxy_url,
+            proxy=proxy_url,
         )
         async with session:
             yield session
 
-    async def _run_with_client(self, operation):
-        for attempt in range(2):
-            credentials = self.settings.load_credentials()
+    @asynccontextmanager
+    async def _workflow(self, *, force_new_proxy: bool,
+                        reason: str):
+        async with self._workflow_lock:
+            context = await self.proxy_manager.context(
+                force_new=force_new_proxy,
+                reason=reason,
+            )
+            yield context
+
+    async def _load_credentials(
+            self, proxy_url: str | None):
+        try:
+            return self.settings.load_credentials()
+        except ConfigurationError:
+            if self.credential_bootstrap is None:
+                raise
+            await self.credential_bootstrap.ensure(proxy_url=proxy_url)
+            return self.settings.load_credentials()
+
+    async def _run_with_client(self, operation,
+                               proxy_context: ProxyLeaseContext):
+        refreshed_credentials: set[int] = set()
+        refreshed_proxies: set[int] = set()
+        last_error: BaseException | None = None
+        for _ in range(6):
+            lease = proxy_context.lease
+            credentials = None
             try:
-                async with self.client(credentials) as session:
+                credentials = await self._load_credentials(lease.proxy_url)
+                async with self.client(
+                        credentials, proxy_url=lease.proxy_url) as session:
                     return await operation(session)
             except Exception as exc:
-                if (attempt == 0
+                last_error = exc
+                generation = lease.generation
+                if (credentials is not None
                         and self.credential_bootstrap is not None
+                        and generation not in refreshed_credentials
                         and is_invalid_credentials_error(exc)):
-                    await self.credential_bootstrap.refresh(credentials)
+                    refreshed_credentials.add(generation)
+                    try:
+                        await self.credential_bootstrap.refresh(
+                            credentials,
+                            proxy_url=lease.proxy_url,
+                        )
+                    except Exception as refresh_exc:
+                        last_error = refresh_exc
+                    else:
+                        continue
+
+                if (self.proxy_manager.dynamic
+                        and generation not in refreshed_proxies
+                        and is_proxy_failure_error(last_error)):
+                    refreshed_proxies.add(generation)
+                    await proxy_context.refresh("request-failure")
                     continue
-                raise
+                raise last_error
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("App 请求未执行")
 
     async def search_books(self, keyword: str, max_pages: int = 1,
                            count: int = 10) -> list[dict]:
+        async with self._workflow(
+                force_new_proxy=False, reason="search") as proxy_context:
+            return await self._search_books(
+                keyword,
+                max_pages=max_pages,
+                count=count,
+                proxy_context=proxy_context,
+            )
+
+    async def _search_books(self, keyword: str, max_pages: int,
+                            count: int,
+                            proxy_context: ProxyLeaseContext) -> list[dict]:
         books = []
         seen_ids: set[str] = set()
         seen_pages: set[tuple[str, ...]] = set()
         for page in range(max_pages):
             data = await self._run_with_client(
                 lambda session: session.search_books(
-                    keyword, page=page, count=count))
+                    keyword, page=page, count=count),
+                proxy_context,
+            )
             fresh, stop = self._dedupe_page(
                 data.get("data", {}).get("book_list", []),
                 seen_ids,
@@ -167,28 +239,34 @@ class CiweimaoService:
     async def handle_download_by_name(self, payload: dict,
                                       task_id: str) -> dict:
         request = DownloadByNameRequest.model_validate(payload)
-        books = await self.search_books(
-            request.book_name,
-            max_pages=request.max_search_pages,
-            count=10,
-        )
-        selected = self._select_book(books, request)
-        book_id = str(selected.get("book_id", ""))
-        if not book_id:
-            raise BookNotFoundError(
-                f"搜索结果缺少 book_id: {request.book_name}")
-        output_path = await self._run_with_client(
-            lambda session: async_downloader.download_book(
-                session,
-                book_id,
-                output_dir=str(self.settings.output_dir),
-                book_info=selected,
-                skip_existing=request.skip_existing,
-                free_only=True,
-                include_book_id=request.include_book_id,
-                chapter_delay=self.settings.chapter_delay,
-                chapter_concurrency=self.settings.chapter_concurrency,
-            ))
+        async with self._workflow(
+                force_new_proxy=False,
+                reason="download_by_name") as proxy_context:
+            books = await self._search_books(
+                request.book_name,
+                max_pages=request.max_search_pages,
+                count=10,
+                proxy_context=proxy_context,
+            )
+            selected = self._select_book(books, request)
+            book_id = str(selected.get("book_id", ""))
+            if not book_id:
+                raise BookNotFoundError(
+                    f"搜索结果缺少 book_id: {request.book_name}")
+            output_path = await self._run_with_client(
+                lambda session: async_downloader.download_book(
+                    session,
+                    book_id,
+                    output_dir=str(self.settings.output_dir),
+                    book_info=selected,
+                    skip_existing=request.skip_existing,
+                    free_only=True,
+                    include_book_id=request.include_book_id,
+                    chapter_delay=self.settings.chapter_delay,
+                    chapter_concurrency=self.settings.chapter_concurrency,
+                ),
+                proxy_context,
+            )
 
         file_size, sha256 = await asyncio.to_thread(
             _file_digest, output_path)
@@ -215,31 +293,36 @@ class CiweimaoService:
         del task_id
         request = SyncRankingsRequest.model_validate(payload)
         snapshots = []
-        for index, spec in enumerate(request.specs):
-            books = await self._run_with_client(
-                lambda session: session.get_rank_books(
-                    order=spec.order,
-                    time_type=spec.time_type,
-                    page=0,
-                    count=request.count,
-                    category_index=request.category_index,
-                ))
-            snapshot = await self.database.create_snapshot(
-                kind="ranking",
-                source_key=spec.source_key,
-                books=books,
-                metadata={
-                    "order": spec.order,
-                    "time_type": spec.time_type,
-                    "page": 0,
-                    "count": request.count,
-                    "category_index": request.category_index,
-                },
-            )
-            snapshots.append(snapshot)
-            if (index + 1 < len(request.specs)
-                    and self.settings.list_request_delay > 0):
-                await asyncio.sleep(self.settings.list_request_delay)
+        async with self._workflow(
+                force_new_proxy=True,
+                reason="sync_rankings") as proxy_context:
+            for index, spec in enumerate(request.specs):
+                books = await self._run_with_client(
+                    lambda session: session.get_rank_books(
+                        order=spec.order,
+                        time_type=spec.time_type,
+                        page=0,
+                        count=request.count,
+                        category_index=request.category_index,
+                    ),
+                    proxy_context,
+                )
+                snapshot = await self.database.create_snapshot(
+                    kind="ranking",
+                    source_key=spec.source_key,
+                    books=books,
+                    metadata={
+                        "order": spec.order,
+                        "time_type": spec.time_type,
+                        "page": 0,
+                        "count": request.count,
+                        "category_index": request.category_index,
+                    },
+                )
+                snapshots.append(snapshot)
+                if (index + 1 < len(request.specs)
+                        and self.settings.list_request_delay > 0):
+                    await asyncio.sleep(self.settings.list_request_delay)
         return {
             "snapshot_count": len(snapshots),
             "item_count": sum(item["item_count"] for item in snapshots),
@@ -253,18 +336,23 @@ class CiweimaoService:
         books = []
         seen_ids: set[str] = set()
         seen_pages: set[tuple[str, ...]] = set()
-        for page in range(request.max_pages):
-            page_books = await self._run_with_client(
-                lambda session: session.get_bookcity_books(
-                    page=page, count=request.count, order="newtime"))
-            fresh, stop = self._dedupe_page(
-                page_books, seen_ids, seen_pages)
-            books.extend(fresh)
-            if stop:
-                break
-            if (page + 1 < request.max_pages
-                    and self.settings.list_request_delay > 0):
-                await asyncio.sleep(self.settings.list_request_delay)
+        async with self._workflow(
+                force_new_proxy=True,
+                reason="sync_new_books") as proxy_context:
+            for page in range(request.max_pages):
+                page_books = await self._run_with_client(
+                    lambda session: session.get_bookcity_books(
+                        page=page, count=request.count, order="newtime"),
+                    proxy_context,
+                )
+                fresh, stop = self._dedupe_page(
+                    page_books, seen_ids, seen_pages)
+                books.extend(fresh)
+                if stop:
+                    break
+                if (page + 1 < request.max_pages
+                        and self.settings.list_request_delay > 0):
+                    await asyncio.sleep(self.settings.list_request_delay)
         snapshot = await self.database.create_snapshot(
             kind="new_books",
             source_key="newtime",

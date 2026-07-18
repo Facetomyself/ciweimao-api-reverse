@@ -92,3 +92,29 @@ class FastApiTests(unittest.TestCase):
                     time.sleep(0.01)
                 else:
                     self.fail("无 body 的同步任务未完成")
+
+    def test_dynamic_proxy_bootstrap_is_deferred_until_first_use(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "service.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "missing-tokens.json",
+                guest_bootstrap_enabled=True,
+                scheduler_enabled=False,
+                proxy_provider="kuaidaili_dps",
+                kdl_secret_id="fixture-id",
+                kdl_secret_key="fixture-key",
+            )
+
+            app = create_app(settings)
+            with TestClient(app) as client:
+                health = client.get("/health").json()
+
+            self.assertEqual(
+                "deferred-until-first-use",
+                health["guest_bootstrap"]["source"],
+            )
+            self.assertFalse(health["proxy"]["acquired"])
+            self.assertEqual(
+                "kuaidaili_dps", health["proxy"]["provider"])

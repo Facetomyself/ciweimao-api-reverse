@@ -5,9 +5,24 @@ import inspect
 import os
 from pathlib import Path
 
+from curl_cffi.requests.exceptions import (
+    ConnectionError as CurlConnectionError,
+)
+from curl_cffi.requests.exceptions import ProxyError as CurlProxyError
+from curl_cffi.requests.exceptions import Timeout as CurlTimeout
+
 from . import api as _api
 from . import models
 from .downloader import NoDownloadableChapters
+
+
+def _must_abort_download(exc: BaseException) -> bool:
+    if isinstance(exc, (CurlConnectionError, CurlProxyError, CurlTimeout)):
+        return True
+    if isinstance(exc, _api.ApiError) and exc.code in {"200100", "320002"}:
+        return True
+    return (isinstance(exc, RuntimeError)
+            and "login_token 已过期" in str(exc))
 
 
 async def _notify(callback, current: int, total: int) -> None:
@@ -110,6 +125,8 @@ async def get_book(session: _api.AsyncSession, book_id: str,
                     chapter.content = await session.get_chapter_content(
                         chapter.chapter_id, command)
                 except Exception as exc:
+                    if _must_abort_download(exc):
+                        raise
                     chapter.content = f"【下载失败: {exc}】"
                 if chapter_delay > 0:
                     await asyncio.sleep(chapter_delay)

@@ -1,64 +1,6 @@
 name: ciweimao-api-reverse
 
 services:
-  egress:
-    image: ciweimao-api-reverse:local
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
-    command:
-      - python
-      - -m
-      - client.ssh_exec_socks
-    restart: unless-stopped
-    init: true
-    env_file:
-      - ./runtime/nas-egress/connection.env
-    environment:
-      SSH_EXEC_PASSWORD_FILE: /run/secrets/ssh_password
-      SSH_EXEC_KNOWN_HOSTS_FILE: /run/secrets/known_hosts
-      SSH_EXEC_LISTEN_HOST: 0.0.0.0
-      SSH_EXEC_LISTEN_PORT: "1080"
-      SSH_EXEC_ALLOWED_PORTS: 80,443
-      SSH_EXEC_KEEPALIVE_SECONDS: "30"
-    volumes:
-      - ./runtime/nas-egress/password:/run/secrets/ssh_password:ro
-      - ./runtime/nas-egress/known_hosts:/run/secrets/known_hosts:ro
-    read_only: true
-    tmpfs:
-      - /tmp:size=16m,mode=1777
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    mem_limit: 160m
-    mem_reservation: 64m
-    cpus: 0.25
-    pids_limit: 64
-    healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - >-
-          import socket;
-          socket.create_connection(('127.0.0.1', 1080), timeout=5).close()
-      interval: 20s
-      timeout: 8s
-      retries: 3
-      start_period: 15s
-    stop_grace_period: 15s
-    logging:
-      driver: json-file
-      options:
-        max-size: 5m
-        max-file: "2"
-    labels:
-      com.zhangxuemin.project: ciweimao-api-reverse
-      com.zhangxuemin.role: isolated-nas-ssh-exec-egress
-
   api:
     image: ciweimao-api-reverse:local
     build:
@@ -68,9 +10,6 @@ services:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
     restart: unless-stopped
     init: true
-    depends_on:
-      egress:
-        condition: service_healthy
     environment:
       CIWEIMAO_HOST: 0.0.0.0
       CIWEIMAO_PORT: "8000"
@@ -80,13 +19,21 @@ services:
       CIWEIMAO_GUEST_BOOTSTRAP_ENABLED: "1"
       CIWEIMAO_SCHEDULER_ENABLED: "1"
       CIWEIMAO_QUEUE_WORKERS: "1"
-      CIWEIMAO_PROXY_URL: socks5h://egress:1080
+      CIWEIMAO_PROXY_PROVIDER: kuaidaili_dps
+      CIWEIMAO_PROXY_LEASE_SECONDS: "1200"
+      CIWEIMAO_PROXY_EXPIRY_SAFETY_SECONDS: "30"
+      CIWEIMAO_KDL_AUTH_MODE: required
+      KDL_SECRET_ID_FILE: /run/secrets/kdl_secret_id
+      KDL_SECRET_KEY_FILE: /run/secrets/kdl_secret_key
       TZ: Asia/Shanghai
     ports:
       - "${CIWEIMAO_BIND_IP:-127.0.0.1}:${CIWEIMAO_HOST_PORT:-18086}:8000"
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/output:/app/output_api
+    secrets:
+      - kdl_secret_id
+      - kdl_secret_key
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -123,3 +70,9 @@ services:
     labels:
       com.zhangxuemin.project: ciweimao-api-reverse
       com.zhangxuemin.role: app-api-collector
+
+secrets:
+  kdl_secret_id:
+    file: ./runtime/secrets/kdl_secret_id
+  kdl_secret_key:
+    file: ./runtime/secrets/kdl_secret_key

@@ -21,9 +21,8 @@ RUN python -m pip install --index-url "${PIP_INDEX_URL}" \
 COPY client ./client
 COPY service ./service
 
-RUN mkdir -p /app/data /app/output_api /home/app/.ssh \
-    && chmod 0700 /home/app/.ssh \
-    && chown -R app:app /app /home/app/.ssh
+RUN mkdir -p /app/data /app/output_api \
+    && chown -R app:app /app
 
 USER app
 

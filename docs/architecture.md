@@ -33,14 +33,14 @@ APScheduler
 - `api.Session`：同步 `curl_cffi` 会话，兼容原 CLI；
 - `api.AsyncSession`：FastAPI、worker 和 scheduler 任务使用的异步会话；
 - `guest.py`：复现 App `auto_reg_v2`，创建与当前网络出口绑定的游客身份；
-- `ssh_exec_socks.py`：Compose 私网 SOCKS5；通过普通 SSH exec channel 在 NAS 远端内存执行 TCP relay，只允许 80/443；
 - `async_downloader`：章节有界并发、免费章过滤、TXT 原子落盘；
 - 签名、AES response 解密、章节解密与 CDN 解码继续复用现有协议模块。
 
 ### `service`
 
 - `config.py`：无密钥配置与凭据惰性加载；
-- `credentials.py`：lifespan 前置凭据校验、游客自举和 `0600` 原子落盘；
+- `proxy.py`：快代理 DPS 按需提取、20 分钟租约缓存、到期与失败刷新；
+- `credentials.py`：静态出口 lifespan 校验、动态出口首次使用自举和 `0600` 原子落盘；
 - `database.py`：SQLite schema 和 repository；
 - `queue.py`：任务恢复、claim、执行和状态迁移；
 - `core.py`：搜索、按书名下载、榜单、新书业务 handler；
@@ -86,12 +86,19 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 
 列表请求采用短生命周期 `curl_cffi.requests.AsyncSession`，避免同一连接池连续混跑不同 App 列表时出现服务端断链或临时码。下载阶段使用单独 session，默认 `max_clients=5`。
 
-所有 Session 可通过 `CIWEIMAO_PROXY_URL` 注入统一 HTTP/SOCKS5 代理。该配置只作用于 App API 与正文 CDN 请求，不修改进程外的系统代理或宿主路由。`ali-cloud` 部署使用 `socks5h://egress:1080`：域名由 NAS 解析，SOCKS sidecar 只在 Compose network 内监听。NAS SSH 禁用了 `direct-tcpip`，因此 sidecar 复用一个密码认证、host-key pinned 的 Paramiko transport，并为每个目标创建普通 session channel，在 NAS 内存执行 Python TCP relay；NAS 不落脚本、不开放新端口、不修改 sshd。
+所有 Session 都从业务工作流持有的 `ProxyLease` 注入代理。静态部署仍可使用
+`CIWEIMAO_PROXY_URL`；ali-cloud 使用 `CIWEIMAO_PROXY_PROVIDER=kuaidaili_dps`。
+`GetDPS` 只在第一次真实使用或明确刷新时调用，启动、healthcheck 和 scheduler 投递不
+提取 IP。当前租约只在进程内保存，不修改系统代理、宿主路由或其他容器网络。
+
+- 榜单和新书 handler 每次开始时强制获取一个新租约，整轮分页/规格复用；
+- 搜索和指定书下载复用仍有效的当前租约，到期或失败后才刷新；
+- 游客身份与出口相关，完整 App 网络工作流通过单锁串行执行，避免不同代理同时覆盖 token；
 
 - 榜单：按规格顺序请求，每个规格独立 session；
 - 新书与搜索：按页顺序请求，每页独立 session；
 - 单本下载：章节使用 `asyncio.Semaphore(3)`，每章内部按 `command -> metadata/CDN` 顺序执行；
-- App API/CDN 遇连接断开或 timeout 时默认最多重试 2 次，并按 0.25 秒基数指数退避；App `320002` 先在当前会话额外重试 1 次，仍失败或遇 `200100` 时由 credential bootstrap 单锁注册新游客，整个业务操作再重试 1 次；其他业务错误和解密错误不重试；
+- App API/CDN 遇连接断开或 timeout 时先做有限传输重试；`200100` 在当前代理下刷新游客；`320002` 先刷新游客，校验仍失败才废弃动态代理并提取一个新 IP；其他业务错误和解密错误不触发换 IP；
 - 文件写入：通过 `asyncio.to_thread` 执行，不阻塞 event loop；
 - 落盘：先写 `.txt.part`，完成后 `os.replace`。
 
@@ -137,13 +144,11 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 当前支持的默认拓扑：
 
 ```text
-1 private NAS SSH exec SOCKS sidecar
-  + 1 pinned SSH transport
-  + per-target session-channel relay (80/443 only)
 1 FastAPI process
   + 1 APScheduler
   + 1 queue worker
   + 1 SQLite database
+  + 1 on-demand Kuaidaili DPS lease
 ```
 
 必须使用单 Uvicorn worker。多个 Uvicorn worker 会各自启动 scheduler 和内存队列，即使任务去重能挡住一部分重复，仍不属于正确部署。
@@ -164,8 +169,9 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 | 同任务重复触发 | active partial unique index 返回已有任务 |
 | TXT 写入中断 | 仅遗留 `.part`，不会覆盖成功文件；finally 清理临时文件 |
 | Scheduler 暂停多周期 | `coalesce=True` 合并错过的执行 |
-| 凭据缺失/跨出口失效 | lifespan 经当前 proxy 校验，按需注册游客后才启动队列与 scheduler |
-| 运行中 `200100` / 持久 `320002` | 单锁刷新 token 文件；并发请求复用已刷新的游客，原业务操作重试 1 次 |
+| 凭据缺失/跨出口失效 | 第一次真实 App 请求持有代理后再按需注册游客；启动阶段不提取 IP |
+| 运行中 `200100` | 在当前代理下单锁刷新 token 文件并重试业务操作 |
+| 持久 `320002` / 代理连接失败 | 当前代理下游客校验失败后废弃租约，按需提取 1 个新 IP |
 | 凭据文件更新 | 下个任务重新读取 `tokens.json`，无需重启服务 |
 
 ## 迁移 PostgreSQL 的边界
