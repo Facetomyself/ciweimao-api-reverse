@@ -22,6 +22,7 @@ class FakeService:
             "download_by_name": self.download,
             "sync_rankings": self.rankings,
             "sync_new_books": self.new_books,
+            "sync_all": self.all_sync,
         }
 
     async def search_books(self, keyword, max_pages=1, count=10):
@@ -39,6 +40,14 @@ class FakeService:
         del payload
         return {"item_count": 0, "task_id": task_id}
 
+    async def all_sync(self, payload, task_id):
+        del payload
+        return {
+            "rankings": {"snapshot_count": 0, "item_count": 0},
+            "new_books": {"item_count": 0},
+            "task_id": task_id,
+        }
+
 
 class FastApiTests(unittest.TestCase):
     def test_http_queue_and_scheduler_lifecycle(self):
@@ -49,8 +58,7 @@ class FastApiTests(unittest.TestCase):
                 output_dir=root / "output",
                 token_path=root / "missing-tokens.json",
                 scheduler_enabled=True,
-                ranking_interval_minutes=60,
-                new_books_interval_minutes=60,
+                sync_interval_minutes=30,
                 queue_workers=1,
             )
             app = create_app(settings, service_factory=FakeService)
@@ -61,7 +69,10 @@ class FastApiTests(unittest.TestCase):
                     "wal", health.json()["database"]["journal_mode"])
 
                 jobs = client.get("/api/scheduler/jobs")
-                self.assertEqual(2, len(jobs.json()["jobs"]))
+                self.assertEqual(1, len(jobs.json()["jobs"]))
+                self.assertEqual("sync-all", jobs.json()["jobs"][0]["id"])
+                self.assertIn(
+                    "0:30:00", jobs.json()["jobs"][0]["trigger"])
 
                 search = client.get(
                     "/api/books/search", params={"q": "书名"})
@@ -92,6 +103,22 @@ class FastApiTests(unittest.TestCase):
                     time.sleep(0.01)
                 else:
                     self.fail("无 body 的同步任务未完成")
+
+                merged = client.post("/api/sync/all")
+                self.assertEqual(202, merged.status_code)
+                merged_task_id = merged.json()["id"]
+                for _ in range(100):
+                    merged_task = client.get(
+                        f"/api/tasks/{merged_task_id}").json()
+                    if merged_task["status"] == "succeeded":
+                        break
+                    time.sleep(0.01)
+                else:
+                    self.fail("合并同步任务未完成")
+                self.assertEqual(
+                    0, merged_task["result"]["rankings"]["snapshot_count"])
+                self.assertEqual(
+                    0, merged_task["result"]["new_books"]["item_count"])
 
     def test_dynamic_proxy_bootstrap_is_deferred_until_first_use(self):
         with tempfile.TemporaryDirectory() as tmp:

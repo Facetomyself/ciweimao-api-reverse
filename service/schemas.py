@@ -71,6 +71,17 @@ class SyncNewBooksRequest(StrictModel):
     count: int = Field(default=100, ge=1, le=100)
 
 
+class SyncAllRequest(StrictModel):
+    """一次调度中顺序同步榜单和新书，共享同一个代理租约。"""
+
+    rankings: SyncRankingsRequest = Field(
+        default_factory=SyncRankingsRequest,
+    )
+    new_books: SyncNewBooksRequest = Field(
+        default_factory=SyncNewBooksRequest,
+    )
+
+
 TaskStatus = Literal[
     "queued", "running", "succeeded", "failed", "cancelled",
 ]

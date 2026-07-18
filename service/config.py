@@ -68,8 +68,7 @@ class Settings:
     guest_bootstrap_enabled: bool = False
     scheduler_enabled: bool = True
     scheduler_timezone: str = "Asia/Shanghai"
-    ranking_interval_minutes: int = 30
-    new_books_interval_minutes: int = 10
+    sync_interval_minutes: int = 30
     queue_workers: int = 1
     http_timeout: float = 30
     http_max_clients: int = 5
@@ -94,6 +93,18 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         impersonate = os.getenv("CIWEIMAO_HTTP_IMPERSONATE", "").strip()
+        if os.getenv("CIWEIMAO_SYNC_INTERVAL_MINUTES") is not None:
+            sync_interval_minutes = _env_int(
+                "CIWEIMAO_SYNC_INTERVAL_MINUTES", 30)
+        elif os.getenv("CIWEIMAO_RANKING_INTERVAL_MINUTES") is not None:
+            # 旧配置只保留榜单周期时，以它作为合并周期。
+            sync_interval_minutes = _env_int(
+                "CIWEIMAO_RANKING_INTERVAL_MINUTES", 30)
+        elif os.getenv("CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES") is not None:
+            sync_interval_minutes = _env_int(
+                "CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES", 30)
+        else:
+            sync_interval_minutes = 30
         return cls(
             database_path=Path(os.getenv(
                 "CIWEIMAO_DB_PATH",
@@ -113,10 +124,7 @@ class Settings:
                 "CIWEIMAO_SCHEDULER_ENABLED", True),
             scheduler_timezone=os.getenv(
                 "CIWEIMAO_SCHEDULER_TIMEZONE", "Asia/Shanghai"),
-            ranking_interval_minutes=_env_int(
-                "CIWEIMAO_RANKING_INTERVAL_MINUTES", 30),
-            new_books_interval_minutes=_env_int(
-                "CIWEIMAO_NEW_BOOKS_INTERVAL_MINUTES", 10),
+            sync_interval_minutes=sync_interval_minutes,
             queue_workers=_env_int("CIWEIMAO_QUEUE_WORKERS", 1),
             http_timeout=_env_float("CIWEIMAO_HTTP_TIMEOUT", 30, 0.1),
             http_max_clients=_env_int("CIWEIMAO_HTTP_MAX_CLIENTS", 5),

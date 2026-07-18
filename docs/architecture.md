@@ -25,7 +25,7 @@ FastAPI routes
             -> Database repository
 
 APScheduler
-  -> only enqueue sync_rankings / sync_new_books
+  -> only enqueue sync_all
 ```
 
 ### `client`
@@ -43,7 +43,7 @@ APScheduler
 - `credentials.py`：静态出口 lifespan 校验、动态出口首次使用自举和 `0600` 原子落盘；
 - `database.py`：SQLite schema 和 repository；
 - `queue.py`：任务恢复、claim、执行和状态迁移；
-- `core.py`：搜索、按书名下载、榜单、新书业务 handler；
+- `core.py`：搜索、按书名下载、榜单、新书与合并同步业务 handler；
 - `scheduler.py`：APScheduler 定时投递；
 - `app.py`：FastAPI lifespan 与路由。
 
@@ -74,13 +74,12 @@ WHERE id = ? AND status = 'queued';
 
 APScheduler 3.11 使用 `AsyncIOScheduler`：
 
-- `sync-rankings`：30 分钟；
-- `sync-new-books`：10 分钟；
+- `sync-all`：每 30 分钟顺序同步榜单和新书；
 - `coalesce=True`；
 - `max_instances=1`；
 - 定时函数只调用 `queue.submit()`。
 
-手动 API 和定时任务对 canonical JSON 计算 SHA-256 摘要，生成相同的 payload 去重键。因此同规格任务不会因两个入口重复执行。
+合并手动 API 和定时任务对 canonical JSON 计算 SHA-256 摘要，生成相同的 payload 去重键。因此同规格任务不会因两个入口重复执行。榜单、新书单项 API 继续保留，用于故障隔离和按需补抓，但 scheduler 不再分别投递它们。
 
 ## 网络并发
 
@@ -91,7 +90,8 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 `GetDPS` 只在第一次真实使用或明确刷新时调用，启动、healthcheck 和 scheduler 投递不
 提取 IP。当前租约只在进程内保存，不修改系统代理、宿主路由或其他容器网络。
 
-- 榜单和新书 handler 每次开始时强制获取一个新租约，整轮分页/规格复用；
+- `sync_all` 每轮开始时强制获取一个新租约，榜单与新书在同一个 `ProxyLeaseContext` 中顺序执行；
+- 榜单和新书单项 handler 手动执行时仍各自获取新租约；
 - 搜索和指定书下载复用仍有效的当前租约，到期或失败后才刷新；
 - 游客身份与出口相关，完整 App 网络工作流通过单锁串行执行，避免不同代理同时覆盖 token；
 
@@ -148,7 +148,7 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
   + 1 APScheduler
   + 1 queue worker
   + 1 SQLite database
-  + 1 on-demand Kuaidaili DPS lease
+  + 1 on-demand Kuaidaili DPS lease per 30-minute sync cycle
 ```
 
 必须使用单 Uvicorn worker。多个 Uvicorn worker 会各自启动 scheduler 和内存队列，即使任务去重能挡住一部分重复，仍不属于正确部署。

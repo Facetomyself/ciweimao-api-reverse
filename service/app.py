@@ -16,6 +16,7 @@ from .proxy import redact_error_text
 from .scheduler import build_scheduler, task_dedupe_key
 from .schemas import (
     DownloadByNameRequest,
+    SyncAllRequest,
     SyncNewBooksRequest,
     SyncRankingsRequest,
     TaskStatus,
@@ -185,6 +186,20 @@ def create_app(settings: Settings | None = None,
             "sync_new_books",
             task_payload,
             task_dedupe_key("sync_new_books", task_payload),
+        )
+
+    @application.post(
+        "/api/sync/all", status_code=status.HTTP_202_ACCEPTED)
+    async def sync_all(
+        request: Request,
+        payload: SyncAllRequest | None = Body(default=None),
+    ):
+        model = payload or SyncAllRequest()
+        task_payload = model.model_dump(mode="json")
+        return await request.app.state.queue.submit(
+            "sync_all",
+            task_payload,
+            task_dedupe_key("sync_all", task_payload),
         )
 
     @application.get("/api/tasks")

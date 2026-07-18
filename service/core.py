@@ -22,6 +22,7 @@ from .proxy import (
 )
 from .schemas import (
     DownloadByNameRequest,
+    SyncAllRequest,
     SyncNewBooksRequest,
     SyncRankingsRequest,
 )
@@ -67,6 +68,7 @@ class CiweimaoService:
             "download_by_name": self.handle_download_by_name,
             "sync_rankings": self.handle_sync_rankings,
             "sync_new_books": self.handle_sync_new_books,
+            "sync_all": self.handle_sync_all,
         }
 
     @asynccontextmanager
@@ -288,71 +290,61 @@ class CiweimaoService:
             "free_only": True,
         }
 
-    async def handle_sync_rankings(self, payload: dict,
-                                   task_id: str) -> dict:
-        del task_id
-        request = SyncRankingsRequest.model_validate(payload)
+    async def _sync_rankings(self, request: SyncRankingsRequest,
+                             proxy_context: ProxyLeaseContext) -> dict:
         snapshots = []
-        async with self._workflow(
-                force_new_proxy=True,
-                reason="sync_rankings") as proxy_context:
-            for index, spec in enumerate(request.specs):
-                books = await self._run_with_client(
-                    lambda session: session.get_rank_books(
-                        order=spec.order,
-                        time_type=spec.time_type,
-                        page=0,
-                        count=request.count,
-                        category_index=request.category_index,
-                    ),
-                    proxy_context,
-                )
-                snapshot = await self.database.create_snapshot(
-                    kind="ranking",
-                    source_key=spec.source_key,
-                    books=books,
-                    metadata={
-                        "order": spec.order,
-                        "time_type": spec.time_type,
-                        "page": 0,
-                        "count": request.count,
-                        "category_index": request.category_index,
-                    },
-                )
-                snapshots.append(snapshot)
-                if (index + 1 < len(request.specs)
-                        and self.settings.list_request_delay > 0):
-                    await asyncio.sleep(self.settings.list_request_delay)
+        for index, spec in enumerate(request.specs):
+            books = await self._run_with_client(
+                lambda session: session.get_rank_books(
+                    order=spec.order,
+                    time_type=spec.time_type,
+                    page=0,
+                    count=request.count,
+                    category_index=request.category_index,
+                ),
+                proxy_context,
+            )
+            snapshot = await self.database.create_snapshot(
+                kind="ranking",
+                source_key=spec.source_key,
+                books=books,
+                metadata={
+                    "order": spec.order,
+                    "time_type": spec.time_type,
+                    "page": 0,
+                    "count": request.count,
+                    "category_index": request.category_index,
+                },
+            )
+            snapshots.append(snapshot)
+            if (index + 1 < len(request.specs)
+                    and self.settings.list_request_delay > 0):
+                await asyncio.sleep(self.settings.list_request_delay)
         return {
             "snapshot_count": len(snapshots),
             "item_count": sum(item["item_count"] for item in snapshots),
             "snapshots": snapshots,
         }
 
-    async def handle_sync_new_books(self, payload: dict,
-                                    task_id: str) -> dict:
-        del task_id
-        request = SyncNewBooksRequest.model_validate(payload)
+    async def _sync_new_books(self, request: SyncNewBooksRequest,
+                              proxy_context: ProxyLeaseContext) -> dict:
         books = []
         seen_ids: set[str] = set()
         seen_pages: set[tuple[str, ...]] = set()
-        async with self._workflow(
-                force_new_proxy=True,
-                reason="sync_new_books") as proxy_context:
-            for page in range(request.max_pages):
-                page_books = await self._run_with_client(
-                    lambda session: session.get_bookcity_books(
-                        page=page, count=request.count, order="newtime"),
-                    proxy_context,
-                )
-                fresh, stop = self._dedupe_page(
-                    page_books, seen_ids, seen_pages)
-                books.extend(fresh)
-                if stop:
-                    break
-                if (page + 1 < request.max_pages
-                        and self.settings.list_request_delay > 0):
-                    await asyncio.sleep(self.settings.list_request_delay)
+        for page in range(request.max_pages):
+            page_books = await self._run_with_client(
+                lambda session: session.get_bookcity_books(
+                    page=page, count=request.count, order="newtime"),
+                proxy_context,
+            )
+            fresh, stop = self._dedupe_page(
+                page_books, seen_ids, seen_pages)
+            books.extend(fresh)
+            if stop:
+                break
+            if (page + 1 < request.max_pages
+                    and self.settings.list_request_delay > 0):
+                await asyncio.sleep(self.settings.list_request_delay)
         snapshot = await self.database.create_snapshot(
             kind="new_books",
             source_key="newtime",
@@ -367,4 +359,38 @@ class CiweimaoService:
             "snapshot_id": snapshot["id"],
             "item_count": snapshot["item_count"],
             "captured_at": snapshot["captured_at"],
+        }
+
+    async def handle_sync_rankings(self, payload: dict,
+                                   task_id: str) -> dict:
+        del task_id
+        request = SyncRankingsRequest.model_validate(payload)
+        async with self._workflow(
+                force_new_proxy=True,
+                reason="sync_rankings") as proxy_context:
+            return await self._sync_rankings(request, proxy_context)
+
+    async def handle_sync_new_books(self, payload: dict,
+                                    task_id: str) -> dict:
+        del task_id
+        request = SyncNewBooksRequest.model_validate(payload)
+        async with self._workflow(
+                force_new_proxy=True,
+                reason="sync_new_books") as proxy_context:
+            return await self._sync_new_books(request, proxy_context)
+
+    async def handle_sync_all(self, payload: dict, task_id: str) -> dict:
+        """在一次 workflow 内完成榜单和新书同步，初始只获取一个 IP。"""
+        del task_id
+        request = SyncAllRequest.model_validate(payload)
+        async with self._workflow(
+                force_new_proxy=True,
+                reason="sync_all") as proxy_context:
+            rankings = await self._sync_rankings(
+                request.rankings, proxy_context)
+            new_books = await self._sync_new_books(
+                request.new_books, proxy_context)
+        return {
+            "rankings": rankings,
+            "new_books": new_books,
         }

@@ -15,6 +15,7 @@ from service.proxy import ProxyLeaseManager
 from service.schemas import (
     DownloadByNameRequest,
     RankingSpec,
+    SyncAllRequest,
     SyncNewBooksRequest,
     SyncRankingsRequest,
 )
@@ -289,6 +290,34 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             "new-books-task",
         )
         self.assertEqual(2, provider.calls)
+
+    async def test_merged_sync_reuses_one_proxy_lease(self):
+        provider = FakeDynamicProxyProvider()
+        manager = ProxyLeaseManager(provider, expiry_safety_seconds=0)
+        service = CiweimaoService(
+            self.settings,
+            self.database,
+            session_factory=FakeAppSession,
+            proxy_manager=manager,
+        )
+        payload = SyncAllRequest(
+            rankings=SyncRankingsRequest(specs=[RankingSpec(
+                order="fans_value", time_type="week")]),
+            new_books=SyncNewBooksRequest(),
+        ).model_dump(mode="json")
+
+        result = await service.handle_sync_all(payload, "sync-all-task")
+
+        self.assertEqual(1, provider.calls)
+        self.assertEqual(1, result["rankings"]["snapshot_count"])
+        self.assertEqual(1, result["rankings"]["item_count"])
+        self.assertEqual(1, result["new_books"]["item_count"])
+        ranking_snapshot = await self.database.get_latest_snapshot(
+            "ranking", "fans_value:week")
+        new_snapshot = await self.database.get_latest_snapshot(
+            "new_books", "newtime")
+        self.assertEqual(1, ranking_snapshot["item_count"])
+        self.assertEqual(1, new_snapshot["item_count"])
 
     async def test_proxy_320002_refreshes_ip_once(self):
         provider = FakeDynamicProxyProvider()
