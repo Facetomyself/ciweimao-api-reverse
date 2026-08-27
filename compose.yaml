@@ -1,6 +1,65 @@
 name: ciweimao-api-reverse
 
 services:
+  egress:
+    image: ciweimao-api-reverse:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
+    command:
+      - python
+      - -m
+      - client.ssh_exec_socks
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./runtime/nas-egress/connection.env
+    environment:
+      SSH_EXEC_PASSWORD_FILE: /run/secrets/ssh_password
+      SSH_EXEC_KNOWN_HOSTS_FILE: /run/secrets/known_hosts
+      SSH_EXEC_LISTEN_HOST: 0.0.0.0
+      SSH_EXEC_LISTEN_PORT: "1080"
+      SSH_EXEC_ALLOWED_PORTS: 80,443
+      SSH_EXEC_KEEPALIVE_SECONDS: "30"
+    volumes:
+      - ./runtime/nas-egress/password:/run/secrets/ssh_password:ro
+      - ./runtime/nas-egress/known_hosts:/run/secrets/known_hosts:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 160m
+    mem_reservation: 64m
+    cpus: 0.25
+    pids_limit: 64
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import socket;
+          socket.create_connection(('127.0.0.1', 1080), timeout=5).close()
+      interval: 20s
+      timeout: 8s
+      retries: 3
+      start_period: 15s
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+    labels:
+      com.zhangxuemin.project: ciweimao-api-reverse
+      com.zhangxuemin.role: isolated-nas-ssh-exec-egress
+
   api:
     image: ciweimao-api-reverse:local
     build:
@@ -8,14 +67,24 @@ services:
       dockerfile: Dockerfile
       args:
         PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com/}
     restart: unless-stopped
     init: true
+    depends_on:
+      egress:
+        condition: service_healthy
+    env_file:
+      - ./runtime/nas-egress/connection.env
     environment:
       CIWEIMAO_HOST: 0.0.0.0
       CIWEIMAO_PORT: "8000"
       CIWEIMAO_DB_PATH: /app/data/ciweimao.sqlite3
       CIWEIMAO_TOKEN_PATH: /app/data/guest-tokens.json
+      CIWEIMAO_IDENTITY_STORE_PATH: /app/data/identity-store.json
+      CIWEIMAO_EGRESS_STATE_PATH: /app/data/egress-state.json
       CIWEIMAO_OUTPUT_DIR: /app/output_api
+      CIWEIMAO_ARCHIVE_DIR: /app/archive
+      CIWEIMAO_PROTOCOL_PROFILE: "2.9.365"
       CIWEIMAO_GUEST_BOOTSTRAP_ENABLED: "1"
       CIWEIMAO_SCHEDULER_ENABLED: "1"
       CIWEIMAO_SYNC_INTERVAL_MINUTES: "30"
@@ -24,10 +93,28 @@ services:
       CIWEIMAO_AUTO_DOWNLOAD_FAILURE_RETRY_MINUTES: "60"
       CIWEIMAO_AUTO_DOWNLOAD_NO_FREE_RETRY_HOURS: "24"
       CIWEIMAO_QUEUE_WORKERS: "1"
-      CIWEIMAO_PROXY_PROVIDER: kuaidaili_dps
+      CIWEIMAO_EGRESS_MODE: failover
+      CIWEIMAO_PRIMARY_PROXY_URL: socks5h://egress:1080
+      CIWEIMAO_FALLBACK_PROXY_PROVIDER: kuaidaili_dps
+      CIWEIMAO_EGRESS_FAILURE_THRESHOLD: "3"
+      CIWEIMAO_EGRESS_RISK_THRESHOLD: "2"
+      CIWEIMAO_EGRESS_COOLDOWN_SECONDS: "900"
+      CIWEIMAO_EGRESS_FAILBACK_SUCCESSES: "2"
+      CIWEIMAO_EGRESS_FAILBACK_INTERVAL_SECONDS: "300"
       CIWEIMAO_PROXY_LEASE_SECONDS: "1200"
       CIWEIMAO_PROXY_EXPIRY_SAFETY_SECONDS: "30"
       CIWEIMAO_KDL_AUTH_MODE: required
+      CIWEIMAO_READINESS_REQUIRE_PROTOCOL_PROBE: "1"
+      CIWEIMAO_READINESS_AUTO_PROBE_ENABLED: "1"
+      CIWEIMAO_READINESS_PROBE_MAX_AGE_SECONDS: "3600"
+      CIWEIMAO_READINESS_FAILURE_STREAK_THRESHOLD: "3"
+      CIWEIMAO_SEMANTIC_RETENTION_DAYS: "400"
+      CIWEIMAO_ARCHIVE_SPOOL_MAX_BYTES: "8589934592"
+      CIWEIMAO_ARCHIVE_LOCAL_RETENTION_DAYS: "7"
+      CIWEIMAO_ARCHIVE_MAINTENANCE_INTERVAL_HOURS: "24"
+      CIWEIMAO_ARCHIVE_NAS_PATH: /volume1/docker/ciweimao-api-reverse/archive
+      CIWEIMAO_ARCHIVE_SSH_PASSWORD_FILE: /run/secrets/ssh_password
+      CIWEIMAO_ARCHIVE_KNOWN_HOSTS_FILE: /run/secrets/known_hosts
       KDL_SECRET_ID_FILE: /run/secrets/kdl_secret_id
       KDL_SECRET_KEY_FILE: /run/secrets/kdl_secret_key
       TZ: Asia/Shanghai
@@ -36,6 +123,9 @@ services:
     volumes:
       - ./runtime/data:/app/data
       - ./runtime/output:/app/output_api
+      - ./runtime/archive:/app/archive
+      - ./runtime/nas-egress/password:/run/secrets/ssh_password:ro
+      - ./runtime/nas-egress/known_hosts:/run/secrets/known_hosts:ro
     secrets:
       - kdl_secret_id
       - kdl_secret_key
@@ -46,10 +136,10 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    mem_limit: 384m
-    mem_reservation: 128m
-    cpus: 0.75
-    pids_limit: 128
+    mem_limit: 512m
+    mem_reservation: 192m
+    cpus: 0.9
+    pids_limit: 160
     ulimits:
       nofile:
         soft: 4096
@@ -61,7 +151,7 @@ services:
         - -c
         - >-
           import urllib.request;
-          urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5).read()
+          urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=5).read()
       interval: 30s
       timeout: 8s
       retries: 3

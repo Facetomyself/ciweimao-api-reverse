@@ -1,5 +1,6 @@
 """FastAPI lifespan、路由、队列与 scheduler 测试。"""
 
+import asyncio
 import tempfile
 import time
 import unittest
@@ -69,10 +70,15 @@ class FastApiTests(unittest.TestCase):
                     "wal", health.json()["database"]["journal_mode"])
 
                 jobs = client.get("/api/scheduler/jobs")
-                self.assertEqual(1, len(jobs.json()["jobs"]))
-                self.assertEqual("sync-all", jobs.json()["jobs"][0]["id"])
+                jobs_by_id = {
+                    item["id"]: item for item in jobs.json()["jobs"]
+                }
+                self.assertEqual(
+                    {"sync-all", "archive-maintenance"},
+                    set(jobs_by_id),
+                )
                 self.assertIn(
-                    "0:30:00", jobs.json()["jobs"][0]["trigger"])
+                    "0:30:00", jobs_by_id["sync-all"]["trigger"])
 
                 search = client.get(
                     "/api/books/search", params={"q": "书名"})
@@ -149,3 +155,112 @@ class FastApiTests(unittest.TestCase):
             self.assertFalse(health["proxy"]["acquired"])
             self.assertEqual(
                 "kuaidaili_dps", health["proxy"]["provider"])
+
+    def test_control_plane_files_confirmations_and_readiness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "service.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "tokens.json",
+                archive_dir=root / "archive",
+                scheduler_enabled=False,
+                readiness_require_protocol_probe=False,
+            )
+            app = create_app(settings)
+            with TestClient(app) as client:
+                self.assertEqual(200, client.get("/health/live").status_code)
+                ready = client.get("/health/ready")
+                self.assertEqual(200, ready.status_code)
+                self.assertTrue(ready.json()["ready"])
+
+                paused = client.post(
+                    "/api/controls/scheduler/pause",
+                    json={"reason": "fixture"},
+                )
+                self.assertTrue(paused.json()["paused"])
+                resumed = client.post(
+                    "/api/controls/scheduler/resume", json={"reason": ""})
+                self.assertFalse(resumed.json()["paused"])
+
+                asyncio.run(app.state.database.upsert_books([{
+                    "book_id": "fixture-book",
+                    "book_name": "控制面测试书",
+                    "author_name": "测试作者",
+                }]))
+                output = settings.output_dir / "fixture.txt"
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.write_text("免费正文\n", encoding="utf-8")
+
+                async def seed_download():
+                    task, _ = await app.state.database.create_task(
+                        "fixture", {}, "fixture-download")
+                    await app.state.database.claim_task(task["id"])
+                    item = await app.state.database.record_download(
+                        task_id=task["id"],
+                        query="fixture",
+                        book={
+                            "book_id": "fixture-book",
+                            "book_name": "控制面测试书",
+                        },
+                        output_path=str(output),
+                        file_size=output.stat().st_size,
+                        sha256="fixture-sha",
+                    )
+                    await app.state.database.complete_task(
+                        task["id"], {"fixture": True})
+                    return item
+
+                item = asyncio.run(seed_download())
+                books = client.get("/api/books").json()
+                self.assertEqual("fixture-book", books["items"][0]["book_id"])
+                downloaded = client.get(
+                    f"/api/downloads/{item['id']}/file")
+                self.assertEqual(200, downloaded.status_code)
+                self.assertIn("免费正文", downloaded.text)
+
+                preview = client.post(
+                    "/api/storage/maintenance/preview",
+                    json={"compact": False},
+                )
+                self.assertEqual(200, preview.status_code)
+                token = preview.json()["confirmation_token"]
+                run = client.post(
+                    "/api/storage/maintenance/run",
+                    json={
+                        "compact": False,
+                        "confirmation_token": token,
+                    },
+                )
+                self.assertEqual(202, run.status_code)
+                repeated = client.post(
+                    "/api/storage/maintenance/run",
+                    json={
+                        "compact": False,
+                        "confirmation_token": token,
+                    },
+                )
+                self.assertEqual(409, repeated.status_code)
+
+                config_text = client.get("/api/config").text
+                self.assertNotIn("login_token", config_text)
+                self.assertNotIn("kdl_secret", config_text.lower())
+                self.assertEqual(200, client.get("/api/overview").status_code)
+
+    def test_protocol_probe_is_a_real_readiness_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "service.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "tokens.json",
+                scheduler_enabled=False,
+                readiness_require_protocol_probe=True,
+                readiness_auto_probe_enabled=False,
+            )
+            app = create_app(settings)
+            with TestClient(app) as client:
+                self.assertEqual(200, client.get("/health/live").status_code)
+                ready = client.get("/health/ready")
+                self.assertEqual(503, ready.status_code)
+                self.assertFalse(ready.json()["checks"]["protocol_probe"])

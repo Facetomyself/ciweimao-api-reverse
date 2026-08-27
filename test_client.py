@@ -102,6 +102,23 @@ class ProtocolTests(unittest.TestCase):
                 "书客1234567", "2.9.362", "10072263a65a4345"),
         )
 
+    def test_365_uses_same_hmac_formula(self):
+        source = protocol.build_signature_source(
+            "书客1234567", "2.9.365", "10072263a65a4345")
+        signed = protocol.sign_request(
+            "书客1234567", "2.9.365", "10072263a65a4345")
+
+        self.assertIn("app_version=2.9.365", source)
+        self.assertTrue(source.endswith(
+            "signatures=a90f3731745f1c30ee77cb13fc00005aCkMxWNB666"))
+        self.assertEqual("10072263a65a4345", signed["rand_str"])
+        self.assertNotEqual(
+            protocol.sign_request(
+                "书客1234567", "2.9.362", "10072263a65a4345")["p"],
+            signed["p"],
+        )
+        self.assertIn("2.9.365", config.PROTOCOL_PROFILES)
+
     def test_current_response_sample_decrypts(self):
         plaintext = crypto.decrypt_response_for_version(
             CURRENT_RESPONSE_SAMPLE, "2.9.362")

@@ -1,9 +1,10 @@
-"""App 2.9.362 游客身份自动注册。"""
+"""App 游客身份自动注册。默认协议档案见 `client.config.APP_VERSION`。"""
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
+import hashlib
 import json
 from uuid import uuid4
 
@@ -151,4 +152,36 @@ async def register_guest(
         account=account,
         device_token=config.DEVICE_TOKEN_PREFIX,
         reader_id=str(reader_info.get("reader_id", "")).strip(),
+    )
+
+
+def android_id_to_am(android_id: str) -> str:
+    """Official SendImeiTask `am` is MD5(Settings.Secure.ANDROID_ID)."""
+    return hashlib.md5(str(android_id).encode("utf-8")).hexdigest()
+
+
+def build_save_reader_oaid_params(
+    *,
+    reader_id: str,
+    am: str,
+    channel: str = config.GUEST_REGISTRATION_CHANNEL,
+    oaid: str = "",
+) -> dict[str, str]:
+    """Fields for /signup/save_reader_oaid. Session adds account/token/p."""
+    return {
+        "reader_id": str(reader_id),
+        "channel": channel,
+        "oaid": oaid,
+        "am": am,
+    }
+
+
+def save_reader_oaid(session, reader_id: str, *, am: str, oaid: str = "",
+                     channel: str = config.GUEST_REGISTRATION_CHANNEL):
+    """Post-registration follow-up used by official AutoRegTask -> SendImeiTask."""
+    return session._call(
+        "/signup/save_reader_oaid",
+        build_save_reader_oaid_params(
+            reader_id=reader_id, am=am, channel=channel, oaid=oaid,
+        ),
     )

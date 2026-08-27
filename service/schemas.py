@@ -93,6 +93,39 @@ class SyncAllRequest(StrictModel):
     )
 
 
+class DirectBookDownloadRequest(StrictModel):
+    skip_existing: bool = True
+    include_book_id: bool = True
+
+
+class ControlRequest(StrictModel):
+    reason: str = Field(default="", max_length=500)
+
+
+class ProtocolProbeRequest(StrictModel):
+    slot_id: Literal["nas-primary", "dps-fallback", "default"] | None = None
+    force_new_proxy: bool = False
+    keyword: str = Field(default="魔法", min_length=1, max_length=32)
+
+
+class EgressModeRequest(StrictModel):
+    mode: Literal["automatic", "nas-primary", "dps-fallback"]
+    reset_breaker: bool = False
+
+
+class IdentityRotateRequest(StrictModel):
+    confirmation_token: str = Field(min_length=16, max_length=128)
+
+
+class ArchivePreviewRequest(StrictModel):
+    compact: bool = False
+
+
+class ArchiveMaintenanceRequest(StrictModel):
+    compact: bool = False
+    confirmation_token: str = Field(min_length=16, max_length=128)
+
+
 TaskStatus = Literal[
-    "queued", "running", "succeeded", "failed", "cancelled",
+    "queued", "deferred", "running", "succeeded", "failed", "cancelled",
 ]

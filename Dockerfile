@@ -1,3 +1,15 @@
+FROM docker.m.daocloud.io/library/node:20-alpine AS frontend-build
+
+ARG NPM_REGISTRY=https://registry.npmmirror.com/
+WORKDIR /src/frontend
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --registry="${NPM_REGISTRY}"
+
+COPY frontend/ ./
+RUN npm run build
+
+
 FROM docker.m.daocloud.io/library/python:3.13-slim
 
 ARG APP_UID=10001
@@ -20,8 +32,9 @@ RUN python -m pip install --index-url "${PIP_INDEX_URL}" \
 
 COPY client ./client
 COPY service ./service
+COPY --from=frontend-build /src/frontend/dist ./frontend/dist
 
-RUN mkdir -p /app/data /app/output_api \
+RUN mkdir -p /app/data /app/output_api /app/archive \
     && chown -R app:app /app
 
 USER app

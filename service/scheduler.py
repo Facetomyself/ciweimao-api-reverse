@@ -28,6 +28,13 @@ def build_scheduler(settings: Settings,
     sync_payload = SyncAllRequest().model_dump(mode="json")
 
     async def submit_sync_all():
+        if await queue.database.is_paused("scheduler"):
+            await queue.database.record_event(
+                event_type="scheduler_skipped",
+                component="scheduler",
+                message="scheduler paused",
+            )
+            return
         await queue.submit(
             "sync_all",
             sync_payload,
@@ -42,5 +49,30 @@ def build_scheduler(settings: Settings,
         name="同步 App 榜单与新书",
         replace_existing=True,
         misfire_grace_time=60,
+    )
+
+    async def submit_archive_maintenance():
+        if await queue.database.is_paused("scheduler"):
+            await queue.database.record_event(
+                event_type="scheduler_skipped",
+                component="archive",
+                message="scheduler paused",
+            )
+            return
+        payload = {"compact": False}
+        await queue.submit(
+            "archive_maintenance",
+            payload,
+            task_dedupe_key("archive_maintenance", payload),
+        )
+
+    scheduler.add_job(
+        submit_archive_maintenance,
+        trigger="interval",
+        hours=settings.archive_maintenance_interval_hours,
+        id="archive-maintenance",
+        name="备份、冷档与语义保留维护",
+        replace_existing=True,
+        misfire_grace_time=300,
     )
     return scheduler

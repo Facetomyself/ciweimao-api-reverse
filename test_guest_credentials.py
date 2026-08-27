@@ -97,6 +97,18 @@ class GuestRegistrationTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
+    def test_save_reader_oaid_params_match_official_keys(self):
+        from client.guest import android_id_to_am, build_save_reader_oaid_params
+        am = android_id_to_am("0123456789abcdef")
+        self.assertEqual(32, len(am))
+        params = build_save_reader_oaid_params(
+            reader_id="1", am=am, oaid="")
+        self.assertEqual(
+            {"reader_id", "channel", "oaid", "am"}, set(params))
+        self.assertEqual(config.GUEST_REGISTRATION_CHANNEL, params["channel"])
+        self.assertEqual("", params["oaid"])
+
+
 class CredentialBootstrapTests(unittest.IsolatedAsyncioTestCase):
     async def test_missing_credentials_are_registered_and_reused(self):
         with tempfile.TemporaryDirectory() as tmp:

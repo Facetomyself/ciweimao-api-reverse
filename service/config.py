@@ -65,6 +65,9 @@ class Settings:
     database_path: Path
     output_dir: Path
     token_path: Path
+    identity_store_path: Path | None = None
+    egress_state_path: Path | None = None
+    protocol_profile: str = client_config.APP_VERSION
     guest_bootstrap_enabled: bool = False
     scheduler_enabled: bool = True
     scheduler_timezone: str = "Asia/Shanghai"
@@ -78,10 +81,18 @@ class Settings:
     http_max_clients: int = 5
     http_max_retries: int = 2
     http_retry_backoff: float = 0.25
-    http_transient_api_retries: int = 1
+    http_transient_api_retries: int = 0
     http_impersonate: str | None = None
     http_proxy_url: str | None = field(default=None, repr=False)
     proxy_provider: str = "auto"
+    egress_mode: str = "single"
+    primary_proxy_url: str | None = field(default=None, repr=False)
+    fallback_proxy_provider: str = ""
+    egress_failure_threshold: int = 3
+    egress_risk_threshold: int = 2
+    egress_cooldown_seconds: float = 900
+    egress_failback_successes: int = 2
+    egress_failback_interval_seconds: float = 300
     proxy_lease_seconds: float = 1200
     proxy_expiry_safety_seconds: float = 30
     kdl_secret_id: str | None = field(default=None, repr=False)
@@ -93,6 +104,23 @@ class Settings:
     list_request_delay: float = 0.25
     chapter_concurrency: int = 3
     chapter_delay: float = 0.05
+    readiness_require_protocol_probe: bool = False
+    readiness_auto_probe_enabled: bool = False
+    readiness_probe_max_age_seconds: int = 3600
+    readiness_failure_streak_threshold: int = 3
+    confirmation_ttl_seconds: int = 300
+    archive_dir: Path | None = None
+    archive_spool_max_bytes: int = 8 * 1024 * 1024 * 1024
+    archive_local_retention_days: int = 7
+    archive_maintenance_interval_hours: int = 24
+    semantic_retention_days: int = 400
+    archive_nas_path: str = (
+        "/volume1/docker/ciweimao-api-reverse/archive")
+    archive_ssh_host: str | None = field(default=None, repr=False)
+    archive_ssh_port: int = 22
+    archive_ssh_username: str | None = field(default=None, repr=False)
+    archive_ssh_password: str | None = field(default=None, repr=False)
+    archive_known_hosts_path: Path | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -122,6 +150,18 @@ class Settings:
                 "CIWEIMAO_TOKEN_PATH",
                 str(PROJECT_ROOT / "tokens.json"),
             )).expanduser().resolve(),
+            identity_store_path=Path(os.getenv(
+                "CIWEIMAO_IDENTITY_STORE_PATH",
+                str(PROJECT_ROOT / "data" / "identity-store.json"),
+            )).expanduser().resolve(),
+            egress_state_path=Path(os.getenv(
+                "CIWEIMAO_EGRESS_STATE_PATH",
+                str(PROJECT_ROOT / "data" / "egress-state.json"),
+            )).expanduser().resolve(),
+            protocol_profile=os.getenv(
+                "CIWEIMAO_PROTOCOL_PROFILE",
+                client_config.APP_VERSION,
+            ).strip(),
             guest_bootstrap_enabled=_env_bool(
                 "CIWEIMAO_GUEST_BOOTSTRAP_ENABLED", False),
             scheduler_enabled=_env_bool(
@@ -145,12 +185,29 @@ class Settings:
             http_retry_backoff=_env_float(
                 "CIWEIMAO_HTTP_RETRY_BACKOFF", 0.25, 0),
             http_transient_api_retries=_env_int(
-                "CIWEIMAO_HTTP_TRANSIENT_API_RETRIES", 1, 0),
+                "CIWEIMAO_HTTP_TRANSIENT_API_RETRIES", 0, 0),
             http_impersonate=impersonate or None,
             http_proxy_url=(
                 os.getenv("CIWEIMAO_PROXY_URL", "").strip() or None),
             proxy_provider=os.getenv(
                 "CIWEIMAO_PROXY_PROVIDER", "auto").strip().lower(),
+            egress_mode=os.getenv(
+                "CIWEIMAO_EGRESS_MODE", "single").strip().lower(),
+            primary_proxy_url=(
+                os.getenv("CIWEIMAO_PRIMARY_PROXY_URL", "").strip()
+                or None),
+            fallback_proxy_provider=os.getenv(
+                "CIWEIMAO_FALLBACK_PROXY_PROVIDER", "").strip().lower(),
+            egress_failure_threshold=_env_int(
+                "CIWEIMAO_EGRESS_FAILURE_THRESHOLD", 3),
+            egress_risk_threshold=_env_int(
+                "CIWEIMAO_EGRESS_RISK_THRESHOLD", 2),
+            egress_cooldown_seconds=_env_float(
+                "CIWEIMAO_EGRESS_COOLDOWN_SECONDS", 900, 1),
+            egress_failback_successes=_env_int(
+                "CIWEIMAO_EGRESS_FAILBACK_SUCCESSES", 2),
+            egress_failback_interval_seconds=_env_float(
+                "CIWEIMAO_EGRESS_FAILBACK_INTERVAL_SECONDS", 300, 1),
             proxy_lease_seconds=_env_float(
                 "CIWEIMAO_PROXY_LEASE_SECONDS", 1200, 1),
             proxy_expiry_safety_seconds=_env_float(
@@ -172,7 +229,79 @@ class Settings:
                 "CIWEIMAO_CHAPTER_CONCURRENCY", 3),
             chapter_delay=_env_float(
                 "CIWEIMAO_CHAPTER_DELAY", 0.05, 0),
+            readiness_require_protocol_probe=_env_bool(
+                "CIWEIMAO_READINESS_REQUIRE_PROTOCOL_PROBE", True),
+            readiness_auto_probe_enabled=_env_bool(
+                "CIWEIMAO_READINESS_AUTO_PROBE_ENABLED", True),
+            readiness_probe_max_age_seconds=_env_int(
+                "CIWEIMAO_READINESS_PROBE_MAX_AGE_SECONDS", 3600),
+            readiness_failure_streak_threshold=_env_int(
+                "CIWEIMAO_READINESS_FAILURE_STREAK_THRESHOLD", 3),
+            confirmation_ttl_seconds=_env_int(
+                "CIWEIMAO_CONFIRMATION_TTL_SECONDS", 300),
+            archive_dir=Path(os.getenv(
+                "CIWEIMAO_ARCHIVE_DIR",
+                str(PROJECT_ROOT / "runtime" / "archive"),
+            )).expanduser().resolve(),
+            archive_spool_max_bytes=_env_int(
+                "CIWEIMAO_ARCHIVE_SPOOL_MAX_BYTES",
+                8 * 1024 * 1024 * 1024,
+            ),
+            archive_local_retention_days=_env_int(
+                "CIWEIMAO_ARCHIVE_LOCAL_RETENTION_DAYS", 7),
+            archive_maintenance_interval_hours=_env_int(
+                "CIWEIMAO_ARCHIVE_MAINTENANCE_INTERVAL_HOURS", 24),
+            semantic_retention_days=_env_int(
+                "CIWEIMAO_SEMANTIC_RETENTION_DAYS", 400),
+            archive_nas_path=os.getenv(
+                "CIWEIMAO_ARCHIVE_NAS_PATH",
+                "/volume1/docker/ciweimao-api-reverse/archive",
+            ).strip(),
+            archive_ssh_host=(
+                os.getenv("CIWEIMAO_ARCHIVE_SSH_HOST", "").strip()
+                or os.getenv("SSH_EXEC_HOST", "").strip()
+                or None),
+            archive_ssh_port=_env_int(
+                "CIWEIMAO_ARCHIVE_SSH_PORT",
+                _env_int("SSH_EXEC_PORT", 22)),
+            archive_ssh_username=(
+                os.getenv("CIWEIMAO_ARCHIVE_SSH_USERNAME", "").strip()
+                or os.getenv("SSH_EXEC_USERNAME", "").strip()
+                or None),
+            archive_ssh_password=_env_secret(
+                "CIWEIMAO_ARCHIVE_SSH_PASSWORD",
+                "CIWEIMAO_ARCHIVE_SSH_PASSWORD_FILE",
+            ),
+            archive_known_hosts_path=(
+                Path(os.getenv(
+                    "CIWEIMAO_ARCHIVE_KNOWN_HOSTS_FILE", ""
+                )).expanduser().resolve()
+                if os.getenv(
+                    "CIWEIMAO_ARCHIVE_KNOWN_HOSTS_FILE", "").strip()
+                else None
+            ),
         )
+
+    @property
+    def protocol(self) -> client_config.ProtocolProfile:
+        try:
+            return client_config.get_protocol_profile(self.protocol_profile)
+        except ValueError as exc:
+            raise ConfigurationError(str(exc)) from exc
+
+    @property
+    def app_version(self) -> str:
+        return self.protocol.app_version
+
+    @property
+    def resolved_identity_store_path(self) -> Path:
+        return (self.identity_store_path
+                or self.token_path.with_name("identity-store.json"))
+
+    @property
+    def resolved_egress_state_path(self) -> Path:
+        return (self.egress_state_path
+                or self.token_path.with_name("egress-state.json"))
 
     def env_credentials_configured(self) -> bool:
         return bool(

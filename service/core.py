@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 from pathlib import Path
+import time
 from typing import Awaitable, Callable
 
 from client import async_downloader, config as client_config
@@ -12,21 +13,23 @@ from client.api import AsyncSession
 from client.downloader import NoDownloadableChapters
 
 from .config import ConfigurationError, Settings
+from .archive import ArchiveManager
 from .credentials import (
     GuestCredentialBootstrapper,
-    is_invalid_credentials_error,
 )
 from .database import Database
+from .failures import FailureCategory, classify_failure
+from .identity import IdentityStore
 from .proxy import (
     ProxyLeaseContext,
-    ProxyLeaseManager,
     build_proxy_manager,
-    is_proxy_failure_error,
     redact_error_text,
 )
 from .schemas import (
     DownloadBookRequest,
     DownloadByNameRequest,
+    EgressModeRequest,
+    ProtocolProbeRequest,
     SyncAllRequest,
     SyncNewBooksRequest,
     SyncRankingsRequest,
@@ -65,12 +68,20 @@ class CiweimaoService:
     def __init__(self, settings: Settings, database: Database,
                  session_factory=AsyncSession,
                  credential_bootstrap: GuestCredentialBootstrapper | None = None,
-                 proxy_manager: ProxyLeaseManager | None = None):
+                 proxy_manager=None):
         self.settings = settings
         self.database = database
         self.session_factory = session_factory
         self.credential_bootstrap = credential_bootstrap
         self.proxy_manager = proxy_manager or build_proxy_manager(settings)
+        self.identity_store = (
+            getattr(credential_bootstrap, "identity_store", None)
+            or IdentityStore(
+                settings.resolved_identity_store_path,
+                legacy_token_path=settings.token_path,
+            )
+        )
+        self.archive_manager = ArchiveManager(settings, database)
         self._task_submitter: TaskSubmitter | None = None
         # 游客身份与出口相关，所有 App 网络工作流必须串行切换租约。
         self._workflow_lock = asyncio.Lock()
@@ -78,6 +89,9 @@ class CiweimaoService:
     def set_credential_bootstrap(
             self, bootstrap: GuestCredentialBootstrapper | None) -> None:
         self.credential_bootstrap = bootstrap
+        if bootstrap is not None and getattr(
+                bootstrap, "identity_store", None) is not None:
+            self.identity_store = bootstrap.identity_store
 
     def set_task_submitter(self, submitter: TaskSubmitter) -> None:
         self._task_submitter = submitter
@@ -90,6 +104,14 @@ class CiweimaoService:
             "sync_rankings": self.handle_sync_rankings,
             "sync_new_books": self.handle_sync_new_books,
             "sync_all": self.handle_sync_all,
+            "protocol_probe": self.handle_protocol_probe,
+            "identity_validate": self.handle_identity_validate,
+            "identity_rotate": self.handle_identity_rotate,
+            "egress_mode": self.handle_egress_mode,
+            "archive_backup": self.handle_archive_backup,
+            "archive_pending": self.handle_archive_pending,
+            "archive_retry_mirrors": self.handle_archive_retry_mirrors,
+            "archive_maintenance": self.handle_archive_maintenance,
         }
 
     @asynccontextmanager
@@ -99,9 +121,12 @@ class CiweimaoService:
             login_token=credentials.login_token,
             account=credentials.account,
             device_token=credentials.device_token,
-            app_version=client_config.APP_VERSION,
+            app_version=self.settings.app_version,
+            base_url=self.settings.protocol.base_url,
             timeout=self.settings.http_timeout,
-            impersonate=self.settings.http_impersonate,
+            impersonate=(
+                self.settings.http_impersonate
+                or self.settings.protocol.impersonate),
             max_clients=self.settings.http_max_clients,
             max_retries=self.settings.http_max_retries,
             retry_backoff=self.settings.http_retry_backoff,
@@ -114,61 +139,152 @@ class CiweimaoService:
 
     @asynccontextmanager
     async def _workflow(self, *, force_new_proxy: bool,
-                        reason: str):
+                        reason: str, slot_id: str | None = None):
         async with self._workflow_lock:
-            context = await self.proxy_manager.context(
-                force_new=force_new_proxy,
-                reason=reason,
-            )
+            if slot_id is not None:
+                context_factory = getattr(
+                    self.proxy_manager, "context_for_slot", None)
+                if context_factory is not None:
+                    context = await context_factory(
+                        slot_id,
+                        force_new=force_new_proxy,
+                        reason=reason,
+                    )
+                else:
+                    snapshot = self.proxy_manager.snapshot()
+                    managed_slot = snapshot.get("slot_id", "default")
+                    if slot_id != managed_slot:
+                        raise ConfigurationError(
+                            f"当前出口模式不支持槽 {slot_id}")
+                    context = await self.proxy_manager.context(
+                        force_new=force_new_proxy,
+                        reason=reason,
+                    )
+            else:
+                context = await self.proxy_manager.context(
+                    force_new=force_new_proxy,
+                    reason=reason,
+                )
             yield context
 
     async def _load_credentials(
-            self, proxy_url: str | None):
-        try:
-            return self.settings.load_credentials()
-        except ConfigurationError:
-            if self.credential_bootstrap is None:
-                raise
-            await self.credential_bootstrap.ensure(proxy_url=proxy_url)
-            return self.settings.load_credentials()
+            self, proxy_url: str | None, identity_slot: str):
+        if self.credential_bootstrap is not None:
+            loader = getattr(
+                self.credential_bootstrap, "load_credentials", None)
+            if loader is not None:
+                return await loader(identity_slot, proxy_url=proxy_url)
+            try:
+                return self.settings.load_credentials()
+            except ConfigurationError:
+                await self.credential_bootstrap.ensure(proxy_url=proxy_url)
+                return self.settings.load_credentials()
+        return self.settings.load_credentials()
+
+    async def _record_failure_event(self, *, task_type: str,
+                                    lease, info, exc) -> None:
+        if not hasattr(self.database, "record_event"):
+            return
+        await self.database.record_event(
+            event_type="request_failure",
+            component=task_type,
+            category=info.category.value,
+            code=info.code,
+            slot_id=lease.slot_id,
+            message=redact_error_text(exc),
+        )
 
     async def _run_with_client(self, operation,
-                               proxy_context: ProxyLeaseContext):
-        refreshed_credentials: set[int] = set()
-        refreshed_proxies: set[int] = set()
+                               proxy_context: ProxyLeaseContext,
+                               *, operation_name: str = "app_request"):
+        refreshed_credentials: set[tuple[str, int]] = set()
+        confirmed_failures: set[tuple[str, int, str]] = set()
+        refreshed_egress: set[tuple[str, int, str]] = set()
         last_error: BaseException | None = None
         for _ in range(6):
             lease = proxy_context.lease
             credentials = None
             try:
-                credentials = await self._load_credentials(lease.proxy_url)
+                credentials = await self._load_credentials(
+                    lease.proxy_url, lease.slot_id)
                 async with self.client(
                         credentials, proxy_url=lease.proxy_url) as session:
-                    return await operation(session)
+                    result = await operation(session)
+                self.proxy_manager.report_success(lease)
+                identity_store = getattr(
+                    self.credential_bootstrap, "identity_store", None)
+                if identity_store is not None:
+                    await identity_store.mark_validated(lease.slot_id)
+                if hasattr(self.database, "record_event"):
+                    await self.database.record_event(
+                        event_type="request_success",
+                        component=operation_name,
+                        slot_id=lease.slot_id,
+                        message="App request succeeded",
+                    )
+                return result
             except Exception as exc:
                 last_error = exc
-                generation = lease.generation
+                info = classify_failure(exc)
+                generation_key = (lease.slot_id, lease.generation)
+                failure_key = (
+                    lease.slot_id, lease.generation, info.category.value)
+                await self._record_failure_event(
+                    task_type=operation_name,
+                    lease=lease,
+                    info=info,
+                    exc=exc,
+                )
+                self.proxy_manager.report_failure(lease, info.category)
                 if (credentials is not None
                         and self.credential_bootstrap is not None
-                        and generation not in refreshed_credentials
-                        and is_invalid_credentials_error(exc)):
-                    refreshed_credentials.add(generation)
+                        and generation_key not in refreshed_credentials
+                        and info.refresh_identity):
+                    refreshed_credentials.add(generation_key)
                     try:
-                        await self.credential_bootstrap.refresh(
-                            credentials,
-                            proxy_url=lease.proxy_url,
-                        )
+                        if isinstance(
+                                self.credential_bootstrap,
+                                GuestCredentialBootstrapper):
+                            await self.credential_bootstrap.refresh(
+                                credentials,
+                                proxy_url=lease.proxy_url,
+                                identity_slot=lease.slot_id,
+                            )
+                        else:
+                            await self.credential_bootstrap.refresh(
+                                credentials, proxy_url=lease.proxy_url)
                     except Exception as refresh_exc:
                         last_error = refresh_exc
                     else:
                         continue
 
-                if (self.proxy_manager.dynamic
-                        and generation not in refreshed_proxies
-                        and is_proxy_failure_error(last_error)):
-                    refreshed_proxies.add(generation)
-                    await proxy_context.refresh("request-failure")
+                if info.category == FailureCategory.RISK_REJECTED:
+                    identity_store = getattr(
+                        self.credential_bootstrap, "identity_store", None)
+                    if identity_store is not None:
+                        await identity_store.invalidate(
+                            lease.slot_id, "risk_rejected")
+
+                if (info.retry_same_egress
+                        and failure_key not in confirmed_failures):
+                    confirmed_failures.add(failure_key)
                     continue
+
+                if (info.switch_egress
+                        and failure_key not in refreshed_egress):
+                    refreshed_egress.add(failure_key)
+                    previous = (
+                        proxy_context.lease.slot_id,
+                        proxy_context.lease.generation,
+                    )
+                    await proxy_context.refresh(
+                        f"{info.category.value}:{info.code or 'unknown'}")
+                    current = (
+                        proxy_context.lease.slot_id,
+                        proxy_context.lease.generation,
+                    )
+                    if current != previous:
+                        continue
                 raise last_error
         if last_error is not None:
             raise last_error
@@ -452,7 +568,8 @@ class CiweimaoService:
         }
 
     async def _enqueue_auto_downloads(self) -> dict:
-        if not self.settings.auto_download_enabled:
+        if (not self.settings.auto_download_enabled
+                or await self.database.is_paused("auto_download")):
             return {
                 "enabled": False,
                 "selected": 0,
@@ -530,3 +647,215 @@ class CiweimaoService:
             "new_books": new_books,
             "auto_download": auto_download,
         }
+
+    @staticmethod
+    def _first_free_chapter_id(catalog: dict) -> str:
+        for division in catalog.get("data", {}).get("chapter_list", []) or []:
+            for chapter in division.get("chapter_list", []) or []:
+                if (str(chapter.get("is_paid")) == "0"
+                        and str(chapter.get("auth_access")) == "1"):
+                    return str(chapter.get("chapter_id") or "")
+        return ""
+
+    async def _record_probe(self, *, endpoint: str, slot_id: str,
+                            ok: bool, elapsed_ms: float, exc=None,
+                            metadata: dict | None = None) -> None:
+        info = classify_failure(exc) if exc is not None else None
+        await self.database.record_protocol_probe(
+            protocol_profile=self.settings.protocol.name,
+            endpoint=endpoint,
+            slot_id=slot_id or "automatic",
+            ok=ok,
+            category="" if info is None else info.category.value,
+            code="" if info is None else info.code,
+            latency_ms=elapsed_ms,
+        )
+        await self.database.record_event(
+            event_type=(
+                "protocol_probe_succeeded" if ok else "protocol_probe_failed"
+            ),
+            component="protocol",
+            category="" if info is None else info.category.value,
+            code="" if info is None else info.code,
+            slot_id=slot_id or "automatic",
+            endpoint=endpoint,
+            message=(
+                "protocol probe succeeded"
+                if ok else redact_error_text(exc)
+            ),
+            metadata=metadata or {"latency_ms": round(elapsed_ms, 1)},
+        )
+
+    async def probe_protocol(
+            self, request: ProtocolProbeRequest) -> dict:
+        selected_slot = request.slot_id
+        actual_slot = selected_slot or "automatic"
+        current_endpoint = "search/books"
+        started = time.perf_counter()
+        checks: list[dict] = []
+
+        async def _step(endpoint: str, operation):
+            nonlocal current_endpoint, started
+            current_endpoint = endpoint
+            started = time.perf_counter()
+            result = await self._run_with_client(
+                operation,
+                proxy_context,
+                operation_name="protocol_probe",
+            )
+            elapsed = (time.perf_counter() - started) * 1000
+            await self._record_probe(
+                endpoint=endpoint,
+                slot_id=actual_slot,
+                ok=True,
+                elapsed_ms=elapsed,
+            )
+            checks.append({
+                "endpoint": endpoint,
+                "ok": True,
+                "latency_ms": round(elapsed, 1),
+            })
+            return result
+
+        try:
+            async with self._workflow(
+                    force_new_proxy=request.force_new_proxy,
+                    reason="protocol_probe",
+                    slot_id=selected_slot) as proxy_context:
+                actual_slot = proxy_context.lease.slot_id
+                search = await _step(
+                    "search/books",
+                    lambda session: session.search_books(
+                        request.keyword, page=0, count=1),
+                )
+                books = search.get("data", {}).get("book_list", []) or []
+                if not books:
+                    raise RuntimeError("protocol probe search returned no books")
+                book_id = str(books[0].get("book_id") or "")
+                catalog = await _step(
+                    "chapter/catalog",
+                    lambda session: session.get_book_catalog(book_id),
+                )
+                chapter_id = self._first_free_chapter_id(catalog)
+                if not chapter_id:
+                    raise RuntimeError(
+                        "protocol probe found no free readable chapter")
+                command = await _step(
+                    "chapter/get_chapter_cmd",
+                    lambda session, chapter_id=chapter_id: (
+                        session.get_chapter_command(chapter_id)
+                    ),
+                )
+                await _step(
+                    "chapter/get_cpt_ifm",
+                    lambda session, chapter_id=chapter_id, command=command: (
+                        session._call("/chapter/get_cpt_ifm", {
+                            "chapter_id": chapter_id,
+                            "chapter_command": command,
+                        })
+                    ),
+                )
+        except Exception as exc:
+            elapsed = (time.perf_counter() - started) * 1000
+            await self._record_probe(
+                endpoint=current_endpoint,
+                slot_id=actual_slot,
+                ok=False,
+                elapsed_ms=elapsed,
+                exc=exc,
+            )
+            checks.append({
+                "endpoint": current_endpoint,
+                "ok": False,
+                "code": classify_failure(exc).code,
+                "latency_ms": round(elapsed, 1),
+            })
+            raise
+        return {
+            "ok": True,
+            "protocol_profile": self.settings.protocol.name,
+            "app_version": self.settings.app_version,
+            "endpoint": "chapter/get_cpt_ifm",
+            "slot_id": actual_slot,
+            "latency_ms": sum(item.get("latency_ms", 0) for item in checks),
+            "result_count": len(books),
+            "checks": checks,
+        }
+
+    async def handle_protocol_probe(self, payload: dict,
+                                    task_id: str) -> dict:
+        del task_id
+        return await self.probe_protocol(
+            ProtocolProbeRequest.model_validate(payload))
+
+    async def handle_identity_validate(self, payload: dict,
+                                       task_id: str) -> dict:
+        del task_id
+        slot_id = str(payload.get("slot_id") or "default")
+        result = await self.probe_protocol(ProtocolProbeRequest(
+            slot_id=slot_id,
+            force_new_proxy=bool(payload.get("force_new_proxy", False)),
+        ))
+        result["identity"] = await self.identity_store.snapshot()
+        return result
+
+    async def handle_identity_rotate(self, payload: dict,
+                                     task_id: str) -> dict:
+        del task_id
+        if self.settings.env_credentials_configured():
+            raise ConfigurationError(
+                "环境变量身份不可由控制面轮换")
+        slot_id = str(payload.get("slot_id") or "default")
+        await self.identity_store.rotate_profile(
+            slot_id, self.settings.app_version)
+        result = await self.probe_protocol(ProtocolProbeRequest(
+            slot_id=slot_id,
+            force_new_proxy=True,
+        ))
+        result["rotated"] = True
+        result["identity"] = await self.identity_store.snapshot()
+        return result
+
+    async def handle_egress_mode(self, payload: dict,
+                                 task_id: str) -> dict:
+        del task_id
+        request = EgressModeRequest.model_validate(payload)
+        force_slot = getattr(self.proxy_manager, "force_slot", None)
+        if force_slot is None:
+            raise ConfigurationError("当前不是主备出口模式")
+        slot_id = None if request.mode == "automatic" else request.mode
+        if request.reset_breaker and slot_id:
+            reset_slot = getattr(self.proxy_manager, "reset_slot", None)
+            if reset_slot is not None:
+                reset_slot(slot_id)
+        force_slot(slot_id)
+        await self.database.record_event(
+            event_type="egress_mode_changed",
+            component="egress",
+            slot_id=slot_id or "automatic",
+            message=request.mode,
+            metadata={"reset_breaker": request.reset_breaker},
+        )
+        return self.proxy_manager.snapshot()
+
+    async def handle_archive_backup(self, payload: dict,
+                                    task_id: str) -> dict:
+        del task_id
+        label = str(payload.get("label") or "manual")[:64]
+        return await self.archive_manager.create_backup(label=label)
+
+    async def handle_archive_pending(self, payload: dict,
+                                     task_id: str) -> dict:
+        del payload, task_id
+        return {"archives": await self.archive_manager.archive_pending_raw()}
+
+    async def handle_archive_retry_mirrors(self, payload: dict,
+                                           task_id: str) -> dict:
+        del payload, task_id
+        return {"mirrors": await self.archive_manager.retry_mirrors()}
+
+    async def handle_archive_maintenance(self, payload: dict,
+                                         task_id: str) -> dict:
+        del task_id
+        return await self.archive_manager.run_maintenance(
+            compact=bool(payload.get("compact", False)))

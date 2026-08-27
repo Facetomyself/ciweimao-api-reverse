@@ -97,7 +97,7 @@ class FakeAppSession:
 class RefreshingSession(FakeAppSession):
     async def search_books(self, keyword, page=0, count=10):
         if self.kwargs["login_token"] == "fixture-token":
-            raise ApiError("320002", "网络出错，请重试或重新登录")
+            raise ApiError("200100", "login_token 已过期")
         return await super().search_books(
             keyword, page=page, count=count)
 
@@ -445,6 +445,5 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual("100", books[0]["book_id"])
         self.assertEqual(2, provider.calls)
-        self.assertEqual(1, bootstrap.calls)
-        self.assertEqual(
-            ["http://proxy-1.test:8000"], bootstrap.proxy_urls)
+        self.assertEqual(0, bootstrap.calls)
+        self.assertEqual([], bootstrap.proxy_urls)
