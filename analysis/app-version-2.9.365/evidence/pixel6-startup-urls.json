@@ -1,0 +1,26 @@
+{
+  "captured_at": "2026-08-26T20:07:44+08:00",
+  "device": "pixel6-oriole",
+  "package": "com.kuangxiangciweimao.novel",
+  "app_version": "2.9.365",
+  "source": "logcat tag curl url===> after cold start SplashActivity",
+  "launch_activity": "MainFrameActivity",
+  "host": "app1.hbooker.com",
+  "urls_in_order": [
+    "/meta/get_meta_data",
+    "/setting/get_check",
+    "/setting/get_startpage_url_list",
+    "/setting/get_version",
+    "/reader/get_my_info",
+    "/setting/thired_party_switch",
+    "/bookcity/get_index_list",
+    "/reader/get_prop_info",
+    "/bookcity/add_specific_recommend_exposure"
+  ],
+  "send_client_info_called": false,
+  "notes": [
+    "Cold start to MainFrameActivity in 2.8s; already logged-in session.",
+    "reader/send_client_info is a native URL string but was not called in this startup window.",
+    "Chapter session earlier also had no send_client_info."
+  ]
+}

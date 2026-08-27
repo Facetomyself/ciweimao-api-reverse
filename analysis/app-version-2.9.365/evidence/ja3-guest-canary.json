@@ -1,0 +1,50 @@
+{
+  "tested_at": "2026-08-26T13:27:43.767723+00:00",
+  "credential_source": "cached-guest; values not persisted",
+  "identity": "anonymous-guest",
+  "official_stack": "curl/7.56.1 OpenSSL 1.1.0f",
+  "variants": [
+    {
+      "name": "default",
+      "curl_kwargs": {},
+      "ok": false,
+      "chapter_code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "elapsed_ms": 486
+    },
+    {
+      "name": "http1.1",
+      "curl_kwargs": {
+        "http_version": 2
+      },
+      "ok": false,
+      "chapter_code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "elapsed_ms": 580
+    },
+    {
+      "name": "official-ja3",
+      "curl_kwargs": {
+        "ja3": "771,49196-49200-159-52393-52392-52394-49195-49199-158-49188-49192-107-49187-49191-103-49162-49172-57-49161-49171-51-157-156-61-60-53-47-255,0-11-10-13-13172-16-22-23,29-23-25-24,0-1-2",
+        "http_version": 2
+      },
+      "ok": false,
+      "chapter_code": "exception",
+      "error_type": "ImpersonateError",
+      "tip": "Cipher 0xccaa is not found",
+      "elapsed_ms": 0
+    },
+    {
+      "name": "official-ja3-no-npn",
+      "curl_kwargs": {
+        "ja3": "771,49196-49200-159-52393-52392-52394-49195-49199-158-49188-49192-107-49187-49191-103-49162-49172-57-49161-49171-51-157-156-61-60-53-47-255,0-11-10-13-16-22-23,29-23-25-24,0-1-2",
+        "http_version": 2
+      },
+      "ok": false,
+      "chapter_code": "exception",
+      "error_type": "ImpersonateError",
+      "tip": "Cipher 0xccaa is not found",
+      "elapsed_ms": 0
+    }
+  ]
+}

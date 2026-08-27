@@ -1,0 +1,51 @@
+{
+  "captured_at": "2026-08-26T19:34:11+08:00",
+  "device": "pixel6-oriole",
+  "serial_redacted": "18251FDF6000N9",
+  "package": "com.kuangxiangciweimao.novel",
+  "app_version": "2.9.365",
+  "source": "logcat tag curl url===> / post===> (no mitm)",
+  "endpoint": "https://app1.hbooker.com/chapter/get_cpt_ifm",
+  "method": "POST",
+  "content_type": "application/x-www-form-urlencoded",
+  "captures": 2,
+  "post_keys": [
+    "account",
+    "app_version",
+    "chapter_command",
+    "chapter_id",
+    "device_token",
+    "login_token",
+    "rand_str",
+    "p"
+  ],
+  "post_key_order": [
+    "account",
+    "app_version",
+    "chapter_command",
+    "chapter_id",
+    "device_token",
+    "login_token",
+    "rand_str",
+    "p"
+  ],
+  "preceding_call": {
+    "endpoint": "/chapter/get_chapter_cmd",
+    "post_keys": [
+      "account",
+      "app_version",
+      "chapter_id",
+      "device_token",
+      "login_token",
+      "rand_str",
+      "p"
+    ]
+  },
+  "response_code_from_viselog": "100000",
+  "notes": [
+    "Keys match 2026-07-17 2.9.362 live capture and current Python client.",
+    "No extra POST field on 2.9.365 official app.",
+    "Official Pixel 6 session returned 100000; Python canary 310017 is not explained by missing POST keys.",
+    "Tokens/account/command/p omitted from this file."
+  ]
+}

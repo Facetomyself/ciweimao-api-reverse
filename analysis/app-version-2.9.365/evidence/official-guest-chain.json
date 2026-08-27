@@ -1,0 +1,471 @@
+{
+  "tested_at": "2026-08-26T15:26:05.652824+00:00",
+  "action": "trace-first then pm-clear official guest chain",
+  "package": "com.kuangxiangciweimao.novel",
+  "steps": [
+    {
+      "pm_clear": "Success"
+    },
+    {
+      "start": "Starting: Intent { cmp=com.kuangxiangciweimao.novel/.activity.SplashActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.kuangxiangciweimao.novel/.activity.WelcomeActivity\nTotalTime: 1284\nWaitTime: 1287\nComplete\n"
+    },
+    {
+      "activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.WelcomeActivity",
+      "ui": [
+        "刺猬猫服务协议与隐私政策",
+        "欢迎您使用刺猬猫阅读。根据《常见类型移动互联网应用程序必要个人信息范围规定》，本App属于电子图书类，主要功能为“电子图书搜索、阅读”等服务，无须个人信息，即可使用基本功能服务。我们将通过《刺猬猫用户服务协议》 与《刺猬猫隐私政策》 帮您了解我们收集、使用、存储和保护个人信息的情况，以及您享有的权利,请您谨慎阅读并充分理解。使用过程中我们可能会使用以下权限:\n1.存储权限:下载,上传图片功能。\n2.相机权限:用于拍照上传图片。\n3.您同意隐私政策仅代表您已了解应用提供的功能，以及功能运行所需的必要个人信息，并不代表您已同意我们可以收集非必要个人信息，非必要个人信息会根据您使用过程中的授权情况单独征求您的同意。\n4.相应设备权限并不会默认开启，当涉及重要或敏感的设备权限时，我们会在您使用到相应业务功能时，另行弹窗再次征得您的同意后开启；权限开启后，您还可以随时通过设备设置关闭权限；你不同意开启权限，将不会影响其他非相关业务功能的正常使用。针对个人敏感信息，我们会单独征得您的同意后进行处理。\n5.如您拒绝本《隐私政策》，您仍能够在无注册/登录状态下使用基本功能。您也可以在后续使用服务过程中单独进行授权。",
+        "不同意",
+        "已阅读并同意"
+      ]
+    },
+    {
+      "tapped": "agree"
+    },
+    {
+      "after_agree": [
+        "主人，想去哪个异世界冒险呢？",
+        "热门IP标签",
+        "fate",
+        "8045部",
+        "型月",
+        "7739部",
+        "明日方舟",
+        "4090部",
+        "星穹铁道",
+        "4429部",
+        "奥特曼",
+        "3450部",
+        "崩坏",
+        "4429部",
+        "舰娘",
+        "3681部"
+      ],
+      "activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.newuser.NewUserActivity1"
+    },
+    {
+      "after_tag": [
+        "主人，想去哪个异世界冒险呢？",
+        "热门IP标签",
+        "fate",
+        "8045部",
+        "型月",
+        "7739部",
+        "明日方舟",
+        "4090部",
+        "星穹铁道",
+        "4429部",
+        "奥特曼",
+        "3450部",
+        "崩坏",
+        "4429部",
+        "舰娘",
+        "3681部"
+      ]
+    },
+    {
+      "selected": 3,
+      "count": ""
+    },
+    {
+      "tapped_start": true
+    },
+    {
+      "tapped_next_overlay": 6,
+      "activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.newuser.NewUserActivity1"
+    },
+    {
+      "tapped_book": true
+    },
+    {
+      "reader_activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.newuser.NewUserActivity1",
+      "screenshot_bytes": 741568
+    }
+  ],
+  "capture": {
+    "url_paths": [
+      "/setting/ad_reader_check",
+      "/signup/auto_reg_v2",
+      "/signup/save_reader_oaid",
+      "/setting/get_version",
+      "/meta/get_meta_data",
+      "/setting/get_check",
+      "/setting/thired_party_switch",
+      "/setting/get_startpage_url_list",
+      "/reader/get_my_info",
+      "/task/get_sign_record",
+      "/reader/get_unreceived_task_num",
+      "/bookshelf/get_shelf_list",
+      "/bookshelf/get_shelf_hightlights",
+      "/reader/get_prop_info",
+      "/bookshelf/get_shelf_book_list_new",
+      "/reader/send_client_info",
+      "/bookshelf/get_bookself_reommend_list",
+      "/bookcity/get_tag_welcome_page"
+    ],
+    "auto_reg": {
+      "kind": "post",
+      "host": "app1.hbooker.com",
+      "path": "/signup/auto_reg_v2",
+      "keys": [
+        "app_version",
+        "channel",
+        "device_token",
+        "gender",
+        "oauth_open_id",
+        "oauth_type",
+        "oauth_union_id",
+        "uuid",
+        "rand_str",
+        "p"
+      ],
+      "fields": [
+        {
+          "key": "app_version",
+          "value": "2.9.365"
+        },
+        {
+          "key": "channel",
+          "value": "TX"
+        },
+        {
+          "key": "device_token",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "gender",
+          "value": "1"
+        },
+        {
+          "key": "oauth_open_id",
+          "value": ""
+        },
+        {
+          "key": "oauth_type",
+          "value": ""
+        },
+        {
+          "key": "oauth_union_id",
+          "value": ""
+        },
+        {
+          "key": "uuid",
+          "len": 43,
+          "empty": false,
+          "prefix": "android",
+          "has_hyphen": true
+        },
+        {
+          "key": "rand_str",
+          "value": "25183722b9526ffb"
+        },
+        {
+          "key": "p",
+          "len": 44,
+          "empty": false
+        }
+      ]
+    },
+    "save_reader_oaid": {
+      "kind": "post",
+      "host": "app1.happybooker.cn",
+      "path": "/signup/save_reader_oaid",
+      "keys": [
+        "account",
+        "am",
+        "app_version",
+        "channel",
+        "device_token",
+        "login_token",
+        "oaid",
+        "reader_id",
+        "rand_str",
+        "p"
+      ],
+      "fields": [
+        {
+          "key": "account",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "am",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "app_version",
+          "value": "2.9.365"
+        },
+        {
+          "key": "channel",
+          "value": "TX"
+        },
+        {
+          "key": "device_token",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "login_token",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "oaid",
+          "len": 0,
+          "empty": true
+        },
+        {
+          "key": "reader_id",
+          "len": 8,
+          "empty": false
+        },
+        {
+          "key": "rand_str",
+          "value": "2519ec9b773e6afc"
+        },
+        {
+          "key": "p",
+          "len": 44,
+          "empty": false
+        }
+      ]
+    },
+    "send_client_info": {
+      "kind": "post",
+      "host": "app1.happybooker.cn",
+      "path": "/reader/send_client_info",
+      "keys": [
+        "account",
+        "app_version",
+        "device_token",
+        "login_token",
+        "push_type",
+        "reader_id",
+        "rand_str",
+        "p"
+      ],
+      "fields": [
+        {
+          "key": "account",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "app_version",
+          "value": "2.9.365"
+        },
+        {
+          "key": "device_token",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "login_token",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "push_type",
+          "value": "2"
+        },
+        {
+          "key": "reader_id",
+          "len": 8,
+          "empty": false
+        },
+        {
+          "key": "rand_str",
+          "value": "2519a4b3e0ab843f"
+        },
+        {
+          "key": "p",
+          "len": 44,
+          "empty": false
+        }
+      ]
+    },
+    "get_chapter_cmd": null,
+    "get_cpt_ifm": null,
+    "codes": {
+      "auto_reg": null,
+      "save_reader_oaid": null,
+      "send_client_info": null,
+      "get_chapter_cmd": null,
+      "get_cpt_ifm": null
+    },
+    "geetest": false
+  },
+  "continued_at": "2026-08-26T15:28:42.490052+00:00",
+  "continue_steps": [
+    {
+      "tapped": "奥特曼"
+    },
+    {
+      "tapped": "确认"
+    },
+    {
+      "after_confirm": [
+        "书客8242811",
+        "请选择感兴趣的书籍",
+        "(0/20)",
+        "全部",
+        "奥特曼",
+        "点击量:12717.9万",
+        "奥特曼",
+        "爽文",
+        "我！光之国禁术大师",
+        "那位大人",
+        "作者自传",
+        "一折",
+        "奥特精神",
+        "嫁人",
+        "点击量:3392.9万",
+        "奥特曼"
+      ],
+      "activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.newuser.NewUserActivity2"
+    },
+    {
+      "selected": 3,
+      "count": "(3/20)"
+    },
+    {
+      "activity": "com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.bookshelf.reader.ReaderActivity4",
+      "shot": 655517
+    }
+  ],
+  "chapter_capture": {
+    "url_paths": [
+      "/bookcity/get_tag_welcome_book_list",
+      "/bookshelf/favor_batch",
+      "/bookshelf/get_shelf_book_list_new",
+      "/task/get_sign_record",
+      "/bookshelf/get_shelf_list",
+      "/book/get_bookmark_list",
+      "/chapter/get_updated_chapter_by_division_new",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "/chapter/get_tsukkomi_num"
+    ],
+    "get_chapter_cmd": {
+      "kind": "post",
+      "host": "app1.happybooker.cn",
+      "path": "/chapter/get_chapter_cmd",
+      "keys": [
+        "account",
+        "app_version",
+        "chapter_id",
+        "device_token",
+        "login_token",
+        "rand_str",
+        "p"
+      ],
+      "fields": [
+        {
+          "key": "account",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "app_version",
+          "value": "2.9.365"
+        },
+        {
+          "key": "chapter_id",
+          "value": "106129841"
+        },
+        {
+          "key": "device_token",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "login_token",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "rand_str",
+          "value": "28308d0ff2d8f0ec"
+        },
+        {
+          "key": "p",
+          "len": 44,
+          "empty": false
+        }
+      ]
+    },
+    "get_cpt_ifm": {
+      "kind": "post",
+      "host": "app1.happybooker.cn",
+      "path": "/chapter/get_cpt_ifm",
+      "keys": [
+        "account",
+        "app_version",
+        "chapter_command",
+        "chapter_id",
+        "device_token",
+        "login_token",
+        "rand_str",
+        "p"
+      ],
+      "fields": [
+        {
+          "key": "account",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "app_version",
+          "value": "2.9.365"
+        },
+        {
+          "key": "chapter_command",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "chapter_id",
+          "value": "106129841"
+        },
+        {
+          "key": "device_token",
+          "len": 9,
+          "empty": false
+        },
+        {
+          "key": "login_token",
+          "len": 32,
+          "empty": false
+        },
+        {
+          "key": "rand_str",
+          "value": "2831d809dd2b2ebd"
+        },
+        {
+          "key": "p",
+          "len": 44,
+          "empty": false
+        }
+      ]
+    },
+    "codes": {
+      "get_chapter_cmd": null,
+      "get_cpt_ifm": null,
+      "viselog_tail": []
+    }
+  },
+  "chain_result": {
+    "auto_reg_v2_seen": true,
+    "save_reader_oaid_seen": true,
+    "send_client_info_seen": true,
+    "get_cpt_ifm_seen": true,
+    "chapter_ui_rendered": true,
+    "geetest": false,
+    "viselog_code_pairing": "missed this run; chapter UI rendered so official guest read succeeded",
+    "auto_reg_keys_match_python": true,
+    "save_reader_oaid_keys_match_python_attempt": true,
+    "send_client_info_extra_vs_python": ["push_type=2", "reader_id"]
+  }
+}

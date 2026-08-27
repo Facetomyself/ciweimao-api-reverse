@@ -1,0 +1,132 @@
+{
+  "tested_at": "2026-08-26T13:20:31.792762+00:00",
+  "credential_values_persisted": false,
+  "tokens_json_written": false,
+  "variants": [
+    {
+      "source": "local-tokens.json",
+      "base_url_host": "app1.hbooker.com",
+      "app_version": "2.9.365",
+      "impersonate": "none",
+      "checks": [
+        {
+          "label": "get_my_info",
+          "ok": false,
+          "code": "exception",
+          "tip": "login_token 已过期，请重新提取",
+          "error_type": "RuntimeError",
+          "elapsed_ms": 100
+        },
+        {
+          "label": "search",
+          "ok": false,
+          "code": "exception",
+          "tip": "login_token 已过期，请重新提取",
+          "error_type": "RuntimeError",
+          "elapsed_ms": 273
+        },
+        {
+          "label": "catalog",
+          "ok": false,
+          "code": "exception",
+          "tip": "no book_id",
+          "error_type": "RuntimeError",
+          "elapsed_ms": 0
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": false,
+          "code": "exception",
+          "tip": "no chapter_id",
+          "error_type": "RuntimeError",
+          "elapsed_ms": 0
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "exception",
+          "tip": "no command",
+          "error_type": "RuntimeError",
+          "elapsed_ms": 0
+        }
+      ],
+      "ok": false,
+      "chapter_code": "exception"
+    },
+    {
+      "source": "cached-guest",
+      "base_url_host": "app1.hbooker.com",
+      "app_version": "2.9.365",
+      "impersonate": "none",
+      "checks": [
+        {
+          "label": "get_my_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "entry_check",
+              "followed_amount",
+              "following_amount",
+              "internal_version",
+              "ip_home",
+              "is_set_young",
+              "one_more_message",
+              "one_more_task",
+              "prop_info",
+              "reader_info",
+              "track_amount"
+            ],
+            "has_reader_info": true,
+            "is_bind": "0",
+            "is_bind_qq": "0",
+            "is_bind_weixin": "0",
+            "is_bind_huawei": "0",
+            "has_phone_num": false,
+            "has_email": false,
+            "account_len": 9,
+            "device_token_len": 0
+          },
+          "elapsed_ms": 121
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 155
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 106
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 34
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 39
+        }
+      ],
+      "ok": false,
+      "chapter_code": "310017"
+    }
+  ]
+}

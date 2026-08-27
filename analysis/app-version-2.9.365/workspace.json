@@ -1,0 +1,85 @@
+{
+  "_schema": "reverse-coordinator-workspace-v1",
+  "target": {
+    "path": "analysis/app-version-2.9.365/input/ciweimao-2.9.365.apk",
+    "type": "Android APK",
+    "arch": "arm64-v8a + misplaced x86-64 SecShell",
+    "size_bytes": 139366532
+  },
+  "pipeline": {
+    "phase": "deep_dive",
+    "analysis_depth": "L3-partial",
+    "primary_skill": "native-reverse",
+    "fallback_skill": "apk-reverse"
+  },
+  "phases": {
+    "classification": { "status": "complete", "started": "2026-07-18", "completed": "2026-08-23", "notes": "SecShell/Bangcle; native crypto plaintext" },
+    "recon":          { "status": "complete", "started": "2026-07-18", "completed": "2026-08-23", "notes": "SO diff + live canary" },
+    "decision":       { "status": "complete", "started": "2026-08-23", "completed": "2026-08-23", "notes": "HMAC unchanged; chapter content gated" },
+    "deep_dive":      { "status": "paused", "started": "2026-08-23", "completed": "2026-08-27", "notes": "native path + getHead0/charsets/HTTP_VERSION canary still 310017; freeze docs" },
+    "rebuild":        { "status": "partial", "started": "2026-08-23", "completed": null, "notes": "Python client 2.9.365 profile; chapter path not restored" },
+    "review":         { "status": "complete", "started": "2026-08-27", "completed": "2026-08-27", "notes": "public repo documentation freeze" }
+  },
+  "markers": {
+    "file_format": "apk",
+    "has_native": true,
+    "has_wasm": false,
+    "has_obfuscation": true,
+    "has_anti_debug": true,
+    "has_jni": true,
+    "has_crypto": true,
+    "strings_of_interest": [
+      "CkMxWNB666",
+      "chapter/get_cpt_ifm",
+      "310017",
+      "SecShell-x86"
+    ]
+  },
+  "artifacts": {
+    "report": "analysis/app-version-2.9.365/report.md",
+    "findings": "analysis/app-version-2.9.365/findings.json",
+    "triage": "analysis/app-version-2.9.365/triage.md",
+    "supporting": [
+      "analysis/app-version-2.9.365/analysis-progress.md",
+      "analysis/app-version-2.9.365/docs/experiment_record.md",
+      "analysis/app-version-2.9.365/evidence/protocol-canary.json",
+      "analysis/app-version-2.9.365/evidence/download-cpt-canary.json",
+      "analysis/app-version-2.9.365/evidence/native-shell-experiments.md",
+      "analysis/app-version-2.9.365/artifacts/dumps/libSecShell-x86.mem.so",
+      "analysis/app-version-2.9.365/artifacts/maps/tombstone_02.txt",
+      "analysis/app-version-2.9.365/artifacts/maps/tombstone_05.txt",
+      "artifacts/dex-dump/20260826_190632/metadata.json",
+      "analysis/app-version-2.9.365/evidence/pixel6-get-cpt-ifm-post.json",
+      "analysis/app-version-2.9.365/evidence/transport-canary.json",
+      "analysis/app-version-2.9.365/evidence/prelude-canary.json",
+      "analysis/app-version-2.9.365/evidence/pixel6-startup-urls.json",
+      "analysis/app-version-2.9.365/evidence/identity-canary.json",
+      "analysis/app-version-2.9.365/evidence/ua-canary.json",
+      "analysis/app-version-2.9.365/evidence/tls-hello-compare.json",
+      "analysis/app-version-2.9.365/evidence/ja3-guest-canary.json",
+      "analysis/app-version-2.9.365/evidence/tls-align-canary.json",
+      "analysis/app-version-2.9.365/evidence/tls12-urllib3-canary.json",
+      "analysis/app-version-2.9.365/evidence/pixel6-guest-reset.json",
+      "analysis/app-version-2.9.365/evidence/pixel6-guest-reset-read.json",
+      "analysis/app-version-2.9.365/evidence/oldcurl-guest-canary.json",
+      "analysis/app-version-2.9.365/evidence/auto-reg-field-diff.json",
+      "analysis/app-version-2.9.365/evidence/save-oaid-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-guest-chain.json",
+      "analysis/app-version-2.9.365/evidence/pixel-oldcurl-autoreg-canary.json",
+      "analysis/app-version-2.9.365/evidence/pixel-official-chain-canary.json",
+      "analysis/app-version-2.9.365/evidence/geetest-api1-canary.json",
+      "analysis/app-version-2.9.365/evidence/native-autoreg-path.json",
+      "analysis/app-version-2.9.365/evidence/pixel-native-headers-canary.json",
+      "docs/protocol.md"
+    ]
+  },
+  "review_gate": {
+    "all_claims_have_evidence": true,
+    "triage_items_documented": true,
+    "artifact_paths_recorded": true,
+    "rebuild_scripts_tested": false,
+    "sensitive_data_redacted": true,
+    "finding_redaction_metadata_complete": true,
+    "ready_for_delivery": false
+  }
+}

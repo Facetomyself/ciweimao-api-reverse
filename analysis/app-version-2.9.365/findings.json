@@ -1,0 +1,599 @@
+{
+  "_schema": "reverse-coordinator-findings-v1",
+  "target": {
+    "path": "analysis/app-version-2.9.365/input/ciweimao-2.9.365.apk",
+    "type": "Android APK + ELF",
+    "arch": "ARM64 / ARMv7 / x86 SecShell stub"
+  },
+  "analysis_depth": "L3-partial",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "signature",
+      "claim": "2.9.365 与 2.9.362 使用同一代 HMAC-SHA256 与 AES-256-CBC 响应密钥",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "",
+        "method": "CenterDataAPI request/response",
+        "address": "CkMxWNB666@0x51952; current AES key@0x522cd",
+        "line": 0
+      },
+      "description": "Native 常量未换代；真实搜索请求返回 100000。",
+      "evidence": {
+        "type": "disasm",
+        "source": "analysis/app-version-2.9.365/work/compare_native_crypto.py",
+        "value": "AES keys and CkMxWNB666 present; only added string reader/get_vip_consume_record_list"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "协议常量不是用户凭据"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/config.py"
+    },
+    {
+      "id": "F-002",
+      "category": "network",
+      "claim": "章节正文接口对 2.9.362 和 2.9.365 均返回 310017，与 HMAC 是否重算无关",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST",
+        "address": "",
+        "line": 0
+      },
+      "description": "tip=请升级到最新版本客户端。命令接口与下载 command 接口仍为 100000。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/protocol-canary.json",
+        "value": "search/catalog/cmd/download_cmd=100000; get_cpt_ifm/download_cpt/check_download_cpt=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/"
+    },
+    {
+      "id": "F-003",
+      "category": "anti-tamper",
+      "claim": "业务 Java 仍在 SecShell 加密 payload 中，静态 jadx 看不到章节请求构造",
+      "location": {
+        "file": "assets/classes0.jar",
+        "class": "com.SecShell.SecShell.AW",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "classes0.jar 约 18.9MB，magic 不是 ZIP/DEX。",
+      "evidence": {
+        "type": "manifest",
+        "source": "analysis/app-version-2.9.365/work/apk-static/decode-summary.json",
+        "value": "jadx java_files=372; application=com.SecShell.SecShell.AW"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-004",
+      "category": "anti-tamper",
+      "claim": "LDPlayer 上 x86 libSecShell-x86.so 可映射，随后在 +0x7f580 解析 /proc/self/maps 并 fclose SIGSEGV；ARM so 经 houdini 不可加载",
+      "location": {
+        "file": "lib/arm64-v8a/libSecShell-x86.so",
+        "class": "com.SecShell.SecShell.H",
+        "method": "is_x86_byso / attachBaseContext loadLibrary",
+        "address": "+0x7f580 call qword ptr [rbp+8] -> fclose",
+        "line": 0
+      },
+      "description": "H.is_x86_byso 读 /system/lib/libc.so e_machine 后 loadLibrary(SecShell-x86)。tombstone close->fclose->so+0x7f582。过滤 Frida maps 不够。Interceptor.replace(fclose) 打崩 Frida。ARM libSecShell.so 动态段加密，houdini Fatal 0x01101246。运行期 dump 1458176 字节，与磁盘 1367853 字节不同。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/app-version-2.9.365/docs/experiment_record.md",
+        "value": "tombstone_02 fault 0x9eb6b2b8; later fault 0x0; mem dump SHA-256 66396047aa619f374069db2d35edce77924a4a1619543399dbaa24b309c52054"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/artifacts/dumps/libSecShell-x86.mem.so"
+    },
+    {
+      "id": "F-005",
+      "category": "runtime",
+      "claim": "Pixel 6 原签 2.9.365 冷启动进入 WelcomeActivity；panda 拉到 43 个结构有效 DEX（71MB），含业务包名",
+      "location": {
+        "file": "artifacts/dex-dump/20260826_190632/metadata.json",
+        "class": "com.kuangxiangciweimao.novel.activity.WelcomeActivity",
+        "method": "",
+        "address": "pid=8813",
+        "line": 0
+      },
+      "description": "primaryCpuAbi=arm64-v8a。Splash TotalTime 3278ms 后 WelcomeActivity。无 tombstone。dump-dex status=partial（SIGCONT 时进程已死）。dex_0x72090ab000.dex 含 com.kuangxiangciweimao 与 chapter/get_cpt；43 个 DEX 均无明文 get_cpt_ifm。",
+      "evidence": {
+        "type": "runtime_dump",
+        "source": "artifacts/dex-dump/20260826_190632/metadata.json",
+        "value": "dex_count=43 valid_dex_count=43 total_bytes=71775408 device=18251FDF6000N9"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "artifacts/dex-dump/20260826_190632"
+    },
+    {
+      "id": "F-006",
+      "category": "network",
+      "claim": "2.9.365 官方 App 的 get_cpt_ifm POST 键与 Python 客户端相同，且真机会话返回 100000",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST application/x-www-form-urlencoded",
+        "address": "logcat curl url===> / post===>",
+        "line": 0
+      },
+      "description": "键：account, app_version, chapter_command, chapter_id, device_token, login_token, rand_str, p。先 get_chapter_cmd 再带 chapter_command。与 2.9.362 抓包一致。Python canary 310017 不能归因于缺字段。",
+      "evidence": {
+        "type": "logcat",
+        "source": "analysis/app-version-2.9.365/evidence/pixel6-get-cpt-ifm-post.json",
+        "value": "2 captures; viselog code=100000; tokens omitted"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "account/login_token/chapter_command/p 未写入 evidence"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-007",
+      "category": "protocol",
+      "claim": "业务码 code 是服务端响应枚举，不是客户端或取码接口生成的 token",
+      "location": {
+        "file": "com/kuangxiangciweimao/novel/task/newtask/BaseTaskNew.java",
+        "class": "BaseTaskNew",
+        "method": "getC",
+        "address": "dex_0x72090ab000.dex",
+        "line": 401
+      },
+      "description": "解密 JSON 后 getInt(code)。100000 成功；200100/310001 登录失效；310017 启动极验，过关后把 geetest_challenge/seccode/validate 写回同一请求再 getC。chapter_command 才由 get_chapter_cmd 生成。Python canary 的 tip 文案不能当成协议语义。",
+      "evidence": {
+        "type": "decompile",
+        "source": "analysis/app-version-2.9.365/artifacts/dumps/panda-pixel6-8813/jadx-get-cpt/sources/com/kuangxiangciweimao/novel/task/newtask/BaseTaskNew.java",
+        "value": "100000==i2 success; 310017==i2 initJiyan+startCustomFlow; RequestAPI1 AddressUtils.getRegister"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-008",
+      "category": "network",
+      "claim": "Python 游客 310017 不能归因于主机、Cookie、chrome99_android TLS 或缺失 send_client_info/冷启动 prelude",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST",
+        "address": "app1.hbooker.com and app1.happybooker.cn",
+        "line": 0
+      },
+      "description": "native 有 reader/send_client_info。官方冷启动未调用。Python 空参调用 100000 后正文仍 310017。四格主机×impersonate 正文均为 310017。复放 get_meta_data/get_check/get_version/get_my_info 后仍 310017。Python 无 Cookie 头。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/transport-canary.json",
+        "value": "send_client_info=100000; chapter_meta=310017 on both hosts; prelude-canary chapter_meta=310017; startup urls omit send_client_info"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 guest token"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-009",
+      "category": "network",
+      "claim": "Python 默认 UA 换成 native 常量仍 310017；本地 tokens.json 已过期，游客未绑定",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "",
+        "method": "CURLOPT_USERAGENT constant",
+        "address": "0x4f998",
+        "line": 0
+      },
+      "description": "native UA 完整常量 Android  com.kuangxiangciweimao.novel.c  （双空格，不是版本格式串）。三格 UA 搜索 100000、正文 310017。tokens.json 返回 200100。游客 get_my_info is_bind=0。Frida attach 因 stealth-hook 看不到进程。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/ua-canary.json",
+        "value": "python-default/native-constant/native-stripped chapter_code=310017; identity-canary local=200100 guest=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 token；删除本轮 viselog 原日志"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-010",
+      "category": "network",
+      "claim": "Python 游客 310017 对应 curl_cffi TLS1.3+h2 指纹，与官方 curl 7.56.1/OpenSSL 1.1.0f 不一致；不是游客没权限",
+      "location": {
+        "file": "lib/arm64-v8a/libcurl.so",
+        "class": "",
+        "method": "TLS ClientHello",
+        "address": "curl/7.56.1 OpenSSL 1.1.0f",
+        "line": 0
+      },
+      "description": "官方 JA3 md5 1aee0238942d453d679fc1e37a303387，无 TLS1.3 13xx，ALPN 仅 http/1.1。Python 默认 87e2668215f385b4ea50bcc9cbe4279d，含 1301/1302/1303 与 h2。游客强制 HTTP/1.1 仍 310017。官方 JA3 复放缺 cipher 0xccaa。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/tls-hello-compare.json",
+        "value": "ja3_match=false; http1.1 still 310017; ImpersonateError Cipher 0xccaa"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "ClientHello only; no tokens"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-011",
+      "category": "network",
+      "claim": "curl_cffi 无法发出官方 OpenSSL 1.1.0f ClientHello；OpenSSL 3 TLS1.2+HTTP/1.1 仍 310017",
+      "location": {
+        "file": "curl_cffi/requests/utils.py",
+        "class": "",
+        "method": "set_ja3_options",
+        "address": "TLS_EXTENSION_ORDER / TLS_CIPHER_NAME_MAP",
+        "line": 256
+      },
+      "description": "官方扩展序 0-11-10-13-16-22-23 被 curl-impersonate 判非法。cipher 0xccaa/0x00ff 不在名表。curve_formats 只能 0，官方是 0-1-2。urllib3+OpenSSL 3.0.18 锁 TLS1.2 后游客正文仍 310017。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/app-version-2.9.365/evidence/tls-align-canary.json",
+        "value": "Invalid TLS extension order; tls12-urllib3 chapter_meta=310017"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/api.py"
+    },
+    {
+      "id": "F-012",
+      "category": "runtime",
+      "claim": "官方真机无法加载是残留 127.0.0.1:8085 全局代理；清掉后游客 get_cpt_ifm 仍是 100000",
+      "location": {
+        "file": "settings global_http_proxy_host/port",
+        "class": "",
+        "method": "",
+        "address": "127.0.0.1:8085",
+        "line": 0
+      },
+      "description": "mitmdump 与 adb reverse 都不在。WebView 报 ERR_PROXY_CONNECTION_FAILED。px-proxy off 只删 http_proxy 时 Android 15 会留下 host/port。清掉后官方游客 get_chapter_cmd/get_cpt_ifm=100000，无极验。Python 310017 未变。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/app-version-2.9.365/evidence/pixel6-guest-reset-read.json",
+        "value": "proxy_before 127.0.0.1:8085; official guest get_cpt_ifm code=100000 data_keys=chapter_info"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "not-applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-013",
+      "category": "network",
+      "claim": "APK libcurl 7.56.1 + OpenSSL 1.1.0f 在 Pixel 上 JA3 与官方相同，Python 游客正文仍 310017",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST via apk libcurl.so",
+        "address": "",
+        "line": 0
+      },
+      "description": "curl_version=libcurl/7.56.1 OpenSSL/1.1.0f。pcap JA3 md5 1aee0238942d453d679fc1e37a303387 与官方一致。search/catalog/cmd/send_client_info=100000。get_cpt_ifm 在默认 UA、官方 UA+键序、prelude 后均为 310017。TLS Hello 不是充分条件。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/oldcurl-guest-canary.json",
+        "value": "ja3_matches_official=true; get_cpt_ifm=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/"
+    },
+    {
+      "id": "F-014",
+      "category": "network",
+      "claim": "Python auto_reg_v2 字段与官方游客注册一致；缺的是注册后 save_reader_oaid",
+      "location": {
+        "file": "/signup/auto_reg_v2",
+        "class": "AutoRegTask",
+        "method": "doHttpRequest / setCommonParams",
+        "address": "",
+        "line": 104
+      },
+      "description": "键：app_version, channel, device_token, gender, oauth_*, uuid, rand_str, p。uuid=android+UUID；device_token=ciweimao_；gender=1；oauth 空；HMAC 占位 cmw666 不进 body。2.9.362 官方 live channel=TX。Python 不调用 /signup/save_reader_oaid（oaid 可空，am=MD5(android_id)）。尚未证明该缺口导致 310017。",
+      "evidence": {
+        "type": "static_analysis",
+        "source": "analysis/app-version-2.9.365/evidence/auto-reg-field-diff.json",
+        "value": "auto_reg_v2_keys=match; python_missing_after_reg=save_reader_oaid"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/guest.py"
+    },
+    {
+      "id": "F-015",
+      "category": "network",
+      "claim": "补打 /signup/save_reader_oaid 返回 400000，get_cpt_ifm 仍 310017",
+      "location": {
+        "file": "/signup/save_reader_oaid",
+        "class": "SendImeiTask",
+        "method": "getC(154)",
+        "address": "",
+        "line": 0
+      },
+      "description": "存量游客、新 auto_reg 游客、Pixel am 与唯一 am、hbooker/happybooker 均为 400000 空 tip。随后搜索/cmd=100000，正文 310017。未把该调用挂进 register_guest。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/save-oaid-canary.json",
+        "value": "save_reader_oaid=400000; get_cpt_ifm=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/android_id/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/guest.py"
+    },
+    {
+      "id": "F-016",
+      "category": "runtime",
+      "claim": "2.9.365 官方 pm-clear 游客完整链：auto_reg_v2 后 save_reader_oaid，再 get_cpt_ifm，阅读器正文已渲染",
+      "location": {
+        "file": "/signup/auto_reg_v2",
+        "class": "AutoRegTask",
+        "method": "doHttpRequest",
+        "address": "",
+        "line": 0
+      },
+      "description": "先 curl/ViseLog 再 pm clear。auto_reg 在 app1.hbooker.com，channel=TX，gender=1，oauth 空，uuid=android+UUID。save_reader_oaid 在 app1.happybooker.cn，oaid 空，am 长 32。send_client_info 多 push_type=2 与 reader_id。get_cpt_ifm 已发出，阅读器正文 UI 已渲染。未把 token 写入证据。",
+      "evidence": {
+        "type": "runtime_hook",
+        "source": "analysis/app-version-2.9.365/evidence/official-guest-chain.json",
+        "value": "auto_reg+save_oaid+get_cpt seen; chapter_ui_rendered=true"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "not-applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-017",
+      "category": "network",
+      "claim": "在 Pixel 用官方 libcurl 打 auto_reg_v2 仍不能过正文",
+      "location": {
+        "file": "/signup/auto_reg_v2",
+        "class": "AutoRegTask",
+        "method": "getC(17)",
+        "address": "",
+        "line": 0
+      },
+      "description": "官方 UA/键序，新 android+uuid4，不读 INSTALLATION。注册 100000，搜索/cmd 100000，get_cpt_ifm 310017。注册 TLS 不是充分条件。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/pixel-oldcurl-autoreg-canary.json",
+        "value": "auto_reg=100000; get_cpt_ifm=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/"
+    },
+    {
+      "id": "F-018",
+      "category": "network",
+      "claim": "官方游客 extras、按 reader_id 选主机、官方导流章都不能让 Python 自签身份过正文",
+      "location": {
+        "file": "/setting/ad_reader_check",
+        "class": "UrlConstants",
+        "method": "getURL / getUserType",
+        "address": "",
+        "line": 55
+      },
+      "description": "ad_reader_check=100000；Pixel libcurl auto_reg=100000；reader_id 尾数 4 走 app1.happybooker.cn；save_reader_oaid=400000；send_client_info push_type=2 为 100000。官方导流章 106129841 与搜索免费章 cmd=100000、get_cpt_ifm=310017。本轮设备未写出 cookies.txt。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/pixel-official-chain-canary.json",
+        "value": "ad_reader_check=100000; send_client_info=100000; get_cpt_ifm=310017 on 106129841 and search-free"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/android_id/正文；只记 reader_id 尾数一位"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/"
+    },
+    {
+      "id": "F-019",
+      "category": "network",
+      "claim": "Python 游客 310017 是 GT3 恢复门：回包无 gt，API1 geetest_first_register 可拿到 challenge",
+      "location": {
+        "file": "/signup/geetest_first_register",
+        "class": "AddressUtils",
+        "method": "getRegister(RiskTypeEnum.OTHER)",
+        "address": "",
+        "line": 16
+      },
+      "description": "BaseTaskNew 对 310017 走 GT3 pattern 1。API1 为 GET WEB_SITE/signup/geetest_first_register?t=&user_id=account（OkHttp，非 native curl）。过关后把 geetest_challenge/seccode/validate 写回同一 get_cpt_ifm。310017 JSON 只有 code 和 tip。API1 在双主机均为 success=1、new_captcha=true、gt/challenge 各 32。官方游客读章不进此路径。滑块未做。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/geetest-api1-canary.json",
+        "value": "310017 keys=code,tip; api1 success=1 gt_len=32 challenge_len=32"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 gt/challenge/account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/geetest_human_retry.py"
+    },
+    {
+      "id": "F-020",
+      "category": "network",
+      "claim": "完整 getHead0 UA、charsets/Expect、CURLOPT_HTTP_VERSION=3 不能过正文 310017；APK libcurl 实际协商 HTTP/1.1",
+      "location": {
+        "file": "libcwmhttps.so",
+        "class": "CenterDataAPI",
+        "method": "getHead0 / postHttpsRequest",
+        "address": "getHead0@0x80cf0; postHttpsRequest@0x6eae4",
+        "line": 0
+      },
+      "description": "Pixel 6 实测 UA=Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15。slist 含 charsets: utf-8 与 Expect:。setopt HTTP_VERSION=3 返回 1，协商 http_version=2。auto_reg/search/cmd=100000，get_cpt_ifm=310017。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/pixel-native-headers-canary.json",
+        "value": "auto_reg=100000; cpt=310017; http_version_setopt=1; http_version=2"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "analysis/app-version-2.9.365/scripts/oldcurl/"
+    }
+  ],
+  "triage_items": [
+    {
+      "id": "B-001",
+      "description": "正文接口 310017：官方游客可过，Python 游客不过",
+      "severity": "blocker",
+      "reason": "官方 JA3 已用 APK libcurl 复现，Python 游客正文仍 310017",
+      "suggested_next": "人机过 GT3 后把三元组写回 get_cpt_ifm。不要自动解滑块。"
+    },
+    {
+      "id": "B-002",
+      "description": "LDPlayer x86 SecShell maps/fclose SIGSEGV",
+      "severity": "info",
+      "reason": "真机 ARM64 原包已过 Splash 并 dump DEX，不再挡主线",
+      "suggested_next": "归档；不要再 houdini/IDA fclose"
+    },
+    {
+      "id": "G-001",
+      "description": "Pixel 6 syscall-filter 已加载，重启后需重 load",
+      "severity": "low",
+      "reason": "KPM 非持久",
+      "suggested_next": "重启后 load scfilter.kpm 并 uidadd"
+    },
+    {
+      "id": "G-003",
+      "description": "Frida 17 Python create_script 默认无 Java",
+      "severity": "medium",
+      "reason": "不能 hook H.is_x86_byso；native 足够加载 x86 so",
+      "suggested_next": "需要 Java 时用 frida CLI 或编译 frida-java-bridge；禁止降级 Frida"
+    },
+    {
+      "id": "G-005",
+      "description": "Pixel 6 px-proxy 残留 127.0.0.1:8085 会让官方 App 停在加载中",
+      "severity": "high",
+      "reason": "off 只删 http_proxy 时 Android 15 留下 host/port；mitmdump/reverse 已停",
+      "suggested_next": "已清设备代理；px-proxy.ps1 off 现同时删 host/port。不要长期开 px-proxy"
+    }
+  ],
+  "session": {
+    "started": "2026-08-23",
+    "paused": "2026-08-27",
+    "skills_used": [
+      "apk-reverse",
+      "native-reverse",
+      "ldplayer-control",
+      "protocol-recovery"
+    ],
+    "mcp_tools_called": []
+  }
+}

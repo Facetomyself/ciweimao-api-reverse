@@ -1,0 +1,261 @@
+{
+  "tested_at": "2026-08-26T12:07:38.280037+00:00",
+  "credential_source": "cached auto_reg_v2 guest; values not persisted in evidence",
+  "credential_values_persisted": false,
+  "python_ua": "Android com.kuangxiangciweimao.novel 2.9.365",
+  "native_ua_fragment": "User-Agent: Android  com.kuangxiangciweimao.novel.c",
+  "variants": [
+    {
+      "base_url_host": "app1.happybooker.cn",
+      "impersonate": "none",
+      "app_version": "2.9.365",
+      "request_headers": {
+        "user_agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+        "content_type": "application/x-www-form-urlencoded",
+        "header_keys": [
+          "content-type",
+          "user-agent"
+        ],
+        "has_cookie_header": false
+      },
+      "checks": [
+        {
+          "label": "send_client_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": []
+          },
+          "elapsed_ms": 963
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 188
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 189
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 45
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 33
+        }
+      ],
+      "ok": false,
+      "host_name": "happybooker.cn"
+    },
+    {
+      "base_url_host": "app1.happybooker.cn",
+      "impersonate": "chrome99_android",
+      "app_version": "2.9.365",
+      "request_headers": {
+        "user_agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+        "content_type": "application/x-www-form-urlencoded",
+        "header_keys": [
+          "content-type",
+          "user-agent"
+        ],
+        "has_cookie_header": false
+      },
+      "checks": [
+        {
+          "label": "send_client_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": []
+          },
+          "elapsed_ms": 323
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 169
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 105
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 48
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 44
+        }
+      ],
+      "ok": false,
+      "host_name": "happybooker.cn"
+    },
+    {
+      "base_url_host": "app1.hbooker.com",
+      "impersonate": "none",
+      "app_version": "2.9.365",
+      "request_headers": {
+        "user_agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+        "content_type": "application/x-www-form-urlencoded",
+        "header_keys": [
+          "content-type",
+          "user-agent"
+        ],
+        "has_cookie_header": false
+      },
+      "checks": [
+        {
+          "label": "send_client_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": []
+          },
+          "elapsed_ms": 305
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 150
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 115
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 31
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 37
+        }
+      ],
+      "ok": false,
+      "host_name": "hbooker.com"
+    },
+    {
+      "base_url_host": "app1.hbooker.com",
+      "impersonate": "chrome99_android",
+      "app_version": "2.9.365",
+      "request_headers": {
+        "user_agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+        "content_type": "application/x-www-form-urlencoded",
+        "header_keys": [
+          "content-type",
+          "user-agent"
+        ],
+        "has_cookie_header": false
+      },
+      "checks": [
+        {
+          "label": "send_client_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": []
+          },
+          "elapsed_ms": 296
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 142
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 108
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 202
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 27
+        }
+      ],
+      "ok": false,
+      "host_name": "hbooker.com"
+    }
+  ]
+}

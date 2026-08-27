@@ -1,0 +1,102 @@
+{
+  "tested_at": "2026-08-27T00:56:42.242106+00:00",
+  "action": "dump 310017 keys + GT3 API1 geetest_first_register",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "host": "app1.happybooker.cn",
+  "reader_id_last": "4",
+  "account_len": 9,
+  "retry_keys": [
+    "geetest_challenge",
+    "geetest_seccode",
+    "geetest_validate"
+  ],
+  "api1_path": "/signup/geetest_first_register",
+  "solved": false,
+  "note": "Official guest chapter does not enter this path. 310017 recovery is GT3 API1 then retry same POST. This canary does not complete the slider.",
+  "official_onboarding": {
+    "cmd": {
+      "ok": true,
+      "code": "100000",
+      "tip": null
+    },
+    "chapter_id_len": 9,
+    "cpt": {
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "top_keys": [
+        "code",
+        "tip"
+      ],
+      "http_code": 200,
+      "curl_code": 0,
+      "ok": false
+    }
+  },
+  "search_free": {
+    "cmd": {
+      "ok": true,
+      "code": "100000",
+      "tip": null
+    },
+    "chapter_id_len": 9,
+    "cpt": {
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "top_keys": [
+        "code",
+        "tip"
+      ],
+      "http_code": 200,
+      "curl_code": 0,
+      "ok": false
+    }
+  },
+  "api1": {
+    "code": "",
+    "tip": "",
+    "top_keys": [
+      "challenge",
+      "gt",
+      "new_captcha",
+      "success"
+    ],
+    "gt": {
+      "present": true,
+      "len": 32
+    },
+    "challenge": {
+      "present": true,
+      "len": 32
+    },
+    "success": 1,
+    "new_captcha": true,
+    "http_code": 200,
+    "ok": true
+  },
+  "api1_alt_host": {
+    "code": "",
+    "tip": "",
+    "top_keys": [
+      "challenge",
+      "gt",
+      "new_captcha",
+      "success"
+    ],
+    "gt": {
+      "present": true,
+      "len": 32
+    },
+    "challenge": {
+      "present": true,
+      "len": 32
+    },
+    "success": 1,
+    "new_captcha": true,
+    "http_code": 200,
+    "ok": true
+  }
+}

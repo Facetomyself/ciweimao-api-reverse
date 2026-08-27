@@ -1,0 +1,110 @@
+{
+  "tested_at": "2026-08-26T14:55:00+00:00",
+  "question": "Python auto_reg_v2 vs official guest registration fields",
+  "python": {
+    "file": "client/guest.py build_guest_registration_params",
+    "endpoint": "/signup/auto_reg_v2",
+    "keys": [
+      "app_version",
+      "channel",
+      "device_token",
+      "gender",
+      "oauth_open_id",
+      "oauth_type",
+      "oauth_union_id",
+      "uuid",
+      "rand_str",
+      "p"
+    ],
+    "constants": {
+      "channel": "TX",
+      "device_token": "ciweimao_",
+      "gender": "1",
+      "oauth_open_id": "",
+      "oauth_type": "",
+      "oauth_union_id": "",
+      "uuid_shape": "android + UUID.randomUUID (len 43, hyphenated)",
+      "hmac_account_placeholder": "cmw666",
+      "hmac_account_in_body": false
+    },
+    "post_registration": []
+  },
+  "official_java_2_9_365": {
+    "file": "AutoRegTask.doHttpRequest + BaseTaskNew.setCommonParams",
+    "getC": 17,
+    "task_keys": ["uuid", "gender", "channel", "oauth_type", "oauth_open_id", "oauth_union_id"],
+    "common_keys": ["app_version", "device_token"],
+    "account_login_token": "only if LoginedUser already exists; first-run guest does not add them",
+    "uuid": "Installation.id = android + UUID.randomUUID, persisted in files/INSTALLATION",
+    "gender_first_run": "SexEnum.getValueStr; live 2.9.362 used 1 (MALE)",
+    "channel_resolution": "ChannelUtil.getChannel default Common; fallback UMENG_CHANNEL=Common; exception Common_default; 2.9.362 live was TX",
+    "device_token": "App.getDeviceID(); 2.9.362 live value ciweimao_ (len 9)",
+    "apk_umeng_channel": "Common"
+  },
+  "official_live_2_9_362": {
+    "source": "analysis/anonymous-reader/work/guest-auto-reg-splash.log curl post===>",
+    "auto_reg_v2_keys": [
+      "app_version",
+      "channel",
+      "device_token",
+      "gender",
+      "oauth_open_id",
+      "oauth_type",
+      "oauth_union_id",
+      "uuid",
+      "rand_str",
+      "p"
+    ],
+    "auto_reg_v2_values": {
+      "app_version": "2.9.362",
+      "channel": "TX",
+      "device_token": "ciweimao_",
+      "gender": "1",
+      "oauth_open_id": "",
+      "oauth_type": "",
+      "oauth_union_id": "",
+      "uuid": {"len": 43, "prefix": "android", "has_hyphen": true}
+    },
+    "hmac_placeholder_sha256_8": "b4352460",
+    "device_token_sha256_8": "79f5d9c1",
+    "post_registration": [
+      {
+        "path": "/signup/save_reader_oaid",
+        "getC": 154,
+        "task": "SendImeiTask",
+        "keys": [
+          "account",
+          "am",
+          "app_version",
+          "channel",
+          "device_token",
+          "login_token",
+          "oaid",
+          "reader_id",
+          "rand_str",
+          "p"
+        ],
+        "oaid_len": 0,
+        "am_len": 32,
+        "am_meaning": "MD5(Settings.Secure.ANDROID_ID)"
+      }
+    ]
+  },
+  "diff": {
+    "auto_reg_v2_keys": "match",
+    "uuid_shape": "match",
+    "device_token": "match ciweimao_",
+    "gender": "match 1",
+    "oauth_empty": "match",
+    "channel": "Python TX; 2.9.362 live TX; 2.9.365 apk UMENG_CHANNEL=Common (walle/cztchannel not in zip)",
+    "hmac_cmw666": "2.9.362 live signature recomputed against cmw666 2/2; not sent as POST account",
+    "python_missing_after_reg": ["/signup/save_reader_oaid"]
+  },
+  "conclusion": "auto_reg_v2 request fields are not the remaining 310017 gap. Python omits the follow-up save_reader_oaid (oaid empty, am=md5(android_id)). That is a real protocol difference, not yet a proven cause of 310017. Do not copy logcat tokens.",
+  "redaction": {
+    "account": "omitted",
+    "login_token": "omitted",
+    "p": "len/hash only in source parse, not copied here",
+    "reader_id": "omitted"
+  }
+}

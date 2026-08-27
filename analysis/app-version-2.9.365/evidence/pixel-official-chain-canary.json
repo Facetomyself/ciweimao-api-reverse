@@ -1,0 +1,106 @@
+{
+  "tested_at": "2026-08-27T00:47:42.616965+00:00",
+  "action": "ad_reader_check + pixel libcurl auto_reg_v2 + cookie jar + host-by-reader_id + save_oaid + send_client_info push_type=2 + get_cpt_ifm official chapter 106129841 and search-free",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "cookies": {
+    "exists": false
+  },
+  "checks": {
+    "ad_reader_check": {
+      "http_code": 200,
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "code": "100000",
+      "ok": true,
+      "data_keys": [
+        "channel",
+        "is_ad_reader",
+        "jump_book"
+      ]
+    },
+    "auto_reg": {
+      "http_code": 200,
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "uuid_len": 43,
+      "uuid_prefix": "android",
+      "code": "100000",
+      "ok": true,
+      "has_login_token": true,
+      "account_len": 9,
+      "reader_id_len": 8,
+      "reader_id_last": "4",
+      "is_bind": "0",
+      "chapter_host": "app1.happybooker.cn"
+    },
+    "cookies_after_reg": {
+      "exists": false
+    },
+    "save_reader_oaid": {
+      "http_code": 200,
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "code": "400000",
+      "ok": false,
+      "tip": "",
+      "data_keys": [],
+      "am_len": 32,
+      "oaid_empty": true
+    },
+    "send_client_info": {
+      "http_code": 200,
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "code": "100000",
+      "ok": true,
+      "data_keys": []
+    }
+  },
+  "chapter": {
+    "official_onboarding": {
+      "chapter_id_len": 9,
+      "label": "official-onboarding",
+      "cmd": {
+        "ok": true,
+        "code": "100000",
+        "tip": null
+      },
+      "cpt": {
+        "ok": false,
+        "code": "310017",
+        "tip": "请升级到最新版本客户端"
+      },
+      "has_command": true
+    },
+    "search_free": {
+      "search": {
+        "ok": true,
+        "code": "100000",
+        "tip": null
+      },
+      "has_book_id": true,
+      "has_chapter_id": true,
+      "chapter_id_len": 9,
+      "label": "search-free",
+      "cmd": {
+        "ok": true,
+        "code": "100000",
+        "tip": null
+      },
+      "cpt": {
+        "ok": false,
+        "code": "310017",
+        "tip": "请升级到最新版本客户端"
+      },
+      "has_command": true
+    }
+  },
+  "ok": false
+}

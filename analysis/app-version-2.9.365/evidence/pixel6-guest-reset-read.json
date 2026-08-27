@@ -1,0 +1,43 @@
+{
+  "tested_at": "2026-08-26T14:12:28.790976+00:00",
+  "action": "pm-clear guest then read after leftover proxy off",
+  "proxy_before": {
+    "global_http_proxy_host": "127.0.0.1",
+    "global_http_proxy_port": "8085",
+    "mitmdump": "not-running",
+    "adb_reverse": "none"
+  },
+  "proxy_after": "cleared",
+  "official_guest_read": {
+    "get_chapter_cmd": [
+      {
+        "host": "app1.happybooker.cn",
+        "path": "/chapter/get_chapter_cmd",
+        "code": "100000",
+        "tip": null,
+        "data_keys": [
+          "command"
+        ]
+      }
+    ],
+    "get_cpt_ifm": [
+      {
+        "host": "app1.happybooker.cn",
+        "path": "/chapter/get_cpt_ifm",
+        "code": "100000",
+        "tip": null,
+        "data_keys": [
+          "chapter_info"
+        ]
+      }
+    ],
+    "all_codes": [
+      "100000",
+      "100000",
+      "100000",
+      "100000",
+      "100000"
+    ],
+    "geetest": false
+  }
+}

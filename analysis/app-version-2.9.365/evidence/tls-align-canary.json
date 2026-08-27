@@ -1,0 +1,49 @@
+{
+  "tested_at": "2026-08-26T13:38:25.101398+00:00",
+  "credential_source": "cached-guest; values not persisted",
+  "identity": "anonymous-guest",
+  "hellos": [
+    {
+      "ok": false,
+      "error": {
+        "raw": "b''",
+        "client_error": "SSLError: Failed to perform, curl: (35) Invalid TLS extension order: '0-11-10-13-16-22-23'. See https://curl.se/libcurl/c/libcurl-errors.html first for more det"
+      },
+      "name": "closest"
+    },
+    {
+      "ok": false,
+      "error": {
+        "raw": "b''",
+        "client_error": "SSLError: Failed to perform, curl: (35) Invalid TLS extension order: '0-11-10-13-13172-16-22-23'. See https://curl.se/libcurl/c/libcurl-errors.html first for mo"
+      },
+      "name": "closest-npn"
+    }
+  ],
+  "chapter": [
+    {
+      "name": "closest",
+      "curl_kwargs": {
+        "ja3": "771,49196-49200-159-52393-52392-49195-49199-158-49188-49192-107-49187-49191-103-49162-49172-57-49161-49171-51-157-156-61-60-53-47,0-11-10-13-16-22-23,29-23-25-24,0",
+        "http_version": 2
+      },
+      "ok": false,
+      "chapter_code": "exception",
+      "error_type": "SSLError",
+      "tip": "Failed to perform, curl: (35) Invalid TLS extension order: '0-11-10-13-16-22-23'. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "elapsed_ms": 255
+    },
+    {
+      "name": "closest-npn",
+      "curl_kwargs": {
+        "ja3": "771,49196-49200-159-52393-52392-49195-49199-158-49188-49192-107-49187-49191-103-49162-49172-57-49161-49171-51-157-156-61-60-53-47,0-11-10-13-13172-16-22-23,29-23-25-24,0",
+        "http_version": 2
+      },
+      "ok": false,
+      "chapter_code": "exception",
+      "error_type": "SSLError",
+      "tip": "Failed to perform, curl: (35) Invalid TLS extension order: '0-11-10-13-13172-16-22-23'. See https://curl.se/libcurl/c/libcurl-errors.html first for more details",
+      "elapsed_ms": 253
+    }
+  ]
+}

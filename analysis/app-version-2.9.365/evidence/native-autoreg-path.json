@@ -1,0 +1,58 @@
+{
+  "tested_at": "2026-08-27T15:30:00+00:00",
+  "question": "Official native auto_reg path vs Python/oldcurl",
+  "so": {
+    "path": "analysis/app-version-2.9.365/so/libcwmhttps.so",
+    "sha256": "428d5f646236fe24ad2eef11b2ec2e54f5141bcf70af9e3bb6684644827036eb"
+  },
+  "java": {
+    "task": "AutoRegTask.doHttpRequest",
+    "getC": 17,
+    "track": "NetUtils.track(ctx, 17, json, UrlConstants.getUserType())",
+    "first_run_userType": 2,
+    "followup": "SendImeiTask getC(154) /signup/save_reader_oaid"
+  },
+  "native": {
+    "jni": "Java_com_kuangxiangciweimao_novel_utils_NetUtils_track @ 0x6d260",
+    "getAddr_17": "signup/auto_reg_v2",
+    "getAddr_154": "signup/save_reader_oaid",
+    "getAddr_259": "chapter/get_cpt_ifm",
+    "host_userType": {
+      "0": "https://novel-app-test.hbooker.com/",
+      "1": "https://app1.happybooker.cn/",
+      "other": "https://app1.hbooker.com/"
+    },
+    "headers": [
+      "Content-Type: application/x-www-form-urlencoded",
+      "charsets: utf-8",
+      "Expect: ",
+      "User-Agent: Android  com.kuangxiangciweimao.novel.c  {versionName}, {brand}, {model}, {sdk}, {release}"
+    ],
+    "curl": {
+      "CURLOPT_HTTP_VERSION": 3,
+      "CURL_HTTP_VERSION_2_0": true,
+      "CURLOPT_SSL_VERIFYPEER": 0,
+      "CURLOPT_SSL_VERIFYHOST": 0,
+      "CURLOPT_POST": 1
+    },
+    "hmac": {
+      "runtime_verified": "p=Base64(HMAC-SHA256(certMD5, account={urlenc}&app_version={ver}&rand_str={rand}&signatures={certMD5}CkMxWNB666)); 84/84 live App p; fixture RTemA7/IKa4GppnByNkaz0tVeAk1Cn8LnSM5NZ993Qc=",
+      "key_source": "GetInfo: PackageInfo.signatures[0].toCharsString then Md5Encode; stored this+216; official APK logs a90f3731745f1c30ee77cb13fc00005a",
+      "guest_account": "cmw666 if JSON has no account",
+      "getSha256": "HMAC-SHA256 + Base64 + UrlEncode @ 0x75218",
+      "hexrays_note": "post1 also calls MD5::md5_update/finish before getSha256; HMAC(MD5(canonical)) and suffix=MD5(CkMxWNB666) do not match the live p fixture"
+    },
+    "rand_str": "generateRandomString @ 0x74b0c; time/localtime seeded charset pick; live samples are 16 hex"
+  },
+  "python_oldcurl_gaps_not_canaried": [],
+  "already_matched_or_excluded": [
+    "auto_reg_v2 POST keys vs 2.9.362 live and AutoRegTask",
+    "HMAC formula vs 84/84 live p",
+    "device_token live ciweimao_",
+    "uuid android+UUID",
+    "guest host app1.hbooker.com (userType=2)",
+    "official JA3 libcurl auto_reg=100000 still get_cpt_ifm=310017",
+    "prefix-only native UA still 310017",
+    "full getHead0 UA + charsets/Expect + CURLOPT_HTTP_VERSION=3 still 310017; see pixel-native-headers-canary.json"
+  ]
+}

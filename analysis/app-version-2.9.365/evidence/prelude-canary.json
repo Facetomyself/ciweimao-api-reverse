@@ -1,0 +1,138 @@
+{
+  "tested_at": "2026-08-26T12:09:08.063538+00:00",
+  "credential_source": "cached auto_reg_v2 guest; values not persisted",
+  "base_url_host": "app1.hbooker.com",
+  "checks": [
+    {
+      "label": "/meta/get_meta_data",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "data_type": "dict",
+        "data_keys": [
+          "book_detail_switch",
+          "book_fans_lv_list",
+          "category_list",
+          "comic_category_list",
+          "emoticon_book_limit",
+          "emoticon_vip_limit",
+          "exp_lv_list",
+          "hot_key_list",
+          "md5",
+          "quick_reply_list",
+          "url_list",
+          "vip_lv_list"
+        ]
+      },
+      "elapsed_ms": 103
+    },
+    {
+      "label": "/setting/get_check",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "data_type": "dict",
+        "data_keys": [
+          "column",
+          "url"
+        ]
+      },
+      "elapsed_ms": 30
+    },
+    {
+      "label": "/setting/get_startpage_url_list",
+      "ok": false,
+      "code": "200001",
+      "tip": "缺少参数",
+      "elapsed_ms": 26
+    },
+    {
+      "label": "/setting/get_version",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "data_type": "dict",
+        "data_keys": [
+          "android_down_url",
+          "android_update_content",
+          "android_version",
+          "ios_down_url",
+          "ios_update_content",
+          "ios_version",
+          "is_force_update"
+        ]
+      },
+      "elapsed_ms": 35
+    },
+    {
+      "label": "/reader/get_my_info",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "data_type": "dict",
+        "data_keys": [
+          "entry_check",
+          "followed_amount",
+          "following_amount",
+          "internal_version",
+          "ip_home",
+          "is_set_young",
+          "one_more_message",
+          "one_more_task",
+          "prop_info",
+          "reader_info",
+          "track_amount"
+        ]
+      },
+      "elapsed_ms": 49
+    },
+    {
+      "label": "/setting/thired_party_switch",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "data_type": "dict",
+        "data_keys": [
+          "switch_list"
+        ]
+      },
+      "elapsed_ms": 31
+    },
+    {
+      "label": "search",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "book_count": 10,
+        "has_book_id": true
+      },
+      "elapsed_ms": 155
+    },
+    {
+      "label": "catalog",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "has_free_chapter": true
+      },
+      "elapsed_ms": 87
+    },
+    {
+      "label": "chapter_cmd",
+      "ok": true,
+      "code": "100000",
+      "detail": {
+        "command_len": 32
+      },
+      "elapsed_ms": 29
+    },
+    {
+      "label": "chapter_meta",
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "elapsed_ms": 28
+    }
+  ],
+  "ok": false
+}

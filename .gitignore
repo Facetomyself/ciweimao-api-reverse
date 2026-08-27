@@ -1,5 +1,7 @@
-# 认证凭据（敏感）
+# 认证凭据
 tokens.json
+debug.keystore
+*.keystore
 
 # 下载输出
 output/
@@ -16,11 +18,24 @@ runtime/
 captures/
 analysis/**/input/
 analysis/**/work/
+analysis/**/artifacts/
+/artifacts/*
+!/artifacts/openapi.json
+samples/
+*.dex
 *.flow
 *.pcap
 *.pcapng
 *.har
 mitmdump.pid
+*.so
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+*.i64
+analysis/**/logs/
 
 # Python
 __pycache__/
@@ -31,6 +46,10 @@ __pycache__/
 .idea/
 .vscode/
 *.swp
+
+# Frontend build cache
+frontend/node_modules/
+frontend/dist/
 
 # OS
 .DS_Store

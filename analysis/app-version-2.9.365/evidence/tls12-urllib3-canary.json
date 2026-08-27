@@ -1,0 +1,39 @@
+{
+  "tested_at": "2026-08-26T13:39:44.579190+00:00",
+  "credential_source": "cached-guest; values not persisted",
+  "identity": "anonymous-guest",
+  "openssl": "OpenSSL 3.0.18 30 Sep 2025",
+  "ciphers": "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA:AES128-SHA",
+  "tls": "1.2-only",
+  "alpn": [
+    "http/1.1"
+  ],
+  "checks": [
+    {
+      "label": "search",
+      "ok": true,
+      "code": "100000",
+      "book_count": 10
+    },
+    {
+      "label": "catalog",
+      "ok": true,
+      "code": "100000",
+      "has_free_chapter": true
+    },
+    {
+      "label": "chapter_cmd",
+      "ok": true,
+      "code": "100000",
+      "command_len": 32
+    },
+    {
+      "label": "chapter_meta",
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  ],
+  "elapsed_ms": 580,
+  "ok": false
+}

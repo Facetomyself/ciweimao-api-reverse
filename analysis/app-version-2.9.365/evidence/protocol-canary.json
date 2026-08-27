@@ -1,0 +1,127 @@
+{
+  "tested_at": "2026-08-23T14:34:30.202174+00:00",
+  "credential_source": "cached auto_reg_v2 guest; values not persisted in evidence",
+  "credential_values_persisted": false,
+  "versions": [
+    {
+      "app_version": "2.9.362",
+      "uses_signed_transport": true,
+      "uses_current_response_key": true,
+      "checks": [
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 330
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "chapter_total": 5,
+            "has_free_chapter": true,
+            "free_flags": {
+              "is_paid": "0",
+              "auth_access": "1"
+            }
+          },
+          "elapsed_ms": 35
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 29
+        },
+        {
+          "label": "chapter_download_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "command"
+            ]
+          },
+          "elapsed_ms": 30
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 45
+        }
+      ],
+      "ok": false
+    },
+    {
+      "app_version": "2.9.365",
+      "uses_signed_transport": true,
+      "uses_current_response_key": true,
+      "checks": [
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 377
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "division_count": 1,
+            "chapter_total": 720,
+            "has_free_chapter": true,
+            "free_flags": {
+              "is_paid": "0",
+              "auth_access": "1"
+            }
+          },
+          "elapsed_ms": 271
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 53
+        },
+        {
+          "label": "chapter_download_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "command"
+            ]
+          },
+          "elapsed_ms": 57
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 57
+        }
+      ],
+      "ok": false
+    }
+  ]
+}

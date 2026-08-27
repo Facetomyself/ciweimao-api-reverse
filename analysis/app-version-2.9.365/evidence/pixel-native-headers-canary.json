@@ -1,0 +1,57 @@
+{
+  "tested_at": "2026-08-27T06:43:33.096433+00:00",
+  "action": "auto_reg_v2 + get_cpt_ifm via apk libcurl with getHead0 UA, charsets/Expect, CURLOPT_HTTP_VERSION=3",
+  "uuid_source": "generated android+uuid4, not Pixel INSTALLATION",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "head0": {
+    "ua": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+    "app_version": "2.9.365",
+    "brand": "google",
+    "model": "Pixel 6",
+    "sdk": "35",
+    "release": "15"
+  },
+  "auto_reg": {
+    "http_code": 200,
+    "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+    "curl_code": 0,
+    "ssl_verify": 0,
+    "http_version_setopt": 1,
+    "http_version": 2,
+    "headers": "content-type,charsets,expect",
+    "uuid_len": 43,
+    "uuid_prefix": "android",
+    "code": "100000",
+    "ok": true,
+    "has_login_token": true,
+    "account_len": 9,
+    "reader_id_len": 8,
+    "is_bind": "0"
+  },
+  "chapter": {
+    "search": {
+      "ok": true,
+      "code": "100000",
+      "tip": null,
+      "http_version_setopt": 1,
+      "http_version": 2,
+      "headers": "content-type,charsets,expect"
+    },
+    "cmd": {
+      "ok": true,
+      "code": "100000",
+      "tip": null
+    },
+    "cpt": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "http_version": 2
+    }
+  },
+  "ok": false
+}

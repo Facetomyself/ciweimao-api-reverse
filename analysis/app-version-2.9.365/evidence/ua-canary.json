@@ -1,0 +1,78 @@
+{
+  "tested_at": "2026-08-26T13:07:16.728630+00:00",
+  "credential_source": "cached-guest; values not persisted",
+  "variants": [
+    {
+      "name": "python-default",
+      "user_agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+      "user_agent_len": 44,
+      "checks": [
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "elapsed_ms": 509,
+          "detail": {
+            "book_count": 10
+          }
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 347
+        }
+      ],
+      "chapter_code": "310017"
+    },
+    {
+      "name": "native-constant",
+      "user_agent": "Android  com.kuangxiangciweimao.novel.c  ",
+      "user_agent_len": 41,
+      "checks": [
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "elapsed_ms": 654,
+          "detail": {
+            "book_count": 10
+          }
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 307
+        }
+      ],
+      "chapter_code": "310017"
+    },
+    {
+      "name": "native-stripped",
+      "user_agent": "Android  com.kuangxiangciweimao.novel.c",
+      "user_agent_len": 39,
+      "checks": [
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "elapsed_ms": 208,
+          "detail": {
+            "book_count": 10
+          }
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 253
+        }
+      ],
+      "chapter_code": "310017"
+    }
+  ]
+}

@@ -1,0 +1,120 @@
+{
+  "tested_at": "2026-08-26T14:48:24.429852+00:00",
+  "stack": "apk-libcurl-7.56.1 + openssl-1.1.0f on pixel6",
+  "binary": "analysis/app-version-2.9.365/work/oldcurl/oldcurl_post",
+  "ja3_md5": "1aee0238942d453d679fc1e37a303387",
+  "ja3_matches_official": true,
+  "pcap": "analysis/app-version-2.9.365/work/pixel6-cpt/oldcurl-443.pcap",
+  "ssl_verify_note": "APEX CAPATH failed on this libssl; retry with verify off. ClientHello still official JA3.",
+  "guest_source": "guest-canary-tokens.json",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+  "has_book_id": true,
+  "has_chapter_id": true,
+  "command_len": 32,
+  "checks": [
+    {
+      "path": "/bookcity/get_filter_search_book_list",
+      "label": "/bookcity/get_filter_search_book_list",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 594,
+      "code": "100000",
+      "ok": true,
+      "data_keys": [
+        "book_list",
+        "tag_list"
+      ]
+    },
+    {
+      "path": "/chapter/get_updated_chapter_by_division_new",
+      "label": "/chapter/get_updated_chapter_by_division_new",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 655,
+      "code": "100000",
+      "ok": true,
+      "data_keys": [
+        "chapter_list"
+      ]
+    },
+    {
+      "path": "/chapter/get_chapter_cmd",
+      "label": "/chapter/get_chapter_cmd",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 449,
+      "code": "100000",
+      "ok": true,
+      "data_keys": [
+        "command"
+      ]
+    },
+    {
+      "path": "/chapter/get_cpt_ifm",
+      "label": "/chapter/get_cpt_ifm",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 386,
+      "code": "310017",
+      "ok": false,
+      "tip": "请升级到最新版本客户端"
+    },
+    {
+      "path": "/chapter/get_cpt_ifm",
+      "label": "get_cpt_ifm official-ua-order",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 396,
+      "code": "310017",
+      "ok": false,
+      "tip": "请升级到最新版本客户端"
+    },
+    {
+      "path": "/reader/send_client_info",
+      "label": "/reader/send_client_info",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 381,
+      "code": "100000",
+      "ok": true,
+      "data_keys": []
+    },
+    {
+      "path": "/chapter/get_cpt_ifm",
+      "label": "get_cpt_ifm after-send_client_info",
+      "http_code": 200,
+      "curl_version": "libcurl/7.56.1 OpenSSL/1.1.0f zlib/1.3.0.1-motley",
+      "curl_code": 0,
+      "ssl_verify": 0,
+      "curl_error": "",
+      "elapsed_ms": 445,
+      "code": "310017",
+      "ok": false,
+      "tip": "请升级到最新版本客户端"
+    }
+  ],
+  "ok": false
+}

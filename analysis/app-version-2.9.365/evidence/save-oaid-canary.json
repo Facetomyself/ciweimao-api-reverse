@@ -1,0 +1,90 @@
+{
+  "tested_at": "2026-08-26T15:06:45.788054+00:00",
+  "action": "save_reader_oaid then get_cpt_ifm",
+  "stack": "apk-libcurl-7.56.1 on pixel6",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "am_len": 32,
+  "oaid": "",
+  "channel": "TX",
+  "runs": [
+    {
+      "label": "existing-guest",
+      "source": "guest-canary-tokens.json",
+      "has_reader_id": true,
+      "oaid_empty": true,
+      "am_len": 32,
+      "save_reader_oaid": {
+        "ok": false,
+        "code": "400000",
+        "tip": ""
+      },
+      "chapter": {
+        "search": {
+          "ok": true,
+          "code": "100000",
+          "tip": null
+        },
+        "cmd": {
+          "ok": true,
+          "code": "100000",
+          "tip": null
+        },
+        "cpt": {
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端"
+        }
+      },
+      "cpt_ok": false
+    },
+    {
+      "label": "new-guest",
+      "source": "register_guest",
+      "has_reader_id": true,
+      "oaid_empty": true,
+      "am_len": 32,
+      "save_reader_oaid": {
+        "ok": false,
+        "code": "400000",
+        "tip": ""
+      },
+      "chapter": {
+        "search": {
+          "ok": true,
+          "code": "100000",
+          "tip": null
+        },
+        "cmd": {
+          "ok": true,
+          "code": "100000",
+          "tip": null
+        },
+        "cpt": {
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端"
+        }
+      },
+      "cpt_ok": false
+    }
+  ],
+  "ok": false,
+  "unique_am_followup": {
+    "tested_at": "2026-08-26T15:07:17.365934+00:00",
+    "am_len": 32,
+    "save_reader_oaid": {
+      "ok": false,
+      "code": "400000",
+      "tip": ""
+    },
+    "cpt": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  }
+}

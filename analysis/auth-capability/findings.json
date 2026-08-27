@@ -1,0 +1,144 @@
+{
+  "_schema": "reverse-coordinator-findings-v1",
+  "target": {
+    "path": "D:/reverse_ENV/workspace/ciweimao-api-reverse",
+    "type": "HTTP API + Web SSR",
+    "arch": "not_applicable"
+  },
+  "analysis_depth": "L2",
+  "findings": [
+    {
+      "id": "F-001",
+      "category": "network",
+      "claim": "App API book/division endpoints reject anonymous requests with business code 200001.",
+      "location": {
+        "file": "client/api.py",
+        "class": "Session",
+        "method": "_call/get_book_info/get_division_list",
+        "address": "",
+        "line": 0
+      },
+      "description": "Empty login_token/account cannot be used to access the App book chain.",
+      "evidence": {
+        "type": "network_trace",
+        "source": "2026-07-12 inline minimal request; summary in analysis/auth-capability/report.md",
+        "value": "HTTP 200; code=200001; tip=缺少登录必需参数"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "No real credentials used."
+      },
+      "confidence": "high",
+      "rebuild_status": "not_applicable",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-002",
+      "category": "network",
+      "claim": "Public Web chapter pages provide an anonymous path for free chapter extraction.",
+      "location": {
+        "file": "analysis/auth-capability/report.md",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "www pages expose current books/chapters and mip/wap chapter pages respond without login.",
+      "evidence": {
+        "type": "network_trace",
+        "source": "2026-07-12 anonymous HTTP probes; summary in report.md",
+        "value": "www/mip/wap HTTP 200; mip sample text length about 2.5K"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "hash",
+        "raw_value_stored": false,
+        "notes": "Chapter body omitted; only lengths and hashes inspected."
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": ""
+    },
+    {
+      "id": "F-003",
+      "category": "logic",
+      "claim": "The password login endpoint remains online and expects login_name plus passwd.",
+      "location": {
+        "file": "client/auth.py",
+        "class": "AuthManager",
+        "method": "login",
+        "address": "",
+        "line": 0
+      },
+      "description": "Local code, NateScarlet source, and current server validation agree on /signup/login.",
+      "evidence": {
+        "type": "decompile",
+        "source": "client/auth.py and https://github.com/NateScarlet/ciweimao/blob/8a86e26e8390b86fc2738588966206fa1e0d63d9/pkg/client/login.go",
+        "value": "POST /signup/login; login_name; passwd; device_token; app_version"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "synthetic",
+        "raw_value_stored": false,
+        "notes": "Online probe used synthetic invalid credentials."
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/auth.py"
+    },
+    {
+      "id": "F-004",
+      "category": "logic",
+      "claim": "A real account/password login attempt was confirmed to require captcha verification.",
+      "location": {
+        "file": "analysis/auth-capability/report.md",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "The user manually verified the real credential path and observed a captcha requirement; challenge schema was intentionally not analyzed further.",
+      "evidence": {
+        "type": "string_xref",
+        "source": "User manual verification on 2026-07-12, cross-checked with GitHub evidence listed in report.md",
+        "value": "Real account/password login requires captcha verification."
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": ""
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": ""
+    }
+  ],
+  "triage_items": [
+    {
+      "id": "T-001",
+      "description": "Password-login captcha protocol is intentionally not pursued.",
+      "severity": "low",
+      "reason": "Real login was confirmed to require captcha, and the project will rely on App login plus token extraction.",
+      "suggested_next": "No action unless the project scope changes."
+    },
+    {
+      "id": "T-002",
+      "description": "Anonymous Web free-chapter provider is intentionally not implemented.",
+      "severity": "low",
+      "reason": "It adds little value to the project's bookshelf, purchased-chapter, and delisted-book backup goal.",
+      "suggested_next": "No action unless anonymous public-content download becomes a project requirement."
+    }
+  ],
+  "session": {
+    "started": "2026-07-12",
+    "skills_used": [
+      "protocol-recovery",
+      "search-layer",
+      "github-solution-research"
+    ],
+    "mcp_tools_called": []
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "tested_at": "2026-08-23T14:35:48.624320+00:00",
+  "app_version": "2.9.365",
+  "checks": [
+    {
+      "label": "download_cmd",
+      "ok": true,
+      "code": "100000",
+      "command_len": 32
+    },
+    {
+      "label": "/chapter/download_cpt",
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    },
+    {
+      "label": "/chapter/check_download_cpt",
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  ],
+  "ok": false
+}

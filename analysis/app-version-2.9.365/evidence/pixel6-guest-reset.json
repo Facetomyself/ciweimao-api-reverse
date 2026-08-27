@@ -1,0 +1,96 @@
+{
+  "tested_at": "2026-08-26T14:01:10.859682+00:00",
+  "action": "pm-clear then guest cold start",
+  "package": "com.kuangxiangciweimao.novel",
+  "steps": [
+    {
+      "pm_clear": "Success"
+    },
+    {
+      "start": "Starting: Intent { cmp=com.kuangxiangciweimao.novel/.activity.SplashActivity }\nStatus: ok\nLaunchState: COLD\nActivity: com.kuangxiangciweimao.novel/.activity.WelcomeActivity\nTotalTime: 1272\nWaitTime: 1274\nComplete\n"
+    },
+    {
+      "ui1_texts": [
+        "刺猬猫服务协议与隐私政策",
+        "欢迎您使用刺猬猫阅读。根据《常见类型移动互联网应用程序必要个人信息范围规定》，本App属于电子图书类，主要功能为“电子图书搜索、阅读”等服务，无须个人信息，即可使用基本功能服务。我们将通过《刺猬猫用户服务协议》 与《刺猬猫隐私政策》 帮您了解我们收集、使用、存储和保护个人信息的情况，以及您享有的权利,请您谨慎阅读并充分理解。使用过程中我们可能会使用以下权限:\n1.存储权限:下载,上传图片功能。\n2.相机权限:用于拍照上传图片。\n3.您同意隐私政策仅代表您已了解应用提供的功能，以及功能运行所需的必要个人信息，并不代表您已同意我们可以收集非必要个人信息，非必要个人信息会根据您使用过程中的授权情况单独征求您的同意。\n4.相应设备权限并不会默认开启，当涉及重要或敏感的设备权限时，我们会在您使用到相应业务功能时，另行弹窗再次征得您的同意后开启；权限开启后，您还可以随时通过设备设置关闭权限；你不同意开启权限，将不会影响其他非相关业务功能的正常使用。针对个人敏感信息，我们会单独征得您的同意后进行处理。\n5.如您拒绝本《隐私政策》，您仍能够在无注册/登录状态下使用基本功能。您也可以在后续使用服务过程中单独进行授权。",
+        "不同意",
+        "已阅读并同意"
+      ]
+    },
+    {
+      "tapped": "agree"
+    },
+    {
+      "ui2_texts": [
+        "主人，想去哪个异世界冒险呢？",
+        "热门IP标签",
+        "fate",
+        "8045部",
+        "型月",
+        "7739部",
+        "明日方舟",
+        "4090部",
+        "星穹铁道",
+        "4429部",
+        "奥特曼",
+        "3450部",
+        "崩坏",
+        "4429部",
+        "舰娘",
+        "3681部",
+        "俺春物",
+        "3742部",
+        "赛马娘",
+        "1177部",
+        "路人女主",
+        "3093部",
+        "火影",
+        "2941部"
+      ],
+      "activity": ""
+    }
+  ],
+  "resumed": "",
+  "capture": {
+    "url_paths": [
+      "/task/get_sign_record",
+      "/bookshelf/get_shelf_list",
+      "/reader/get_prop_info",
+      "/bookshelf/get_shelf_book_list_new",
+      "/reader/send_client_info",
+      "/bookshelf/get_bookself_reommend_list",
+      "/bookcity/get_tag_welcome_page"
+    ],
+    "get_cpt_ifm_seen": false,
+    "get_chapter_cmd_seen": false,
+    "viselog_codes": [],
+    "viselog_tips": [],
+    "auto_reg_seen": false
+  },
+  "final_texts": [
+    "主人，想去哪个异世界冒险呢？",
+    "热门IP标签",
+    "fate",
+    "8045部",
+    "型月",
+    "7739部",
+    "明日方舟",
+    "4090部",
+    "星穹铁道",
+    "4429部",
+    "奥特曼",
+    "3450部",
+    "崩坏",
+    "4429部",
+    "舰娘",
+    "3681部",
+    "俺春物",
+    "3742部",
+    "赛马娘",
+    "1177部",
+    "路人女主",
+    "3093部",
+    "火影",
+    "2941部"
+  ]
+}
