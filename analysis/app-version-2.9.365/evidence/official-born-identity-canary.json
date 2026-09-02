@@ -1,0 +1,257 @@
+{
+  "tested_at": "2026-09-02T11:09:21.816217+00:00",
+  "hypothesis": "official-process-born guest identity is sufficient for independent-client get_cpt_ifm",
+  "device_serial_redacted": "18251FDF6000N9",
+  "package": "com.kuangxiangciweimao.novel",
+  "app_version": "2.9.365",
+  "proxy": {
+    "http_proxy": "null",
+    "global_http_proxy_host": "null",
+    "global_http_proxy_port": "null"
+  },
+  "official_pref_flags": {
+    "is_bind": 0,
+    "is_bind_qq": 0,
+    "is_bind_weixin": 0,
+    "has_phone_num": false,
+    "account_len": 9,
+    "login_token_len": 32,
+    "device_token_len": 9,
+    "device_token_is_prefix_only": true,
+    "reader_id_len": 8,
+    "reader_id_last": "2",
+    "tokens_json_written": false,
+    "work_token_path": "analysis/app-version-2.9.365/work/official-born-guest-tokens.json"
+  },
+  "credential_values_persisted": false,
+  "tokens_json_written": false,
+  "variants": [
+    {
+      "source": "official-born-guest",
+      "base_url_host": "app1.happybooker.cn",
+      "app_version": "2.9.365",
+      "transport": "python-curl_cffi",
+      "impersonate": "none",
+      "checks": [
+        {
+          "label": "get_my_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "entry_check",
+              "followed_amount",
+              "following_amount",
+              "internal_version",
+              "ip_home",
+              "is_set_young",
+              "one_more_message",
+              "one_more_task",
+              "prop_info",
+              "reader_info",
+              "track_amount"
+            ],
+            "has_reader_info": true,
+            "is_bind": "0",
+            "is_bind_qq": "0",
+            "is_bind_weixin": "0",
+            "has_phone_num": false,
+            "account_len": 9,
+            "reader_id_last": "2"
+          },
+          "elapsed_ms": 591
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 589
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 135
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 30
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 29
+        }
+      ],
+      "ok": false,
+      "chapter_code": "310017"
+    },
+    {
+      "source": "official-born-guest",
+      "base_url_host": "app1.hbooker.com",
+      "app_version": "2.9.365",
+      "transport": "python-curl_cffi",
+      "impersonate": "none",
+      "checks": [
+        {
+          "label": "get_my_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "entry_check",
+              "followed_amount",
+              "following_amount",
+              "internal_version",
+              "ip_home",
+              "is_set_young",
+              "one_more_message",
+              "one_more_task",
+              "prop_info",
+              "reader_info",
+              "track_amount"
+            ],
+            "has_reader_info": true,
+            "is_bind": "0",
+            "is_bind_qq": "0",
+            "is_bind_weixin": "0",
+            "has_phone_num": false,
+            "account_len": 9,
+            "reader_id_last": "2"
+          },
+          "elapsed_ms": 324
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 1364
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 1156
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 36
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 349
+        }
+      ],
+      "ok": false,
+      "chapter_code": "310017"
+    },
+    {
+      "source": "python-born-control:pixel-oldcurl-guest-tokens.json",
+      "base_url_host": "app1.happybooker.cn",
+      "app_version": "2.9.365",
+      "transport": "python-curl_cffi",
+      "impersonate": "none",
+      "checks": [
+        {
+          "label": "get_my_info",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "data_keys": [
+              "entry_check",
+              "followed_amount",
+              "following_amount",
+              "internal_version",
+              "ip_home",
+              "is_set_young",
+              "one_more_message",
+              "one_more_task",
+              "prop_info",
+              "reader_info",
+              "track_amount"
+            ],
+            "has_reader_info": true,
+            "is_bind": "0",
+            "is_bind_qq": "0",
+            "is_bind_weixin": "0",
+            "has_phone_num": false,
+            "account_len": 9,
+            "reader_id_last": "6"
+          },
+          "elapsed_ms": 946
+        },
+        {
+          "label": "search",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "book_count": 10,
+            "has_book_id": true
+          },
+          "elapsed_ms": 147
+        },
+        {
+          "label": "catalog",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "has_free_chapter": true
+          },
+          "elapsed_ms": 90
+        },
+        {
+          "label": "chapter_cmd",
+          "ok": true,
+          "code": "100000",
+          "detail": {
+            "command_len": 32
+          },
+          "elapsed_ms": 41
+        },
+        {
+          "label": "chapter_meta",
+          "ok": false,
+          "code": "310017",
+          "tip": "请升级到最新版本客户端",
+          "elapsed_ms": 38
+        }
+      ],
+      "ok": false,
+      "chapter_code": "310017"
+    }
+  ],
+  "conclusion": {
+    "official_born_independent_client": "failed",
+    "official_chapter_code": "310017",
+    "identity_bound": false
+  }
+}

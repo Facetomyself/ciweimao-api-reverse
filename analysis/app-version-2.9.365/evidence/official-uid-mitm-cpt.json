@@ -1,0 +1,69 @@
+{
+  "tested_at": "2026-09-02",
+  "method": "same uid-scoped MITM as official-uid-mitm-startup.json; unread cover tap into ReaderActivity4",
+  "http_proxy": "null",
+  "teardown_ok": true,
+  "cached_first_book": {
+    "hit_get_cpt_ifm": false,
+    "instead": [
+      "/chapter/get_updated_chapter_by_division_id",
+      "/chapter/set_read_chapter_record",
+      "/reader/add_readbook"
+    ],
+    "note": "local chapter cache; no cmd/cpt"
+  },
+  "uncached_read": {
+    "paths": [
+      "/book/get_info_by_id",
+      "/book/get_bookmark_list",
+      "/book/get_bookmark_list",
+      "/chapter/get_updated_chapter_by_division_new",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "/chapter/get_tsukkomi_num",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "/reader/add_readbook"
+    ],
+    "get_cpt_ifm_count": 2,
+    "http_status": 200,
+    "http_version": "HTTP/1.1",
+    "host": "app1.happybooker.cn",
+    "req_header_names": [
+      "Host",
+      "Accept",
+      "Content-Type",
+      "charsets",
+      "User-Agent",
+      "Content-Length"
+    ],
+    "missing_on_wire": [
+      "Cookie",
+      "Expect",
+      "Authorization",
+      "refresh"
+    ],
+    "resp_missing": [
+      "Set-Cookie"
+    ],
+    "body_keys": [
+      "account",
+      "app_version",
+      "chapter_command",
+      "chapter_id",
+      "device_token",
+      "login_token",
+      "rand_str",
+      "p"
+    ]
+  },
+  "matches_logcat_hwbp": true,
+  "python_default_differs": [
+    "skips bookmark/tsukkomi/add_readbook",
+    "default header set lacks charsets; UA shorter; body key order differs"
+  ],
+  "already_failed_as_gate": [
+    "evidence/official-read-sequence-replay-canary.json",
+    "evidence/official-vs-python-request-compare.json"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "tested_at": "2026-09-02T13:12:14.564708+00:00",
+  "hypothesis": "CURLOPT_IPRESOLVE=V4 makes official-born get_cpt_ifm 100000",
+  "identity_source": "official-app-shared-prefs",
+  "tokens_json_written": false,
+  "stack": "apk-libcurl-7.56.1 + openssl-1.1.0f + IPRESOLVE_V4",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "head0": {
+    "ua": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+    "app_version": "2.9.365",
+    "brand": "google",
+    "model": "Pixel 6",
+    "sdk": "35",
+    "release": "15"
+  },
+  "legacy_ua_constant": "Android  com.kuangxiangciweimao.novel.c  ",
+  "host": "app1.happybooker.cn",
+  "get_my_info": {
+    "ok": true,
+    "code": "100000",
+    "tip": null,
+    "http_version": 2,
+    "headers": "content-type,charsets,expect",
+    "ipresolve": "v4"
+  },
+  "ipresolve": "v4",
+  "search": {
+    "ok": true,
+    "code": "100000",
+    "tip": null
+  },
+  "cmd": {
+    "ok": true,
+    "code": "100000",
+    "tip": null
+  },
+  "cpt": {
+    "ok": true,
+    "code": "100000",
+    "tip": null,
+    "http_version": 2,
+    "headers": "content-type,charsets,expect"
+  },
+  "has_chapter_id": true,
+  "command_len": 32,
+  "ok": true
+}

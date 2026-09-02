@@ -1,0 +1,92 @@
+{
+  "tested_at": "2026-09-02T12:48:29.837741+00:00",
+  "finished_at": "2026-09-02T12:48:57.773987+00:00",
+  "question": "slist_append headers on unread official 立即阅读",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "6203"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcurl.so",
+    "apk_payload": "0x4510000",
+    "so_token": "04510000",
+    "rx": {
+      "start": "0x7848951000",
+      "offset": "0x4510000"
+    },
+    "hook": {
+      "name": "curl_slist_append",
+      "func_off": "0x3365c",
+      "abs": "0x784898465c",
+      "pass_off": "0x454365c"
+    }
+  },
+  "kpm": {
+    "hello_rc": 0,
+    "load_rc": 0,
+    "list_after": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload_rc": 0,
+    "list_final": "[*] loaded KPM count: 0"
+  },
+    "hook": {
+      "start": "[+] 04510000 base=0x7844441000, 1 offset(s) | [+] HWBP set: 113 nodes (1 offsets x 113 threads), dump_size=128, flags=0x1 | [*] live trace started, press Ctrl+C to stop & unhook... | ",
+      "hit_blocks": 8,
+      "nodes": 113,
+      "printed_hit_count": 8,
+      "known_markers": [
+        "User-Agent"
+      ],
+      "last_slist_data": "User-Agent: Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+      "ua_matches_oldcurl": true,
+      "other_headers_in_last_hit": false,
+      "poll_coalesced": "every printed block is #8; earlier slist_append on the same tid were not dumped",
+      "header_names": [
+        "User-Agent"
+      ],
+      "extra_header_names": [],
+      "ascii_preview": [
+        "User-Agent: Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15"
+      ]
+    },
+  "ui": {
+    "focus_before": "mCurrentFocus=Window{cd1d515 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.MainFrameActivity}",
+    "actions": [
+      "book:人在奥特，你觉得你是十影术士吗？@599,1658",
+      "ready:立即阅读@540,2263"
+    ],
+    "tap": [
+      540,
+      2263
+    ],
+    "focus_after": "mCurrentFocus=Window{80831b5 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.bookshelf.reader.ReaderActivity4}"
+  },
+  "logcat": {
+    "get_cpt_ifm": true,
+    "get_chapter_cmd": true,
+    "viselog_259": [
+      "100000",
+      "100000"
+    ],
+    "paths": [
+      "/android/internal",
+      "/book/get_bookmark_list",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "/chapter/get_tsukkomi_num",
+      "/chapter/get_updated_chapter_by_division_new",
+      "/data/huanleshuke",
+      "/detail/66976",
+      "/dev/trusty",
+      "/docs/66632",
+      "/g9/op5"
+    ],
+    "codes": [
+      "100000"
+    ]
+  },
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false
+  }
+}

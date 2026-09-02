@@ -36,6 +36,8 @@ APScheduler
 - `api.AsyncSession`：FastAPI、worker 和 scheduler 任务使用的异步会话；
 - `guest.py`：复现 App `auto_reg_v2`，创建与当前网络出口绑定的游客身份；
 - `async_downloader`：章节有界并发、免费章过滤、TXT 原子落盘；
+- `web.py`：App 正文 `310017` 后的公开 Web 免费章回退；独立 Cookie jar、
+  双层 AES-CBC 解密与单 session 串行限速，不混入 App 凭据；
 - 签名、AES response 解密、章节解密与 CDN 解码继续复用现有协议模块。
 
 ### `service`
@@ -100,6 +102,13 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 - 榜单和新书单项 handler 手动执行时仍各自获取新租约；
 - 搜索和指定书下载复用仍有效的当前租约，到期或失败后才刷新；
 - 游客身份与出口相关，完整 App 网络工作流通过单锁串行执行，避免不同代理同时覆盖 token；
+
+- App `get_cpt_ifm` 返回 `310017` 时，只有 `free_only` 下载才进入公开 Web
+  fallback。Web session 先 GET 章节页取得/刷新 `ci_session`，再串行调用两个
+  AJAX 接口；默认 `CIWEIMAO_WEB_MIN_INTERVAL_SECONDS=3`。该路径的成功只代表
+  Web detail 业务码 `100000`，不会把 App 协议 probe 标成已恢复；服务 readiness
+  若开启 `CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK=1`，健康检查会明确显示
+  `protocol.route=web_fallback` 与 `app_gate_ok=false`。
 
 - 榜单：按规格顺序请求，每个规格独立 session；
 - 新书与搜索：按页顺序请求，每页独立 session；

@@ -1,0 +1,49 @@
+{
+  "tested_at": "2026-09-02T13:14:05.726193+00:00",
+  "question": "Does python curl_cffi still get 310017 after oldcurl 100000?",
+  "tokens_json_written": false,
+  "rows": [
+    {
+      "label": "official-born",
+      "host": "app1.happybooker.cn",
+      "get_my_info": "100000",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "cpt": "100000",
+      "tip": "",
+      "data_keys": [
+        "chapter_info"
+      ]
+    },
+    {
+      "label": "official-born",
+      "host": "app1.hbooker.com",
+      "get_my_info": "100000",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "cpt": "100000",
+      "tip": "",
+      "data_keys": [
+        "chapter_info"
+      ]
+    },
+    {
+      "label": "python-guest",
+      "host": "app1.happybooker.cn",
+      "get_my_info": "100000",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "cpt": "310017",
+      "tip": "请升级到最新版本客户端"
+    },
+    {
+      "label": "python-guest",
+      "host": "app1.hbooker.com",
+      "get_my_info": "100000",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "cpt": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  ]
+}

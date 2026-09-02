@@ -5,7 +5,9 @@
 """
 
 import asyncio
+import inspect
 import json
+import threading
 import time
 
 from curl_cffi.requests import AsyncSession as CurlAsyncSession
@@ -16,6 +18,7 @@ from curl_cffi.requests.exceptions import (
 from curl_cffi.requests.exceptions import Timeout as CurlTimeout
 
 from . import config, content, crypto, protocol
+from .web import AsyncWebChapterSession, WebChapterSession
 
 
 class ApiError(RuntimeError):
@@ -32,7 +35,10 @@ class _ProtocolMixin:
 
     def _init_protocol(self, login_token: str, account: str,
                        device_token: str, app_version: str,
-                       base_url: str, rand_factory, timeout: float):
+                       base_url: str, rand_factory, timeout: float,
+                       web_fallback_enabled: bool = True,
+                       web_min_interval: float = 3.0,
+                       web_base_url: str | None = None):
         self.login_token = login_token
         self.account = account
         self.device_token = device_token
@@ -40,6 +46,10 @@ class _ProtocolMixin:
         self.base_url = base_url or config.base_url_for_version(app_version)
         self._rand_factory = rand_factory
         self.timeout = float(timeout)
+        self.web_fallback_enabled = bool(web_fallback_enabled)
+        self.web_min_interval = max(0.0, float(web_min_interval))
+        self.web_base_url = web_base_url
+        self.web_fallback_used = False
 
     @property
     def headers(self) -> dict[str, str]:
@@ -179,14 +189,26 @@ class Session(_ProtocolMixin):
                  timeout: float = 30, impersonate: str = None,
                  max_retries: int = 2, retry_backoff: float = 0.25,
                  transient_api_retries: int = 0,
-                 proxy: str = None):
+                 proxy: str = None,
+                 web_fallback_enabled: bool = True,
+                 web_min_interval: float = 3.0,
+                 web_base_url: str | None = None,
+                 web_session_factory=None):
         self._init_protocol(
             login_token, account, device_token, app_version,
-            base_url, rand_factory, timeout)
+            base_url, rand_factory, timeout,
+            web_fallback_enabled=web_fallback_enabled,
+            web_min_interval=web_min_interval,
+            web_base_url=web_base_url)
         self.max_retries = max(0, int(max_retries))
         self._retry_backoff = max(0, float(retry_backoff))
         self.transient_api_retries = max(
             0, int(transient_api_retries))
+        self.proxy = proxy
+        self.impersonate = impersonate
+        self._web_session_factory = web_session_factory
+        self._web_session = None
+        self._web_session_init_lock = threading.Lock()
         self._session = CurlSession(
             headers=self.headers,
             impersonate=impersonate,
@@ -194,7 +216,40 @@ class Session(_ProtocolMixin):
         )
 
     def close(self):
-        self._session.close()
+        session = getattr(self, "_session", None)
+        if session is not None:
+            close = getattr(session, "close", None)
+            if callable(close):
+                close()
+        web_session = getattr(self, "_web_session", None)
+        self._web_session = None
+        if web_session is not None:
+            web_session.close()
+
+    @property
+    def supports_web_fallback(self) -> bool:
+        """标记下载编排器可传入 ``allow_web_fallback``。"""
+        return True
+
+    def _get_web_session(self):
+        lock = getattr(self, "_web_session_init_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._web_session_init_lock = lock
+        with lock:
+            if self._web_session is None:
+                kwargs = {
+                    "proxy": self.proxy,
+                    "timeout": self.request_timeout,
+                    "impersonate": self.impersonate,
+                    "min_interval": self.web_min_interval,
+                }
+                if self.web_base_url:
+                    kwargs["base_url"] = self.web_base_url
+                if self._web_session_factory is not None:
+                    kwargs["session_factory"] = self._web_session_factory
+                self._web_session = WebChapterSession(**kwargs)
+        return self._web_session
 
     def _call(self, endpoint: str, extra_params: dict = None) -> dict:
         for attempt in range(self.transient_api_attempts):
@@ -251,11 +306,19 @@ class Session(_ProtocolMixin):
             "/chapter/get_chapter_cmd", {"chapter_id": chapter_id})
         return data.get("data", {}).get("command", "")
 
-    def get_chapter_content(self, chapter_id: str, command: str) -> str:
-        data = self._call("/chapter/get_cpt_ifm", {
-            "chapter_id": chapter_id,
-            "chapter_command": command,
-        })
+    def get_chapter_content(self, chapter_id: str, command: str,
+                            *, allow_web_fallback: bool = False) -> str:
+        try:
+            data = self._call("/chapter/get_cpt_ifm", {
+                "chapter_id": chapter_id,
+                "chapter_command": command,
+            })
+        except ApiError as exc:
+            if (exc.code != "310017" or not allow_web_fallback
+                    or not self.web_fallback_enabled):
+                raise
+            self.web_fallback_used = True
+            return self._get_web_session().get_chapter_content(chapter_id)
         chapter_info = data.get("data", {}).get("chapter_info", {})
         txt_content = chapter_info.get("txt_content", "")
         if not txt_content:
@@ -383,14 +446,26 @@ class AsyncSession(_ProtocolMixin):
                  max_clients: int = 10, max_retries: int = 2,
                  retry_backoff: float = 0.25,
                  transient_api_retries: int = 0,
-                 proxy: str = None):
+                 proxy: str = None,
+                 web_fallback_enabled: bool = True,
+                 web_min_interval: float = 3.0,
+                 web_base_url: str | None = None,
+                 web_session_factory=None):
         self._init_protocol(
             login_token, account, device_token, app_version,
-            base_url, rand_factory, timeout)
+            base_url, rand_factory, timeout,
+            web_fallback_enabled=web_fallback_enabled,
+            web_min_interval=web_min_interval,
+            web_base_url=web_base_url)
         self.max_retries = max(0, int(max_retries))
         self._retry_backoff = max(0, float(retry_backoff))
         self.transient_api_retries = max(
             0, int(transient_api_retries))
+        self.proxy = proxy
+        self.impersonate = impersonate
+        self._web_session_factory = web_session_factory
+        self._web_session = None
+        self._web_session_init_lock = threading.Lock()
         self._session = CurlAsyncSession(
             headers=self.headers,
             impersonate=impersonate,
@@ -405,7 +480,46 @@ class AsyncSession(_ProtocolMixin):
         await self.close()
 
     async def close(self):
-        await self._session.close()
+        session = getattr(self, "_session", None)
+        if session is not None:
+            close = getattr(session, "close", None)
+            if callable(close):
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+        web_session = getattr(self, "_web_session", None)
+        self._web_session = None
+        if web_session is not None:
+            close = getattr(web_session, "close", None)
+            if callable(close):
+                result = close()
+                if inspect.isawaitable(result):
+                    await result
+
+    @property
+    def supports_web_fallback(self) -> bool:
+        """标记下载编排器可传入 ``allow_web_fallback``。"""
+        return True
+
+    def _get_web_session(self):
+        lock = getattr(self, "_web_session_init_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._web_session_init_lock = lock
+        with lock:
+            if self._web_session is None:
+                kwargs = {
+                    "proxy": self.proxy,
+                    "timeout": self.request_timeout,
+                    "impersonate": self.impersonate,
+                    "min_interval": self.web_min_interval,
+                }
+                if self.web_base_url:
+                    kwargs["base_url"] = self.web_base_url
+                if self._web_session_factory is not None:
+                    kwargs["session_factory"] = self._web_session_factory
+                self._web_session = AsyncWebChapterSession(**kwargs)
+        return self._web_session
 
     async def _call(self, endpoint: str,
                     extra_params: dict = None) -> dict:
@@ -467,11 +581,20 @@ class AsyncSession(_ProtocolMixin):
         return data.get("data", {}).get("command", "")
 
     async def get_chapter_content(self, chapter_id: str,
-                                  command: str) -> str:
-        data = await self._call("/chapter/get_cpt_ifm", {
-            "chapter_id": chapter_id,
-            "chapter_command": command,
-        })
+                                  command: str,
+                                  *, allow_web_fallback: bool = False) -> str:
+        try:
+            data = await self._call("/chapter/get_cpt_ifm", {
+                "chapter_id": chapter_id,
+                "chapter_command": command,
+            })
+        except ApiError as exc:
+            if (exc.code != "310017" or not allow_web_fallback
+                    or not self.web_fallback_enabled):
+                raise
+            self.web_fallback_used = True
+            return await self._get_web_session().get_chapter_content(
+                chapter_id)
         chapter_info = data.get("data", {}).get("chapter_info", {})
         txt_content = chapter_info.get("txt_content", "")
         if not txt_content:

@@ -7,7 +7,6 @@ import unittest
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-
 from service.app import create_app
 from service.config import Settings
 
@@ -261,6 +260,91 @@ class FastApiTests(unittest.TestCase):
             app = create_app(settings)
             with TestClient(app) as client:
                 self.assertEqual(200, client.get("/health/live").status_code)
+                ready = client.get("/health/ready")
+                self.assertEqual(503, ready.status_code)
+                self.assertFalse(ready.json()["checks"]["protocol_probe"])
+
+    def test_web_fallback_probe_can_satisfy_operational_readiness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "service.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "tokens.json",
+                scheduler_enabled=False,
+                readiness_require_protocol_probe=True,
+                readiness_allow_web_fallback=True,
+                web_fallback_enabled=True,
+                readiness_auto_probe_enabled=False,
+            )
+            app = create_app(settings)
+            with TestClient(app) as client:
+                probes = [
+                    ("search/books", True, ""),
+                    ("chapter/catalog", True, ""),
+                    ("chapter/get_chapter_cmd", True, ""),
+                    ("chapter/get_cpt_ifm", False, "310017"),
+                    ("web/chapter", True, ""),
+                ]
+
+                async def seed_probes():
+                    for endpoint, ok, code in probes:
+                        await app.state.database.record_protocol_probe(
+                            protocol_profile=settings.protocol.name,
+                            endpoint=endpoint,
+                            slot_id="default",
+                            ok=ok,
+                            code=code,
+                        )
+
+                asyncio.run(seed_probes())
+                ready = client.get("/health/ready")
+                self.assertEqual(200, ready.status_code)
+                payload = ready.json()
+                self.assertTrue(payload["checks"]["protocol_probe"])
+                self.assertEqual("web_fallback", payload["protocol"]["route"])
+                self.assertFalse(payload["protocol"]["app_gate_ok"])
+
+    def test_web_fallback_readiness_does_not_mix_slots(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            settings = Settings(
+                database_path=root / "service.sqlite3",
+                output_dir=root / "output",
+                token_path=root / "tokens.json",
+                scheduler_enabled=False,
+                readiness_require_protocol_probe=True,
+                readiness_allow_web_fallback=True,
+                web_fallback_enabled=True,
+                readiness_auto_probe_enabled=False,
+            )
+            app = create_app(settings)
+            with TestClient(app) as client:
+                async def seed_probes():
+                    for endpoint in (
+                            "search/books", "chapter/catalog",
+                            "chapter/get_chapter_cmd"):
+                        await app.state.database.record_protocol_probe(
+                            protocol_profile=settings.protocol.name,
+                            endpoint=endpoint,
+                            slot_id="slot-a",
+                            ok=True,
+                        )
+                    await app.state.database.record_protocol_probe(
+                        protocol_profile=settings.protocol.name,
+                        endpoint="chapter/get_cpt_ifm",
+                        slot_id="slot-a",
+                        ok=False,
+                        code="310017",
+                    )
+                    await app.state.database.record_protocol_probe(
+                        protocol_profile=settings.protocol.name,
+                        endpoint="web/chapter",
+                        slot_id="slot-b",
+                        ok=True,
+                    )
+
+                asyncio.run(seed_probes())
                 ready = client.get("/health/ready")
                 self.assertEqual(503, ready.status_code)
                 self.assertFalse(ready.json()["checks"]["protocol_probe"])

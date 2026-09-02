@@ -1,0 +1,239 @@
+{
+  "tested_at": "2026-09-02",
+  "capture_limit": "official TLS not MITM; body/headers from logcat post=== and slist HWBP",
+  "official": {
+    "source": "official-inprocess-logcat-pass10",
+    "host": "app1.happybooker.cn",
+    "path": "/chapter/get_cpt_ifm",
+    "method": "POST",
+    "key_order": [
+      "account",
+      "app_version",
+      "chapter_command",
+      "chapter_id",
+      "device_token",
+      "login_token",
+      "rand_str",
+      "p"
+    ],
+    "fields": [
+      {
+        "name": "account",
+        "len": 9,
+        "redacted": true
+      },
+      {
+        "name": "app_version",
+        "len": 7,
+        "value": "2.9.365"
+      },
+      {
+        "name": "chapter_command",
+        "len": 32,
+        "redacted": true
+      },
+      {
+        "name": "chapter_id",
+        "len": 9,
+        "digits": true
+      },
+      {
+        "name": "device_token",
+        "len": 9,
+        "prefix": "ciweimao_",
+        "is_prefix_only": true
+      },
+      {
+        "name": "login_token",
+        "len": 32,
+        "redacted": true
+      },
+      {
+        "name": "rand_str",
+        "len": 16,
+        "hex": true
+      },
+      {
+        "name": "p",
+        "len": 44,
+        "redacted": true
+      }
+    ],
+    "headers": {
+      "User-Agent": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "charsets": "utf-8",
+      "Expect": ""
+    },
+    "notes": [
+      "UA/charsets/Expect from slist/getHead0 static+HWBP last-hit",
+      "body from post===",
+      "no mitm"
+    ],
+    "code": "100000"
+  },
+  "python_official_born": {
+    "source": "python-official-born-default-headers",
+    "host": "app1.happybooker.cn",
+    "key_order": [
+      "login_token",
+      "account",
+      "device_token",
+      "app_version",
+      "rand_str",
+      "p",
+      "chapter_id",
+      "chapter_command"
+    ],
+    "fields": [
+      {
+        "name": "login_token",
+        "len": 32,
+        "redacted": true
+      },
+      {
+        "name": "account",
+        "len": 9,
+        "redacted": true
+      },
+      {
+        "name": "device_token",
+        "len": 9,
+        "prefix": "ciweimao_",
+        "is_prefix_only": true
+      },
+      {
+        "name": "app_version",
+        "len": 7,
+        "value": "2.9.365"
+      },
+      {
+        "name": "rand_str",
+        "len": 16,
+        "hex": true
+      },
+      {
+        "name": "p",
+        "len": 44,
+        "redacted": true
+      },
+      {
+        "name": "chapter_id",
+        "len": 9,
+        "digits": true
+      },
+      {
+        "name": "chapter_command",
+        "len": 32,
+        "redacted": true
+      }
+    ],
+    "headers": {
+      "User-Agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    "code": "100000"
+  },
+  "python_born": {
+    "source": "python-born-default-headers",
+    "host": "app1.hbooker.com",
+    "key_order": [
+      "login_token",
+      "account",
+      "device_token",
+      "app_version",
+      "rand_str",
+      "p",
+      "chapter_id",
+      "chapter_command"
+    ],
+    "fields": [
+      {
+        "name": "login_token",
+        "len": 32,
+        "redacted": true
+      },
+      {
+        "name": "account",
+        "len": 9,
+        "redacted": true
+      },
+      {
+        "name": "device_token",
+        "len": 9,
+        "prefix": "ciweimao_",
+        "is_prefix_only": true
+      },
+      {
+        "name": "app_version",
+        "len": 7,
+        "value": "2.9.365"
+      },
+      {
+        "name": "rand_str",
+        "len": 16,
+        "hex": true
+      },
+      {
+        "name": "p",
+        "len": 44,
+        "redacted": true
+      },
+      {
+        "name": "chapter_id",
+        "len": 9,
+        "digits": true
+      },
+      {
+        "name": "chapter_command",
+        "len": 32,
+        "redacted": true
+      }
+    ],
+    "headers": {
+      "User-Agent": "Android com.kuangxiangciweimao.novel 2.9.365",
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    "code": "310017"
+  },
+  "diff": {
+    "body_key_order_official_vs_python_default": true,
+    "official_order": [
+      "account",
+      "app_version",
+      "chapter_command",
+      "chapter_id",
+      "device_token",
+      "login_token",
+      "rand_str",
+      "p"
+    ],
+    "python_default_order": [
+      "login_token",
+      "account",
+      "device_token",
+      "app_version",
+      "rand_str",
+      "p",
+      "chapter_id",
+      "chapter_command"
+    ],
+    "ua_official": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+    "ua_python": "Android com.kuangxiangciweimao.novel 2.9.365",
+    "python_missing_headers": [
+      "charsets",
+      "Expect"
+    ],
+    "already_ab_matched_still_310017_for_python_born": [
+      "OFFICIAL_CPT_ORDER",
+      "getHead0 UA",
+      "charsets + Expect",
+      "APK libcurl JA3"
+    ],
+    "codes": {
+      "official_inprocess": "100000",
+      "python_official_born_default_ua": "100000",
+      "python_born_default_ua": "310017"
+    }
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "source": "hwbp-pass10-logcat url===/post===",
+  "note": "field names only; no values",
+  "sequence": [
+    {
+      "path": "/book/get_bookmark_list",
+      "extra": [
+        "book_id",
+        "count",
+        "page"
+      ]
+    },
+    {
+      "path": "/book/get_bookmark_list",
+      "extra": [
+        "book_id",
+        "count",
+        "page"
+      ]
+    },
+    {
+      "path": "/chapter/get_updated_chapter_by_division_new",
+      "extra": [
+        "book_id",
+        "division_id"
+      ]
+    },
+    {
+      "path": "/chapter/get_chapter_cmd",
+      "extra": [
+        "chapter_id"
+      ]
+    },
+    {
+      "path": "/chapter/get_cpt_ifm",
+      "extra": [
+        "chapter_command",
+        "chapter_id"
+      ]
+    },
+    {
+      "path": "/chapter/get_tsukkomi_num",
+      "extra": [
+        "chapter_id"
+      ]
+    },
+    {
+      "path": "/chapter/get_chapter_cmd",
+      "extra": [
+        "chapter_id"
+      ]
+    },
+    {
+      "path": "/chapter/get_cpt_ifm",
+      "extra": [
+        "chapter_command",
+        "chapter_id"
+      ]
+    },
+    {
+      "path": "/book/get_info_by_id",
+      "extra": [
+        "book_id",
+        "carousel_position",
+        "module_id",
+        "recommend",
+        "tab_type",
+        "use_daguan"
+      ]
+    },
+    {
+      "path": "/bookcity/get_book_correlation_lists",
+      "extra": [
+        "book_id",
+        "count",
+        "list_num",
+        "page",
+        "type"
+      ]
+    },
+    {
+      "path": "/book/get_review_list",
+      "extra": [
+        "book_id",
+        "count",
+        "filter_type",
+        "page",
+        "type"
+      ]
+    },
+    {
+      "path": "/book/get_book_fans_list",
+      "extra": [
+        "book_id",
+        "count",
+        "page"
+      ]
+    },
+    {
+      "path": "/reader/get_homepage_info",
+      "extra": [
+        "reader_id"
+      ]
+    },
+    {
+      "path": "/book/get_recommend_by_book_id",
+      "extra": [
+        "book_id",
+        "detail_page",
+        "use_daguan"
+      ]
+    },
+    {
+      "path": "/setting/get_version",
+      "extra": []
+    },
+    {
+      "path": "/setting/thired_party_switch",
+      "extra": []
+    },
+    {
+      "path": "/setting/get_check",
+      "extra": []
+    },
+    {
+      "path": "/reader/get_my_info",
+      "extra": [
+        "reader_id"
+      ]
+    },
+    {
+      "path": "/setting/get_startpage_url_list",
+      "extra": [
+        "height",
+        "width"
+      ]
+    },
+    {
+      "path": "/meta/get_meta_data",
+      "extra": []
+    },
+    {
+      "path": "/reader/get_prop_info",
+      "extra": []
+    },
+    {
+      "path": "/bookcity/get_index_list",
+      "extra": [
+        "tab_type",
+        "theme_type"
+      ]
+    },
+    {
+      "path": "/bookcity/add_specific_recommend_exposure",
+      "extra": [
+        "book_id",
+        "from_module_name",
+        "from_page_name"
+      ]
+    },
+    {
+      "path": "/bookcity/add_specific_recommend_exposure",
+      "extra": [
+        "book_id",
+        "from_module_name",
+        "from_page_name"
+      ]
+    },
+    {
+      "path": "/bookcity/add_specific_recommend_exposure",
+      "extra": [
+        "book_id",
+        "from_module_name",
+        "from_page_name"
+      ]
+    }
+  ]
+}

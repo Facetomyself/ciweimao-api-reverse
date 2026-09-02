@@ -1,13 +1,12 @@
 """FastAPI 服务配置与本地凭据加载。"""
 
-from dataclasses import dataclass, field
 import json
 import os
-from pathlib import Path
 import secrets
+from dataclasses import dataclass, field
+from pathlib import Path
 
 from client import config as client_config
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
@@ -104,7 +103,12 @@ class Settings:
     list_request_delay: float = 0.25
     chapter_concurrency: int = 3
     chapter_delay: float = 0.05
+    # App 正文接口当前对独立客户端返回 310017；免费章可切到公开 Web 链。
+    web_fallback_enabled: bool = True
+    web_min_interval_seconds: float = 3.0
     readiness_require_protocol_probe: bool = False
+    # 允许以成功的 Web free-only probe 作为服务就绪依据；App gate 仍单独展示。
+    readiness_allow_web_fallback: bool = False
     readiness_auto_probe_enabled: bool = False
     readiness_probe_max_age_seconds: int = 3600
     readiness_failure_streak_threshold: int = 3
@@ -229,8 +233,14 @@ class Settings:
                 "CIWEIMAO_CHAPTER_CONCURRENCY", 3),
             chapter_delay=_env_float(
                 "CIWEIMAO_CHAPTER_DELAY", 0.05, 0),
+            web_fallback_enabled=_env_bool(
+                "CIWEIMAO_WEB_FALLBACK_ENABLED", True),
+            web_min_interval_seconds=_env_float(
+                "CIWEIMAO_WEB_MIN_INTERVAL_SECONDS", 3.0, 0),
             readiness_require_protocol_probe=_env_bool(
                 "CIWEIMAO_READINESS_REQUIRE_PROTOCOL_PROBE", True),
+            readiness_allow_web_fallback=_env_bool(
+                "CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK", False),
             readiness_auto_probe_enabled=_env_bool(
                 "CIWEIMAO_READINESS_AUTO_PROBE_ENABLED", True),
             readiness_probe_max_age_seconds=_env_int(

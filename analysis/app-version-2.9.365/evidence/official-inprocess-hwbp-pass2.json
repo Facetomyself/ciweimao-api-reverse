@@ -1,0 +1,65 @@
+{
+  "tested_at": "2026-09-02T11:47:23.457900+00:00",
+  "finished_at": "2026-09-02T11:47:48.082967+00:00",
+  "question": "Official libcurl slist_append headers on an uncached chapter",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "8211"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcurl.so",
+    "apk_payload": "0x4510000",
+    "so_token": "04510000",
+    "rx": {
+      "start": "0x74d2e14000",
+      "offset": "0x4510000",
+      "perms": "r-xp"
+    },
+    "hooks": [
+      {
+        "name": "curl_slist_append",
+        "func_off": "0x3365c",
+        "abs": "0x74d2e4765c",
+        "pass_off": "0x454365c"
+      },
+      {
+        "name": "curl_easy_perform",
+        "func_off": "0x25064",
+        "abs": "0x74d2e39064",
+        "pass_off": "0x4535064"
+      }
+    ]
+  },
+  "kpm": {
+    "hello_rc": 0,
+    "load_rc": 0,
+    "list_after": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload_rc": 1,
+    "list_final": ""
+  },
+  "hook": {
+    "start": "[+] 04510000 base=0x74ce904000, 2 offset(s) | [+] HWBP set: 192 nodes (2 offsets x 96 threads), dump_size=128, flags=0x1 | [*] live trace started, press Ctrl+C to stop & unhook... | ",
+    "hit_blocks": 0,
+    "header_markers": [],
+    "ascii_preview": []
+  },
+  "ui": {
+    "actions": [
+      "back",
+      "mid@540,1200",
+      "page_right@980,1300"
+    ],
+    "focus_after": ""
+  },
+  "logcat": {
+    "get_cpt_ifm": false,
+    "get_chapter_cmd": false,
+    "paths": [],
+    "codes": []
+  },
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false
+  }
+}

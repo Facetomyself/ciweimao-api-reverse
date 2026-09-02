@@ -14,12 +14,15 @@ from curl_cffi.requests.exceptions import Timeout as CurlTimeout
 from . import api as _api
 from . import models
 from .downloader import NoDownloadableChapters
+from .web import WebChapterError
 
 
 def _must_abort_download(exc: BaseException) -> bool:
     if isinstance(exc, (CurlConnectionError, CurlProxyError, CurlTimeout)):
         return True
     if isinstance(exc, _api.ApiError) and exc.code in {"200100", "320002"}:
+        return True
+    if isinstance(exc, WebChapterError):
         return True
     return (isinstance(exc, RuntimeError)
             and "login_token 已过期" in str(exc))
@@ -122,8 +125,17 @@ async def get_book(session: _api.AsyncSession, book_id: str,
                 try:
                     command = await session.get_chapter_command(
                         chapter.chapter_id)
-                    chapter.content = await session.get_chapter_content(
-                        chapter.chapter_id, command)
+                    if (free_only
+                            and getattr(session, "supports_web_fallback", False)
+                            is True):
+                        chapter.content = await session.get_chapter_content(
+                            chapter.chapter_id,
+                            command,
+                            allow_web_fallback=True,
+                        )
+                    else:
+                        chapter.content = await session.get_chapter_content(
+                            chapter.chapter_id, command)
                 except Exception as exc:
                     if _must_abort_download(exc):
                         raise

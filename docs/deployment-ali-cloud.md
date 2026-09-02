@@ -74,6 +74,13 @@ IP；若订单明确使用 IP 白名单，再设置 `CIWEIMAO_KDL_AUTH_MODE=whit
 游客凭据由服务在第一次真实请求时按需校验或创建，并以 `0600` 权限原子写入
 `runtime/data/guest-tokens.json`。动态代理模式不会为了启动服务提前创建游客。
 
+App 正文接口若返回 `310017`，free-only 下载会切到独立的公开 Web 章节链。生产
+保持 `CIWEIMAO_WEB_FALLBACK_ENABLED=1`、`CIWEIMAO_WEB_MIN_INTERVAL_SECONDS=3`
+和 `CIWEIMAO_QUEUE_WORKERS=1`；Web session 自己维护 `ci_session` 轮换，不能把
+同一 Cookie 或连接池跨出口复用。Compose 已将 `CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK=1`
+打开，健康检查会显示 `protocol.route=web_fallback`，同时保留
+`app_gate_ok=false`，避免把 Web 成功误报为 App 协议恢复。
+
 ## 资源限制
 
 - CPU：`0.75`；

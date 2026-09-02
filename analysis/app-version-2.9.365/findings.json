@@ -546,15 +546,366 @@
       "confidence": "high",
       "rebuild_status": "extracted",
       "rebuild_path": "analysis/app-version-2.9.365/scripts/oldcurl/"
+    },
+    {
+      "id": "F-021",
+      "category": "protocol",
+      "claim": "公开 Web 文本免费章链可在 App get_cpt_ifm=310017 后独立恢复，且不需要 App credentials",
+      "location": {
+        "file": "client/web.py",
+        "class": "WebChapterSession / AsyncWebChapterSession",
+        "method": "fetch_chapter",
+        "address": "/chapter/ajax_get_session_code -> /chapter/get_book_chapter_detail_info",
+        "line": 0
+      },
+      "description": "章节页 GET 建立/刷新 ci_session，再串行 POST session/detail；access key 字符 code point 选择两层 AES-CBC key，去除 span 水印并输出 TXT。下载器仅在 free_only 且 App 返回 310017 时触发。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/web-fallback-canary.json",
+        "value": "public chapter canary: page/session/detail HTTP 200; detail code=100000; non-empty normalized text; only lengths/hashes/cookie names retained"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 chapter_access_key、Cookie 值、密文或正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "client/web.py"
+    },
+    {
+      "id": "F-022",
+      "category": "network",
+      "claim": "310017 不是「身份是否在官方进程里注册」：官方 SharedPreferences 游客移植到独立客户端和进程外官方 libcurl 仍 310017",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "GetBookContentDetailTask",
+        "method": "doHttpRequest / getC(259)",
+        "address": "",
+        "line": 17
+      },
+      "description": "Pixel 官方 App 当前游客 is_bind=0，login_token 有效（get_my_info/search/catalog/cmd=100000）。同一套凭据：Python curl_cffi 双主机 get_cpt_ifm=310017；Pixel APK libcurl 7.56.1 + getHead0 UA + charsets/Expect 仍 310017。Java 层只有 chapter_id、chapter_command、可选 refresh=1。服务端认的是官方进程内当次请求，不是出生身份。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-born-identity-canary.json",
+        "value": "official-born python=310017; official-born oldcurl=310017; GetBookContentDetailTask keys=chapter_id,chapter_command,refresh?"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/reader_id/正文；只记 is_bind、长度、reader_id 尾数"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_born_identity_canary.py"
+    },
+    {
+      "id": "F-023",
+      "category": "runtime",
+      "claim": "eCapture v2.3.0 Android 15 构建强制 BoringSSL a15，看不到官方进程内 APK OpenSSL 1.1.0f 明文",
+      "location": {
+        "file": "lib/arm64-v8a/libssl.so",
+        "class": "",
+        "method": "SSL_write",
+        "address": "mapped from base.apk at 0x3020000",
+        "line": 0
+      },
+      "description": "官方业务栈是 APK libcurl/7.56.1 + OpenSSL/1.1.0f，extractNativeLibs=false，libssl 从 base.apk 映射。eCapture 即使传入 openssl 1.1.1 仍加载 boringssl_a_15_kern_noncore.o。官方阅读器打开导流章 106129841 时 logcat 有 native curl 100000（书签/目录/阅读记录），但没有 get_cpt_ifm（缓存章）。Connect 能看到 pid 的 443 元组，没有 HTTP 头。Frida 17.15.3 能枚举到进程，attach 报 process not found；无新 tombstone。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-ecapture.json",
+        "value": "ssl_version=boringssl_a_15; captured_get_cpt_ifm=false; logcat get_cpt_ifm=false; frida attach=process not found"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文；logcat 已脱敏"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_ecapture.py"
+    },
+    {
+      "id": "F-024",
+      "category": "runtime",
+      "claim": "zip 映射的 libcwmhttps 可用 HWBP；官方仍组 Expect 头；本轮没抓到 get_cpt_ifm 明文",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "CenterDataAPI",
+        "method": "track / postHttpsRequest / getHead0",
+        "address": "mapped from base.apk at 0x4354000; track@0x6d260 postHttpsRequest@0x6eae4 getHead0@0x80cf0",
+        "line": 0
+      },
+      "description": "extractNativeLibs=false 时 --so libcwmhttps.so 会失败。用 maps 文件偏移 04354000 作 so_token，pass_off=apk_payload+func_off，track/post/getHead0 在书城 get_index_list 上打中。getHead0 listen-ret 的调用点寄存器含 Expect: 。免费新书阅读器翻章未出网，libcurl slist_append 0 hit，logcat 无 get_cpt_ifm。KPM 经 env keyfile 加载并已卸。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp.json",
+        "value": "kpm_load=0; hook_hits=5; track_x3=2; expect_ascii=true; get_cpt_ifm=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "dump 中 account/token/p/cookie/command 行已省略"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_hwbp.py"
+    },
+    {
+      "id": "F-025",
+      "category": "runtime",
+      "claim": "官方立即阅读走 track(259)，进程内 get_cpt_ifm 仍返回 100000",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "NetUtils",
+        "method": "track",
+        "address": "Java_com_kuangxiangciweimao_novel_utils_NetUtils_track @ 0x6d260",
+        "line": 0
+      },
+      "description": "无 hook 先停在书详页立即阅读，再只钩 track 一处（115 节点）。点阅读后 X3 出现 259 四次。logcat 两次 url=/chapter/get_cpt_ifm，ViseLog 259====> code=100000。同窗还有 get_chapter_cmd(264)、书签(33) 等 100000。JNI 入参 dump 不是 C 字符串，头仍未见。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass6.json",
+        "value": "track_x3 includes 259; viselog 259====>100000 x2; curl get_cpt_ifm x2; kpm unloaded"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass6.py"
+    },
+    {
+      "id": "F-026",
+      "category": "runtime",
+      "claim": "after_getHead0 全线程 HWBP 不稳定，且缓存立即阅读不会出 get_cpt_ifm",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "CenterDataAPI",
+        "method": "postHttpsRequest+0xdc",
+        "address": "0x6ebc0",
+        "line": 0
+      },
+      "description": "pass7 先挂钩再 am start/点网格：119 节点 0 hit，ADB 掉线，进程消失。pass8 按 pass6 先停在立即阅读再钩 116 节点：阅读器打开但无 get_cpt_ifm（已读缓存），仍 0 hit，随后进程再被打死。KPM 均可卸到 count=0。track 入口 115 节点是安全的；0x6ebc0 全线程不要再试。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass8.json",
+        "value": "pass7/pass8 after_getHead0 0 hits; ADB drop; official pid gone; kpm count=0"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass8.py"
+    },
+    {
+      "id": "F-027",
+      "category": "runtime",
+      "claim": "官方进程内 get_cpt_ifm 的 slist 末次头就是 oldcurl 同款 UA，且业务码仍 100000",
+      "location": {
+        "file": "lib/arm64-v8a/libcurl.so",
+        "class": "",
+        "method": "curl_slist_append",
+        "address": "0x3365c",
+        "line": 0
+      },
+      "description": "未读书详页立即阅读后只钩 slist_append（113 节点）。8 hit，ViseLog 259====>100000 两次。最后一次 append 都是 User-Agent: Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15，与 oldcurl ua.txt 一致。打印块全是 #8，同 tid 更早的 slist 行未入镜，不能据此说官方没发 Content-Type/charsets/Expect。进程未死。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass9.json",
+        "value": "slist last-hit UA == oldcurl; get_cpt_ifm 100000 x2; 113 nodes survived"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass9.py"
+    },
+    {
+      "id": "F-028",
+      "category": "runtime",
+      "claim": "slist 最后一次仍是 oldcurl UA；延迟读 X0 链拿不到更早的头",
+      "location": {
+        "file": "lib/arm64-v8a/libcurl.so",
+        "class": "",
+        "method": "curl_slist_append",
+        "address": "0x3365c",
+        "line": 0
+      },
+      "description": "挂钩期间密采 hook log 会再次打死官方进程。冷启后只钩 slist_append、点立即阅读、等 3 秒再读 X0：8 hit，get_cpt_ifm 仍 100000，末次头仍是 User-Agent。X0 链为空或不可读。oldcurl 已发 Content-Type/charsets/Expect + 同 UA 仍 310017。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass10.json",
+        "value": "8 hits UA last; X0 walk empty/unreadable; viselog 259 100000; tight poll killed ADB"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass10.py"
+    },
+    {
+      "id": "F-029",
+      "category": "runtime",
+      "claim": "官方 get_cpt_ifm 表单键与 OFFICIAL_CPT_ORDER 一致，无 Cookie，每次新 easy handle",
+      "location": {
+        "file": "lib/arm64-v8a/libcwmhttps.so",
+        "class": "CenterDataAPI",
+        "method": "postHttpsRequest",
+        "address": "0x6eae4",
+        "line": 0
+      },
+      "description": "pass10/pass6 logcat 的 post===> 显示 get_cpt_ifm 键序为 account, app_version, chapter_command, chapter_id, device_token, login_token, rand_str, p。无 refresh。device_token 就是 ciweimao_ 前缀。SO 里没有 Cookie 字符串。postHttpsRequest 每次 curl_easy_init 并在返回前 curl_easy_cleanup。slist 只有 Content-Type / charsets / Expect / getHead0 UA。",
+      "evidence": {
+        "type": "runtime_trace",
+        "source": "analysis/app-version-2.9.365/docs/experiment_record.md",
+        "value": "post=== keys match OFFICIAL_CPT_ORDER; curl_easy_init per request; no Cookie string in libcwmhttps"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只记字段名与长度，未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/official_ipresolve_canary.py"
+    },
+    {
+      "id": "F-030",
+      "category": "runtime",
+      "claim": "官方进程内读章成功后，同一官方出生游客在 Python / oldcurl 上 get_cpt_ifm 变为 100000；Python 自注册游客仍 310017。IPRESOLVE_V4 不是原因",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "2026-09-02 11:09Z 官方 SharedPreferences 游客移植到 Python 与进程外 libcurl 仍 310017。同日 pass6/9/10 官方进程内 get_cpt_ifm=100000 之后，同一官方游客在 curl_cffi 双主机与 APK libcurl（默认 IPRESOLVE 与 V4）上均为 100000，chapter_info 含 txt_content。对照的 Python 自注册游客仍双主机 310017。A/B 证明不是 CURLOPT_IPRESOLVE=V4。",
+      "evidence": {
+        "type": "network_capture",
+        "source": "analysis/app-version-2.9.365/evidence/official-vs-python-cpt-now.json",
+        "value": "official-born python/oldcurl 100000; python-guest 310017; ipresolve A/B both 100000"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "未写入 account/token/正文"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/oldcurl/official_ipresolve_canary.py"
+    },
+    {
+      "id": "F-031",
+      "category": "runtime",
+      "claim": "按官方进程读章序复放书签/目录/版本检查/详情，不能把 Python 自注册游客的 get_cpt_ifm 打成 100000",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "",
+        "address": "",
+        "line": 0
+      },
+      "description": "getAddr(33/36/116/264/259) 已闭合。pass10 url=== 阅读前缀是 bookmark×2 → catalog → cmd → cpt。该序以及 get_version/get_check/详情加料后，Python 自注册游客仍 310017。get_version.android_version=2.9.293 且 is_force_update=0，提示语不是真的版本过旧。",
+      "evidence": {
+        "type": "network_capture",
+        "source": "analysis/app-version-2.9.365/evidence/official-read-sequence-replay-canary.json",
+        "value": "three variants all 310017; get_version 2.9.293 force=0"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只记路径/字段名/业务码"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_read_sequence_canary.py"
+    },
+    {
+      "id": "F-032",
+      "category": "network",
+      "claim": "uid 级透明 MITM 已补上；官方冷启动 HTTPS 无隐藏头/Cookie，链路与 logcat 同 9 个接口，Python 默认不打这组前置请求",
+      "location": {
+        "file": "uid=10237 tcp/443 REDIRECT",
+        "class": "",
+        "method": "postHttpsRequest",
+        "address": "",
+        "line": 0
+      },
+      "description": "不用 global http_proxy。iptables owner 10237 + route_localnet + 设备 CONNECT 转发到 PC mitmdump，解密官方冷启动 9 条 POST。线上头名固定 Host/Accept/Content-Type/charsets/User-Agent/Content-Length；空 Expect 不上线；无 Cookie/Set-Cookie。路径集合与 pixel6-startup-urls 相同。prelude-canary 已复放仍 310017，因此前置校验不是当前自注册游客的充分条件。",
+      "evidence": {
+        "type": "network_capture",
+        "source": "analysis/app-version-2.9.365/evidence/official-uid-mitm-startup.json",
+        "value": "9 HTTP/1.1 POSTs; header names only; http_proxy stayed null"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只记路径/头名/键名，不写 token/UA 原文/IP"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/mitm-canary/run_uid_mitm_canary.py"
+    },
+    {
+      "id": "F-033",
+      "category": "network",
+      "claim": "官方 get_cpt_ifm 明文与 logcat/HWBP 一致：无隐藏头、无 Cookie、键序仍是 OFFICIAL_CPT_ORDER",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST HTTP/1.1",
+        "address": "",
+        "line": 0
+      },
+      "description": "uid MITM 解密未缓存阅读：info → bookmark×2 → division_new → cmd → cpt → tsukkomi → cmd → cpt → add_readbook。cpt 头名 Host/Accept/Content-Type/charsets/User-Agent/Content-Length；空 Expect 不上线；无 Set-Cookie。缓存书会走旧 catalog get_updated_chapter_by_division_id 且不出 cpt。",
+      "evidence": {
+        "type": "network_capture",
+        "source": "analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json",
+        "value": "two get_cpt_ifm HTTP 200; body keys OFFICIAL_CPT_ORDER; no Cookie"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只记路径/头名/键名"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/mitm-canary/run_uid_mitm_read_canary.py"
     }
   ],
   "triage_items": [
     {
       "id": "B-001",
-      "description": "正文接口 310017：官方游客可过，Python 游客不过",
+      "description": "正文接口 310017：Python 自注册游客仍固定该码；官方出生游客在官方进程读章成功后，独立客户端也可 100000",
       "severity": "blocker",
-      "reason": "官方 JA3 已用 APK libcurl 复现，Python 游客正文仍 310017",
-      "suggested_next": "人机过 GT3 后把三元组写回 get_cpt_ifm。不要自动解滑块。"
+      "reason": "不是当前请求的 UA/头/表单键/IPRESOLVE，也不是 MITM 才能看见的隐藏头/Cookie。更像身份在官方进程成功读章后被服务端放行",
+      "suggested_next": "不要用 Web 链代替 App 门。不要再钩 after_getHead0 / 密采 slist。不要 pm clear 已放行官方游客。不要再用 global http_proxy。uid MITM 可复用但不要长期开。下一步仍查两类游客的服务端放行差。"
     },
     {
       "id": "B-002",
@@ -583,6 +934,27 @@
       "severity": "high",
       "reason": "off 只删 http_proxy 时 Android 15 留下 host/port；mitmdump/reverse 已停",
       "suggested_next": "已清设备代理；px-proxy.ps1 off 现同时删 host/port。不要长期开 px-proxy"
+    },
+    {
+      "id": "W-001",
+      "description": "公开 Web free-only fallback（已落地）",
+      "severity": "low",
+      "reason": "App 310017 后 Web 三步链真实 canary 与离线 10 tests 均通过；不覆盖 App VIP/购买态正文",
+      "suggested_next": "生产保持 Cookie jar、单活跃 session 与 3 秒默认间隔；异常先停批量并重跑 canary"
+    },
+    {
+      "id": "G-006",
+      "description": "eCapture Android 15 硬走 BoringSSL a15，不能钩 APK OpenSSL",
+      "severity": "high",
+      "reason": "v2.3.0 忽略 --ssl_version；官方 get_cpt_ifm 不经 conscrypt",
+      "suggested_next": "eCapture 只留给 OkHttp/CDN。不要再钩 after_getHead0 / 密采 slist"
+    },
+    {
+      "id": "G-004",
+      "description": "Frida 能枚举官方进程，attach 仍 process not found",
+      "severity": "high",
+      "reason": "本轮 kpatch list 失败、未见 stealth-hook；attach 后进程消失且无新 tombstone",
+      "suggested_next": "不要再 attach。分析算法走 HWBP；需要 KPM 时重 load"
     }
   ],
   "session": {
@@ -594,6 +966,7 @@
       "ldplayer-control",
       "protocol-recovery"
     ],
-    "mcp_tools_called": []
+    "mcp_tools_called": [],
+    "resumed": "2026-08-31"
   }
 }

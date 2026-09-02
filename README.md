@@ -6,7 +6,7 @@
 
 仓库：<https://github.com/Facetomyself/ciweimao-api-reverse>
 
-## 项目状态（2026-08-27 冻结）
+## 项目状态（2026-09-02 uid MITM 已对齐线上请求，Python 自注册仍 310017）
 
 | 能力 | 状态 |
 |------|------|
@@ -14,10 +14,13 @@
 | 响应 AES-256-CBC | 已复现（2.9.352+ current key） |
 | 游客注册 / 搜索 / 书城 / 目录 / `get_chapter_cmd` | 已复现，业务码 `100000` |
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
-| 独立客户端读章 `get_cpt_ifm` | **未完成**，固定返回 `310017` |
+| 独立客户端读章 `get_cpt_ifm` | Python 自注册游客仍 `310017`；官方出生游客在官方进程读章成功后，同一身份在 Python / oldcurl 也可 `100000`。free-only 已接入公开 Web fallback |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
+| 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie |
 
-章节正文接口 `310017`（提示「请升级到最新版本客户端」）不是 HMAC 换代、不是缺 POST 字段、不是 JA3/UA/HTTP 头单项缺口。官方游客不走极验即可读章；被拦身份可走 GT3 API1（`/signup/geetest_first_register`）。本轮暂停继续推进，后续入口见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
+章节正文接口 `310017`（提示「请升级到最新版本客户端」）不是 HMAC 换代、不是缺 POST 字段、不是 JA3 / UA / HTTP 头单项缺口，也不是 Cookie / 连接复用 / `IPRESOLVE_V4`，也不是 Python 默认键序或 TLS 栈。uid 级透明 MITM（不是全局 `http_proxy`）确认官方线上 HTTP/1.1，头名只有 Host / Accept / Content-Type / charsets / User-Agent / Content-Length；slist 里的空 `Expect` 不上线；`get_cpt_ifm` 键序与 logcat 一致。同一套 Python 默认请求：官方出生游客（今日官方读章后）`100000`，Python 自注册仍 `310017`。同一套 APK libcurl 也跟着身份走，不跟着库走。
+
+2026-09-02 上午把官方游客移植到独立客户端仍 310017；同日官方进程内多次读章 `100000` 之后，**同一**官方游客在独立客户端变成 `100000`。不要 `pm clear` 这份已放行游客。不要再试 `getHead0` 全线程 HWBP、挂钩期间密采 slist、全局 `px-proxy`。被拦身份可走 GT3 API1。新游客 free-only 仍走公开网页链；Web 成功 ≠ App gate，见 [docs/web-fallback.md](docs/web-fallback.md)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
 
 ## 仓库结构
 
@@ -68,7 +71,7 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 | 评论 | `/book/get_review_list` | 热门 `type=2`；普通 `type=1` |
 | 整本目录 | `/chapter/get_updated_chapter_by_division_new` | `division_id=0` |
 | 章节 command | `/chapter/get_chapter_cmd` | `chapter_id` |
-| 章节元数据 | `/chapter/get_cpt_ifm` | `chapter_id`、`chapter_command`；独立客户端当前 `310017` |
+| 章节元数据 | `/chapter/get_cpt_ifm` | `chapter_id`、`chapter_command`；官方进程 `100000`；Python 自注册仍 `310017` |
 | 间贴计数 | `/chapter/get_tsukkomi_num` | `chapter_id` |
 
 免费章过滤必须同时满足 `is_paid=0` 且 `auth_access=1`。正文 CDN 为 `gzip → zlib → UTF-8 HTML fragment`。业务 API 走 native libcurl；CDN 走 Java/OkHttp，服从系统代理。残留 `http_proxy=127.0.0.1:8085` 会让官方阅读器停在加载中，与协议门无关。
@@ -82,7 +85,7 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 | 官方 App / APK libcurl | `1aee0238942d453d679fc1e37a303387` | `http/1.1` |
 | Python `curl_cffi` 默认 | `87e2668215f385b4ea50bcc9cbe4279d` | `h2,http/1.1` |
 
-对照证据：[evidence/tls-hello-compare.json](analysis/app-version-2.9.365/evidence/tls-hello-compare.json)。在 Pixel 上用同一套 APK libcurl 注册仍得到正文 `310017`，因此 JA3 对齐不是充分条件。
+对照证据：[evidence/tls-hello-compare.json](analysis/app-version-2.9.365/evidence/tls-hello-compare.json)。Pixel 上 APK libcurl 注册仍 `310017`；官方出生游客用 `curl_cffi` 默认 JA3 也可 `100000`。因此 JA3 / 键序 / 短 UA 都不是当前门。线上明文见 [official-uid-mitm-cpt.json](analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json)。
 
 采集与核验入口（匿名、无需登录）：
 
@@ -102,12 +105,12 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 
 | 文档 | 内容 |
 |------|------|
-| [docs/protocol.md](docs/protocol.md) | 签名、Native 注册通路、310017 排除项 |
+| [docs/protocol.md](docs/protocol.md) | 签名、Native 注册通路、310017 排除项（含 uid MITM） |
 | [docs/architecture.md](docs/architecture.md) | 采集服务分层、队列与调度 |
 | [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md) | Compose / 出口 / 密钥挂载 |
 | [analysis/app-workflow/report.md](analysis/app-workflow/report.md) | 2.9.362 HMAC/AES 恢复 |
 | [analysis/app-version-2.9.365/report.md](analysis/app-version-2.9.365/report.md) | 2.9.365 正文门与真机结论 |
-| [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md) | 进度账本（已冻结） |
+| [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md) | 进度账本 |
 | [analysis/anonymous-reader/report.md](analysis/anonymous-reader/report.md) | 游客身份必须从同一出口注册 |
 | [analysis/auth-capability/report.md](analysis/auth-capability/report.md) | 空 token 不可用；账号密码登录会出验证码 |
 
@@ -158,7 +161,7 @@ python -m client download 100448715 --free-only --include-book-id
 python -m client list
 ```
 
-全站模式默认 `order=uptime`、每页 100 本。遇到空页、重复页或整页没有新 `book_id` 时停止。在正文 `310017` 解掉之前，下载命令拿得到目录和 command，拿不到章节元数据与 CDN 地址。
+全站模式默认 `order=uptime`、每页 100 本。遇到空页、重复页或整页没有新 `book_id` 时停止。`--free-only` 下载遇到 App `310017` 时，会使用独立网页 session（章节页 → 两次 AJAX → 双层 AES-CBC）；默认请求间隔为 3 秒，不发送 App 凭据。该 fallback 只覆盖公开文本免费章，VIP/图片章仍需网页登录态。详见 [docs/web-fallback.md](docs/web-fallback.md)。
 
 ## FastAPI 服务
 
@@ -197,6 +200,9 @@ Swagger：`http://127.0.0.1:8000/docs`。控制台开发代理见 `frontend/vite
 | `CIWEIMAO_SCHEDULER_ENABLED` | `1` | 是否在本进程启动调度器 |
 | `CIWEIMAO_SYNC_INTERVAL_MINUTES` | `30` | 合并同步周期 |
 | `CIWEIMAO_AUTO_DOWNLOAD_ENABLED` | `1` | 同步后自动投递免费章 |
+| `CIWEIMAO_WEB_FALLBACK_ENABLED` | `1` | App `310017` 后是否回退公开 Web 免费章链 |
+| `CIWEIMAO_WEB_MIN_INTERVAL_SECONDS` | `3` | 同一 Web session 的最小请求间隔 |
+| `CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK` | `0` | 是否允许 Web canary 作为服务就绪依据（App gate 仍单独展示） |
 | `CIWEIMAO_QUEUE_WORKERS` | `1` | 任务 worker 数 |
 | `CIWEIMAO_PROXY_PROVIDER` | `auto` | `direct` / `static` / `kuaidaili_dps` |
 | `CIWEIMAO_PROXY_URL` | 空 | 静态代理 URL |

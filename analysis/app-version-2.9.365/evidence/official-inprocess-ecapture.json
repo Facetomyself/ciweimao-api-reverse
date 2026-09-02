@@ -1,0 +1,73 @@
+{
+  "tested_at": "2026-09-02T11:35:30Z",
+  "hypothesis": "eCapture can see official in-process get_cpt_ifm raw HTTP",
+  "ok": false,
+  "device": "pixel6-oriole",
+  "serial_redacted": "18251FDF6000N9",
+  "package": "com.kuangxiangciweimao.novel",
+  "app_version": "2.9.365",
+  "app_uid": 10237,
+  "app_pid_during_capture": "6740",
+  "tokens_json_written": false,
+  "pm_clear": false,
+  "proxy": {
+    "http_proxy": "null",
+    "global_http_proxy_host": "null",
+    "global_http_proxy_port": "null"
+  },
+  "kpm": "kpatch list failed; not loaded this session",
+  "libssl": {
+    "apk_path": "lib/arm64-v8a/libssl.so",
+    "apk_file_offset": "0x3020000",
+    "maps_path": "base.apk (extractNativeLibs=false)",
+    "openssl": "1.1.0f",
+    "system_boringssl": "/apex/com.android.conscrypt/lib64/libssl.so"
+  },
+  "ecapture": {
+    "version": "ecap_android_arm64:v2.3.0",
+    "requested_ssl_version": "openssl 1.1.0f / openssl 1.1.1",
+    "actual_ssl_version": "boringssl_a_15",
+    "actual_bytecode": "boringssl_a_15_kern_noncore.o",
+    "is_boringssl": true,
+    "openssl_path_used": "/data/local/tmp/xjb_ecapture/libssl.so",
+    "captured_http_headers": false,
+    "captured_get_cpt_ifm": false,
+    "saw_connect_tuples": true,
+    "note": "Android 15 build ignores --ssl_version and always loads BoringSSL a15 probes. APK OpenSSL 1.1.0f SSL_write is not hooked. Connect events include official pid 6740 pool-3-thread-2 to 116.62.225.5:443 during native curl, but no plaintext."
+  },
+  "official_ui": {
+    "opened_reader": true,
+    "activity": "ReaderActivity4",
+    "book_id": "100205909",
+    "chapter_id": "106129841",
+    "chapter_source": "bookshelf continue-read; likely cached"
+  },
+  "logcat_native_curl": {
+    "host": "app1.happybooker.cn",
+    "seen_paths": [
+      "/book/get_bookmark_list",
+      "/book/get_division_list",
+      "/chapter/get_tsukkomi_num",
+      "/chapter/get_updated_chapter_by_division_id",
+      "/chapter/set_read_chapter_record"
+    ],
+    "viselog_codes": ["100000"],
+    "get_cpt_ifm": false,
+    "get_chapter_cmd": false,
+    "geetest": false
+  },
+  "frida": {
+    "server": "17.15.3 handshake ok",
+    "enumerate": "pid visible as 刺猬猫阅读",
+    "attach_pid": "process not found",
+    "attach_name": "process not found",
+    "attach_identifier": "unable to find process",
+    "tombstone": "none new; process later gone without tombstone",
+    "note": "KPM stealth-hook was not listed this session; attach still fails. Do not keep retrying Frida on this process."
+  },
+  "raw_pointers": {
+    "console": "analysis/app-version-2.9.365/work/ecapture-official-inprocess/ecapture_console.log",
+    "events": "analysis/app-version-2.9.365/work/ecapture-official-inprocess/ecapture_events.log",
+    "logcat_redacted": "analysis/app-version-2.9.365/work/ecapture-official-inprocess/logcat.redacted.txt"
+  }
+}

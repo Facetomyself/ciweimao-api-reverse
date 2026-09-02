@@ -1,0 +1,52 @@
+{
+  "schema": "ciweimao-web-fallback-canary.v1",
+  "captured_at": "2026-08-31T16:16:27+00:00",
+  "ok": true,
+  "source": "public_web",
+  "chapter_id": "112001971",
+  "app_protocol_gate": {
+    "status": "separate",
+    "known_code": "310017",
+    "note": "Web success does not promote App get_cpt_ifm to serverAccepted"
+  },
+  "request_log": [
+    {
+      "method": "GET",
+      "path": "/chapter/112001971",
+      "status": 200,
+      "bytes": 5938
+    },
+    {
+      "method": "POST",
+      "path": "/chapter/ajax_get_session_code",
+      "status": 200,
+      "bytes": 47
+    },
+    {
+      "method": "POST",
+      "path": "/chapter/get_book_chapter_detail_info",
+      "status": 200,
+      "bytes": 15512
+    }
+  ],
+  "access_key_length": 8,
+  "encrypted_html_length": 3183,
+  "normalized_text_length": 2083,
+  "normalized_text_sha256": "fdd8cab24949356176b5e311b8da10aeb549d1e9f2c1a3fc63da2ef62747fcd5",
+  "cookie_names": [
+    "ci_session"
+  ],
+  "cookie_change_names": [
+    "ci_session"
+  ],
+  "redaction": {
+    "sensitive_values_written": false,
+    "omitted": [
+      "chapter_access_key",
+      "Cookie",
+      "Set-Cookie values",
+      "chapter_content",
+      "decrypted HTML/body"
+    ]
+  }
+}

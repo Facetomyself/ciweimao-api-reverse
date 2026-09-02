@@ -9,8 +9,8 @@
 | 文件类型 | Android APK，Bangcle/SecNeo（SecShell），Native Android |
 | 架构 | ARM64 主分析；APK 同时含 ARMv7 与 `libSecShell-x86.so` |
 | App | `com.kuangxiangciweimao.novel` 2.9.365 (`290365`) |
-| 分析时间 | 2026-08-23 至 2026-08-27 |
-| 分析深度 | L3-partial；2026-08-27 文档冻结。官方游客 `get_cpt_ifm=100000`；独立客户端正文 310017 未解 |
+| 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 |
+| 分析深度 | L3-partial；Python 自注册游客 `get_cpt_ifm` 仍 310017。uid MITM 已解密冷启动与正文 HTTPS |
 
 ## 目标概述
 
@@ -22,10 +22,126 @@
 2. `libcurlhttps.so` 与 `libJavaJni.so` 与 2.9.362 字节级相同。
 3. 本地过期 token 解密后得到 `200100`，证明 2.9.365 HMAC 与 AES 解密可用。
 4. 新游客下：搜索、目录、`get_chapter_cmd`、`get_chapter_download_cmd` 均为 `100000`；`get_cpt_ifm` / `download_cpt` / `check_download_cpt` 均为 `310017`，提示「请升级到最新版本客户端」。把 `app_version` 改成 `2.9.365` 并重算 HMAC **不能**过正文门。
-5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”，而是正文接口另有客户端证明，静态 Native 常量对不上。
+5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-02 上午官方出生游客离开官方进程仍 310017；同日官方进程读章成功后，该身份在 Python / oldcurl 上也变成 100000。Python 自注册游客仍 310017。uid MITM 证明不是隐藏头、Cookie、键序或 TLS 栈。
 6. Java 仍被 SecShell 加密（`assets/classes0.jar` 约 18.9MB，非 ZIP/DEX magic）。LDPlayer 上 x86 `libSecShell-x86.so` 在 maps/`fclose` SIGSEGV。**Pixel 6 原包 ARM64 冷启动进入 `WelcomeActivity`，panda 拉到 43 个结构有效 DEX（71,775,408 字节），含 `com.kuangxiangciweimao`。** wrapper 因 dump 后进程已死标 `partial`。已 dump DEX 字符串中无明文 `get_cpt_ifm`。debug 重签包仍不能当完整性单变量。
+7. 外部源码与真实 canary 证明公开网页是可用的独立产品面：章节页 GET 后串行调用 `ajax_get_session_code` 与 `get_book_chapter_detail_info`，双层 AES-CBC 解密成功。客户端已将它接入 free-only fallback；App gate 仍单独记录为 310017。
 
 ## 关键发现
+
+### F-033：uid MITM 已解密官方 get_cpt_ifm 明文
+
+- **位置**：`/chapter/get_cpt_ifm` HTTP/1.1
+- **描述**：未缓存阅读序 info → bookmark×2 → `division_new` → cmd → cpt（两次）。线上头名与冷启动相同，键序与 logcat `OFFICIAL_CPT_ORDER` 相同。无 Cookie / Expect / refresh。缓存书不出 cpt。
+- **证据**：`evidence/official-uid-mitm-cpt.json`
+- **置信度**：high
+
+### F-032：uid 级 MITM 已解密官方冷启动 HTTPS
+
+- **位置**：uid `10237` tcp/443 REDIRECT → 设备 CONNECT → PC mitmdump
+- **描述**：不用全局 `http_proxy`。冷启动 9 条 HTTP/1.1 POST，头名只有 Host/Accept/Content-Type/charsets/User-Agent/Content-Length。slist 里的空 `Expect` 不上线。无 Cookie / Set-Cookie。路径集合与 logcat 冷启动相同。Python 默认不打这组前置请求；`prelude-canary` 已复放仍 310017。
+- **证据**：`evidence/official-uid-mitm-startup.json`
+- **置信度**：high
+
+### F-031：官方读章序复放不能放行 Python 自注册游客
+
+- **位置**：`getAddr(33/36/116/264/259)` → 书签/目录/间贴/cmd/cpt
+- **描述**：按官方 `url===>` 原序复放，再补 `get_version`/`get_check`/详情，自注册游客仍 `310017`。商店最新 Android 版本字面是 `2.9.293`，不是客户端过旧。
+- **证据**：`evidence/official-read-sequence-replay-canary.json`
+- **置信度**：high
+
+### F-030：官方读章成功后，同一官方游客在独立客户端也变成 100000
+
+- **位置**：`/chapter/get_cpt_ifm`
+- **描述**：今天上午官方出生游客移植到 Python / oldcurl 仍 310017。官方进程内 pass6/9/10 读章成功后，同一游客在 curl_cffi 与 APK libcurl 上均为 100000。Python 自注册游客仍 310017。`IPRESOLVE_V4` 不是原因。
+- **证据**：`evidence/official-vs-python-cpt-now.json`、`evidence/official-ipresolve-ab-canary.json`
+- **置信度**：high
+
+### F-029：官方 get_cpt_ifm 没有额外表单键或 Cookie
+
+- **位置**：`CenterDataAPI::postHttpsRequest@0x6eae4`
+- **描述**：logcat `post===>` 键序与 oldcurl `OFFICIAL_CPT_ORDER` 一致。SO 无 Cookie。每次请求 `curl_easy_init` / `cleanup`。
+- **证据**：pass6/pass10 logcat；`libcwmhttps.so` 反汇编
+- **置信度**：high
+
+### F-028：延迟读 slist X0 拿不到更早的头
+
+- **位置**：`curl_slist_append` X0 / `/proc/pid/mem`
+- **描述**：挂钩期间密采会打死进程。等 3 秒再读 X0，链已空。末次仍是 oldcurl UA，正文仍 `100000`。
+- **证据**：`evidence/official-inprocess-hwbp-pass10.json`
+- **置信度**：high
+
+### F-027：官方 get_cpt_ifm 的 slist 末次头就是 oldcurl UA
+
+- **位置**：`curl_slist_append@0x3365c`
+- **描述**：未读书详页只钩 slist 入口。正文仍 `100000`。8 次最后 dump 都是
+  `User-Agent: Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15`，
+  与 oldcurl 一致。打印全是 `#8`，更早的 slist 行未入镜。
+- **证据**：`evidence/official-inprocess-hwbp-pass9.json`
+- **置信度**：high
+
+### F-026：after_getHead0 全线程 HWBP 会打死进程，缓存阅读也不出网
+
+- **位置**：`postHttpsRequest+0xdc` / `0x6ebc0`
+- **描述**：pass7 先挂钩再进书城：0 hit，ADB/进程掉线。pass8 先停在 `立即阅读` 再钩：阅读器打开但无 `get_cpt_ifm`，仍 0 hit，随后进程再消失。`track` 入口可以活；这个返回点全线程不要再挂。
+- **证据**：`evidence/official-inprocess-hwbp-pass7.json`、`evidence/official-inprocess-hwbp-pass8.json`
+- **置信度**：high
+
+### F-025：官方立即阅读走 track(259)，进程内正文仍 100000
+
+- **位置**：`NetUtils.track` / `getC(259)` → `/chapter/get_cpt_ifm`
+- **描述**：书详页出现 `立即阅读` 后再只钩 `track`。X3=259 出现四次。
+  logcat 两次打到 `get_cpt_ifm`，ViseLog `259====> code=100000`。
+  同一次打开还有 `get_chapter_cmd`（X3=264）等 100000。JNI dump 仍不是 HTTP 明文。
+- **证据**：`evidence/official-inprocess-hwbp-pass6.json`
+- **置信度**：high
+
+### F-024：zip 映射 libcwmhttps 可 HWBP，本轮未抓到 get_cpt_ifm
+
+- **位置**：`libcwmhttps.so` 从 `base.apk` `0x4354000` 映射；`track@0x6d260` /
+  `postHttpsRequest@0x6eae4` / `getHead0@0x80cf0`
+- **描述**：`--so libcwmhttps.so` 对不上 maps。用文件偏移 `04354000` 作 so_token
+  后，书城 `get_index_list` 上三个函数都打中。`getHead0` 返回点寄存器仍有
+  `Expect: `。免费新书阅读器翻章没有出网，`curl_slist_append` 0 hit。
+- **证据**：`evidence/official-inprocess-hwbp.json`、
+  `evidence/official-inprocess-hwbp-pass3.json`
+- **置信度**：high
+
+### F-023：eCapture 看不了官方进程内 APK OpenSSL 明文
+
+- **位置**：APK `libssl.so`（`base.apk` 偏移 `0x3020000`）；eCapture v2.3.0
+- **描述**：官方业务 TLS 是 OpenSSL 1.1.0f，不是 conscrypt。eCapture 在 Android 15
+  上忽略 `--ssl_version`，固定加载 `boringssl_a_15`。官方阅读器打开导流章时
+  logcat 有 native curl `100000`，但没有 `get_cpt_ifm`（缓存章）。Connect 元组有，
+  HTTP 头没有。Frida 能枚举进程，attach 失败。
+- **证据**：`evidence/official-inprocess-ecapture.json`
+- **置信度**：high
+
+### F-022：官方出生身份移植后仍 310017
+
+- **位置**：官方 SharedPreferences `LoginedUser` → Python / Pixel `oldcurl_post`
+- **描述**：服务端认的不是「这个游客是不是在官方进程里注册的」。
+  Pixel 当前官方游客 `is_bind=0`，`get_my_info`/搜索/目录/`get_chapter_cmd` 均为 `100000`。
+  同一套凭据打 `get_cpt_ifm`：Python curl_cffi 双主机 `310017`；
+  APK libcurl 7.56.1 + 完整 getHead0 UA + `charsets`/`Expect` 仍 `310017`。
+  `GetBookContentDetailTask` 只传 `chapter_id`、`chapter_command`、可选 `refresh=1`。
+- **证据**：`evidence/official-born-identity-canary.json`、
+  `evidence/official-born-oldcurl-canary.json`、panda
+  `GetBookContentDetailTask.java`
+- **置信度**：high
+
+### F-021：公开 Web free-only fallback 已闭合
+
+- **位置**：`client/web.py`、`client/api.py`、`client/async_downloader.py`
+- **描述**：当 App `get_cpt_ifm` 返回 310017 且下载任务明确为 `free_only` 时，
+  先 GET `www.ciweimao.com/chapter/{id}` 获取/刷新 `ci_session`，再 POST 两个
+  AJAX 接口。`chapter_content` 按 access key 字符索引选择两层 AES key，解出 HTML
+  后删除水印 span 并归一化 TXT。
+- **证据**：`evidence/web-fallback-canary.json`（公开章节三步均 HTTP 200、detail
+  `100000`、非空正文）、`test_web.py`（10 tests）、`test_web_fallback_integration.py`。
+- **会话边界**：Web session 与 App credentials 完全隔离；Cookie jar 接收 Set-Cookie
+  轮换，完整三请求序列加锁，默认间隔 3 秒。VIP/图片章不在本结论内。
+- **置信度**：high
+- **重建状态**：extracted（Web 协议）/ partial（App 购买态正文）
 
 ### F-020：完整 getHead0 UA / charsets / HTTP_VERSION=3 仍 310017
 
@@ -161,7 +277,8 @@
   -> 加密 classes0.jar（业务 Java）
   -> 明文 libcwmhttps.so（HMAC + AES，与 2.9.362 同代）
   -> 本地 Python 可：搜索/目录/章节 command
-  -> 本地 Python 不可：章节正文（310017）
+  -> 本地 Python App 路径不可：章节正文（310017）
+  -> free-only Web fallback：章节页 GET → session/detail AJAX → 双层 AES → TXT
 
 LDPlayer x86_64 + libnb
   -> H.is_x86_byso() 选 libSecShell-x86.so
@@ -178,6 +295,8 @@ LDPlayer x86_64 + libnb
 - `evidence/protocol-canary.json`、`evidence/download-cpt-canary.json`。
 - `artifacts/dumps/libSecShell-x86.mem.so`：运行期 x86 SecShell（1,458,176 字节）。
 - `scripts/spawn_secshell_arm.py`、`scripts/secshell_arm_frida_agent.js`：Frida 17 spawn；禁止 `replace(fclose)`。
+- `client/web.py`、`scripts/web_fallback_canary.py`：公开 Web free-only 回退与脱敏 canary。
+- `docs/web-fallback.md`：外部源码交叉验证、Cookie/限速边界与运行配置。
 
 ## 脱敏说明
 
@@ -185,4 +304,4 @@ LDPlayer x86_64 + libnb
 
 ## Triage 遗留项
 
-见 `triage.md` 与 `analysis-progress.md`。当前双 blocker：正文接口客户端证明（B-001）和 LDPlayer maps/`fclose`（B-002）。不是 HMAC 公式。2026-08-24 已暂停；恢复先读 `analysis-progress.md`。
+见 `triage.md` 与 `analysis-progress.md`。当前 App 侧 blocker 为正文接口客户端证明（B-001）；LDPlayer maps/`fclose`（B-002）已在 Pixel 6 侧旁路。free-only 采集已由公开 Web fallback 继续推进，但不冒充 App 协议完成。

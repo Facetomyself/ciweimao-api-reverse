@@ -9,15 +9,15 @@ from pathlib import Path
 from fastapi import Body, FastAPI, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, JSONResponse
 
-from .config import ConfigurationError, PROJECT_ROOT, Settings
+from .config import PROJECT_ROOT, ConfigurationError, Settings
 from .core import CiweimaoService
 from .credentials import (
     CredentialBootstrapResult,
     GuestCredentialBootstrapper,
 )
 from .database import Database
-from .queue import PersistentTaskQueue
 from .proxy import redact_error_text
+from .queue import PersistentTaskQueue
 from .scheduler import build_scheduler, task_dedupe_key
 from .schemas import (
     ArchiveMaintenanceRequest,
@@ -34,7 +34,6 @@ from .schemas import (
     SyncRankingsRequest,
     TaskStatus,
 )
-
 
 CONTROL_SCOPES = {"all", "scheduler", "auto_download"}
 IDENTITY_SLOTS = {"default", "nas-primary", "dps-fallback"}
@@ -118,15 +117,101 @@ async def _health_payload(request: Request) -> dict:
          if probe.get("endpoint") == "chapter/get_cpt_ifm"),
         None,
     )
+    web_probe = next(
+        (probe for probe in dated_probes
+         if probe.get("endpoint") == "web/chapter"),
+        None,
+    )
+    app_probes = [
+        probe for probe in dated_probes
+        if probe.get("endpoint") != "web/chapter"
+    ]
+    app_freshest_probe = max(
+        app_probes,
+        key=lambda probe: _parse_time(probe.get("created_at")),
+        default=None,
+    )
+    app_probe_age = None
+    if app_freshest_probe is not None:
+        app_probe_age = max(
+            0.0,
+            (now - _parse_time(
+                app_freshest_probe["created_at"])).total_seconds(),
+        )
+    web_probe_age = None
+    if web_probe is not None and _parse_time(web_probe.get("created_at")):
+        web_probe_age = max(
+            0.0,
+            (now - _parse_time(web_probe["created_at"])).total_seconds(),
+        )
+    strict_protocol_ok = bool(
+        app_probes
+        and all(probe.get("ok") for probe in app_probes)
+        and chapter_probe is not None
+        and app_probe_age is not None
+        and app_probe_age <= settings.readiness_probe_max_age_seconds
+    )
+    web_route_ok = False
+    web_route_slot = None
+    if (getattr(settings, "readiness_allow_web_fallback", False)
+            and settings.web_fallback_enabled):
+        # A probe is only meaningful when all App and Web steps belong to the
+        # same sticky identity/egress slot.  Never combine a healthy search
+        # from one slot with a Web chapter from another slot.
+        for slot_id in {
+                str(probe.get("slot_id", "")) for probe in dated_probes}:
+            slot_probes = [
+                probe for probe in dated_probes
+                if str(probe.get("slot_id", "")) == slot_id
+            ]
+            slot_chapter = next(
+                (probe for probe in slot_probes
+                 if probe.get("endpoint") == "chapter/get_cpt_ifm"),
+                None,
+            )
+            slot_web = next(
+                (probe for probe in slot_probes
+                 if probe.get("endpoint") == "web/chapter"),
+                None,
+            )
+            slot_other = [
+                probe for probe in slot_probes
+                if probe.get("endpoint") != "chapter/get_cpt_ifm"
+                and probe.get("endpoint") != "web/chapter"
+            ]
+            required_app_endpoints = {
+                "search/books",
+                "chapter/catalog",
+                "chapter/get_chapter_cmd",
+            }
+            slot_other_endpoints = {
+                str(probe.get("endpoint", "")) for probe in slot_other
+            }
+            slot_web_age = None
+            if slot_web is not None and _parse_time(
+                    slot_web.get("created_at")):
+                slot_web_age = max(
+                    0.0,
+                    (now - _parse_time(slot_web["created_at"])).total_seconds(),
+                )
+            if (
+                    slot_web is not None
+                    and slot_web.get("ok")
+                    and slot_web_age is not None
+                    and slot_web_age <= settings.readiness_probe_max_age_seconds
+                    and slot_chapter is not None
+                    and str(slot_chapter.get("code", "")) == "310017"
+                    and required_app_endpoints <= slot_other_endpoints
+                    and all(probe.get("ok") for probe in slot_other)
+            ):
+                web_route_ok = True
+                web_route_slot = slot_id
+                web_probe_age = slot_web_age
+                break
     protocol_ok = (
         not settings.readiness_require_protocol_probe
-        or (
-            dated_probes
-            and all(probe.get("ok") for probe in dated_probes)
-            and chapter_probe is not None
-            and probe_age is not None
-            and probe_age <= settings.readiness_probe_max_age_seconds
-        )
+        or strict_protocol_ok
+        or web_route_ok
     )
     checks = {
         "database": bool(database_health["ok"]),
@@ -164,9 +249,33 @@ async def _health_payload(request: Request) -> dict:
             "profile": settings.protocol.name,
             "app_version": settings.app_version,
             "required": settings.readiness_require_protocol_probe,
+            "route": (
+                "disabled" if not settings.readiness_require_protocol_probe
+                else "app" if strict_protocol_ok
+                else "web_fallback" if web_route_ok
+                else "unverified"
+            ),
+            "app_gate_ok": strict_protocol_ok,
+            "web_fallback_slot": web_route_slot,
+            "web_fallback": {
+                "enabled": settings.web_fallback_enabled,
+                "readiness_allowed": getattr(
+                    settings, "readiness_allow_web_fallback", False),
+                "probe_ok": bool(web_probe and web_probe.get("ok")),
+                "probe": web_probe,
+                "age_seconds": (
+                    round(web_probe_age, 1)
+                    if web_probe_age is not None else None
+                ),
+            },
+            "app_gate_probe": chapter_probe,
             "max_age_seconds": settings.readiness_probe_max_age_seconds,
             "freshest_success": freshest_probe,
             "age_seconds": round(probe_age, 1) if probe_age is not None else None,
+            "app_gate_age_seconds": (
+                round(app_probe_age, 1)
+                if app_probe_age is not None else None
+            ),
             "latest": probes,
         },
         "credentials_configured": settings.credentials_configured(),
@@ -199,6 +308,12 @@ def _public_config(settings: Settings, service) -> dict:
             "enabled": settings.auto_download_enabled,
             "batch_size": settings.auto_download_batch_size,
             "free_only": True,
+        },
+        "web_fallback": {
+            "enabled": settings.web_fallback_enabled,
+            "min_interval_seconds": settings.web_min_interval_seconds,
+            "scope": "free_only_after_app_310017",
+            "readiness_allowed": settings.readiness_allow_web_fallback,
         },
         "egress": {
             "mode": settings.egress_mode,

@@ -1,0 +1,67 @@
+{
+  "tested_at": "2026-09-02T12:03:09.877356+00:00",
+  "finished_at": "2026-09-02T12:03:29.461165+00:00",
+  "question": "Hook-first then open free book: track X3=259 and getHead0 UA?",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "6073"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcwmhttps.so",
+    "apk_payload": "0x4354000",
+    "so_token": "04354000",
+    "rx": {
+      "start": "0x6eaeb05000",
+      "offset": "0x4354000"
+    },
+    "hooks": [
+      {
+        "name": "track",
+        "func_off": "0x6d260",
+        "abs": "0x6eaeb72260",
+        "pass_off": "0x43c1260"
+      },
+      {
+        "name": "after_getHead0",
+        "func_off": "0x6ebc0",
+        "abs": "0x6eaeb73bc0",
+        "pass_off": "0x43c2bc0"
+      }
+    ]
+  },
+  "kpm": {
+    "hello_rc": 0,
+    "load_rc": 0,
+    "list_after": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload_rc": 1,
+    "list_final": ""
+  },
+  "hook": {
+    "start": "[+] 04354000 base=0x6eaa7b1000, 2 offset(s) | [+] HWBP set: 214 nodes (2 offsets x 107 threads), dump_size=128, flags=0x1 | [*] live trace started, press Ctrl+C to stop & unhook... | ",
+    "hit_blocks": 0,
+    "track_x3": [],
+    "saw_api_259": false,
+    "markers": [],
+    "ascii_preview": []
+  },
+  "ui": {
+    "actions": [
+      "am_start_MainFrame",
+      "free@369,193",
+      "book_grid@392,1395"
+    ],
+    "focus_mid": "mCurrentFocus=Window{482fced u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.MainFrameActivity}",
+    "focus_after": "mCurrentFocus=Window{482fced u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.MainFrameActivity}"
+  },
+  "logcat": {
+    "get_cpt_ifm": false,
+    "get_chapter_cmd": false,
+    "paths": [],
+    "codes": []
+  },
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false
+  }
+}

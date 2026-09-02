@@ -1,0 +1,112 @@
+{
+  "tested_at": "2026-09-02T13:28:10.427801+00:00",
+  "hypothesis": "official in-process App sequence unlocks python-born get_cpt_ifm",
+  "identity_source": "python-born-guest-canary",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "host": "app1.hbooker.com",
+  "variants": {
+    "official_read_prefix": {
+      "steps": {
+        "bookmark1": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        },
+        "bookmark2": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        },
+        "catalog": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        },
+        "cmd": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        }
+      },
+      "cpt": {
+        "ok": false,
+        "code": "310017",
+        "tip": "请升级到最新版本客户端",
+        "data_keys": null
+      }
+    },
+    "settings_then_cpt": {
+      "settings": {
+        "get_version": {
+          "ok": true,
+          "code": "100000",
+          "tip": "",
+          "data_keys": [
+            "android_down_url",
+            "android_update_content",
+            "android_version",
+            "ios_down_url",
+            "ios_update_content",
+            "ios_version",
+            "is_force_update"
+          ]
+        },
+        "thired_party_switch": {
+          "ok": true,
+          "code": "100000",
+          "tip": "",
+          "data_keys": [
+            "switch_list"
+          ]
+        },
+        "get_check": {
+          "ok": true,
+          "code": "100000",
+          "tip": "",
+          "data_keys": [
+            "column",
+            "url"
+          ]
+        }
+      },
+      "cpt": {
+        "ok": false,
+        "code": "310017",
+        "tip": "请升级到最新版本客户端"
+      }
+    },
+    "detail_then_cpt": {
+      "detail": {
+        "info": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        },
+        "tsukkomi": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        },
+        "reviews": {
+          "ok": true,
+          "code": "100000",
+          "tip": ""
+        }
+      },
+      "cpt": {
+        "ok": false,
+        "code": "310017",
+        "tip": "请升级到最新版本客户端"
+      }
+    }
+  },
+  "get_my_info": {
+    "ok": true,
+    "code": "100000",
+    "tip": ""
+  },
+  "chapter_id_len": 9,
+  "command_len": 32,
+  "ok": false
+}

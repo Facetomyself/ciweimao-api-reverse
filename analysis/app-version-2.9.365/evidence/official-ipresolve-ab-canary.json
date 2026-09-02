@@ -1,0 +1,30 @@
+{
+  "tested_at": "2026-09-02T13:13:17.062977+00:00",
+  "question": "Is IPRESOLVE_V4 causal for official-born get_cpt_ifm 100000?",
+  "proxy": {
+    "http_proxy": "null",
+    "host": "null",
+    "port": "null"
+  },
+  "host": "app1.happybooker.cn",
+  "chapter_id_len": 9,
+  "command_len": 32,
+  "python_cpt": "AttributeError",
+  "oldcurl_default": {
+    "ok": true,
+    "code": "100000",
+    "tip": null,
+    "http_version": 2,
+    "ipresolve": "default",
+    "headers": "content-type,charsets,expect"
+  },
+  "oldcurl_v4": {
+    "ok": true,
+    "code": "100000",
+    "tip": null,
+    "http_version": 2,
+    "ipresolve": "v4",
+    "headers": "content-type,charsets,expect"
+  },
+  "tokens_json_written": false
+}

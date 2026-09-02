@@ -1,0 +1,149 @@
+{
+  "tested_at": "2026-09-02T11:45:16.227290+00:00",
+  "finished_at": "2026-09-02T11:45:53.539785+00:00",
+  "question": "What HTTP headers/body extras does official in-process libcwmhttps send on an uncached chapter?",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "8211"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcwmhttps.so",
+    "extract_native_libs": false,
+    "apk_payload": "0x4354000",
+    "so_token": "04354000",
+    "rx": {
+      "start": "0x74d2d01000",
+      "end": "0x74d2dec000",
+      "perms": "r-xp",
+      "offset": "0x4354000"
+    },
+    "phdrs": [],
+    "hooks": [
+      {
+        "name": "track",
+        "func_off": "0x6d260",
+        "abs": "0x74d2d6e260",
+        "pass_off": "0x43c1260"
+      },
+      {
+        "name": "postHttpsRequest",
+        "func_off": "0x6eae4",
+        "abs": "0x74d2d6fae4",
+        "pass_off": "0x43c2ae4"
+      },
+      {
+        "name": "getHead0",
+        "func_off": "0x80cf0",
+        "abs": "0x74d2d81cf0",
+        "pass_off": "0x43d4cf0"
+      }
+    ]
+  },
+  "kpm": {
+    "hello": "[*] supercall hello: 0x11581158 (expect 0x11581158)\n[+] KernelPatch is active",
+    "list_before": "[*] loaded KPM count: 0",
+    "load": "[*] Loading: /sdcard/xiaojianbang-stealth-hook.kpm (args: none)\n[*] Result: 0\n[+] KPM loaded successfully",
+    "list_after_load": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload": "[*] Unloading: xiaojianbang-stealth-hook\n[*] Result: 0\n[+] KPM unloaded",
+    "list_final": "[*] loaded KPM count: 0"
+  },
+  "hook": {
+    "so": "04354000",
+    "offsets": [
+      "0x43c1260",
+      "0x43c2ae4",
+      "0x43d4cf0"
+    ],
+    "dump_size": 128,
+    "listen_ret": true,
+    "start": "9048",
+    "summary": {
+      "count": 5,
+      "hits": [
+        {
+          "pass_offset": "0x43c1260",
+          "hit": 1,
+          "tid": 8271,
+          "pc": "0x74d2d6e260",
+          "has_redacted_dump": false,
+          "ret": "0x0",
+          "ascii": ""
+        },
+        {
+          "pass_offset": "0x43c2ae4",
+          "hit": 1,
+          "tid": 8271,
+          "pc": "0x74d2d6fae4",
+          "has_redacted_dump": false,
+          "ret": "0x0",
+          "ascii": ""
+        },
+        {
+          "pass_offset": "0x43d4cf0",
+          "hit": 2,
+          "tid": 8271,
+          "pc": "0x74d2d6fbc0",
+          "has_redacted_dump": false,
+          "ret": "0xb4000076f01c2390",
+          "ascii": ""
+        },
+        {
+          "pass_offset": "0x43c1260",
+          "hit": 2,
+          "tid": 8271,
+          "pc": "0x71f3a500",
+          "has_redacted_dump": false,
+          "ret": "0x78243ac019",
+          "ascii": ""
+        },
+        {
+          "pass_offset": "0x43c2ae4",
+          "hit": 2,
+          "tid": 8271,
+          "pc": "0x74d2d6e3f8",
+          "has_redacted_dump": false,
+          "ret": "0x7811528484",
+          "ascii": ""
+        }
+      ],
+      "markers": {
+        "content_type": false,
+        "charsets": false,
+        "expect": false,
+        "user_agent_android": false,
+        "get_cpt_ifm": false,
+        "get_chapter_cmd": false
+      }
+    }
+  },
+  "ui": {
+    "focus_before": "mCurrentFocus=Window{7b7b376 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.MainFrameActivity}",
+    "focus_after": "mCurrentFocus=Window{3613d54 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.my.ReadHistoryActivity}",
+    "actions": [
+      "免费@369,193",
+      "image@959,302",
+      "screen_right@900,1200"
+    ]
+  },
+  "logcat": {
+    "get_cpt_ifm": false,
+    "get_chapter_cmd": false,
+    "paths": [
+      "/bookcity/get_index_list"
+    ],
+    "codes": [
+      "100000"
+    ]
+  },
+  "notes": [
+    "kpm_hello_rc=0",
+    "kpm_load_rc=0",
+    "hook_start=[+] 04354000 base=0x74ce9ad000, 3 offset(s) | [+] HWBP set: 183 nodes (3 offsets x 61 threads), dump_size=128, flags=0x9 | [*] live trace started, press Ctrl+C to stop & unhook... | "
+  ],
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false,
+    "notes": "hook/logcat dumps with account/token/p/cookie/command rows omitted"
+  }
+}

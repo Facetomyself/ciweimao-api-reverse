@@ -1,19 +1,21 @@
 """搜索、榜单、新书与按书名下载的异步业务编排。"""
 
-from contextlib import asynccontextmanager
 import asyncio
-from datetime import datetime, timedelta, timezone
 import hashlib
-from pathlib import Path
+import inspect
 import time
-from typing import Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from client import async_downloader, config as client_config
-from client.api import AsyncSession
+from client import async_downloader
+from client.api import ApiError, AsyncSession
 from client.downloader import NoDownloadableChapters
+from client.web import WebChapterError
 
-from .config import ConfigurationError, Settings
 from .archive import ArchiveManager
+from .config import ConfigurationError, Settings
 from .credentials import (
     GuestCredentialBootstrapper,
 )
@@ -34,7 +36,6 @@ from .schemas import (
     SyncNewBooksRequest,
     SyncRankingsRequest,
 )
-
 
 TaskSubmitter = Callable[[str, dict, str | None], Awaitable[dict]]
 
@@ -64,6 +65,29 @@ def _utc_after(*, minutes: int = 0, hours: int = 0) -> str:
     return value.isoformat(timespec="milliseconds")
 
 
+def _build_session(factory, **kwargs):
+    """给自定义 session_factory 过滤未知关键字，保持旧替身兼容。"""
+    try:
+        signature = inspect.signature(factory)
+    except (TypeError, ValueError):
+        return factory(**kwargs)
+    parameters = signature.parameters.values()
+    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD
+           for parameter in parameters):
+        return factory(**kwargs)
+    allowed = {
+        parameter.name
+        for parameter in parameters
+        if parameter.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+    }
+    return factory(**{
+        key: value for key, value in kwargs.items() if key in allowed
+    })
+
+
 class CiweimaoService:
     def __init__(self, settings: Settings, database: Database,
                  session_factory=AsyncSession,
@@ -83,6 +107,7 @@ class CiweimaoService:
         )
         self.archive_manager = ArchiveManager(settings, database)
         self._task_submitter: TaskSubmitter | None = None
+        self._last_operation_source = "app"
         # 游客身份与出口相关，所有 App 网络工作流必须串行切换租约。
         self._workflow_lock = asyncio.Lock()
 
@@ -117,7 +142,8 @@ class CiweimaoService:
     @asynccontextmanager
     async def client(self, credentials=None, proxy_url: str | None = None):
         credentials = credentials or self.settings.load_credentials()
-        session = self.session_factory(
+        session = _build_session(
+            self.session_factory,
             login_token=credentials.login_token,
             account=credentials.account,
             device_token=credentials.device_token,
@@ -133,6 +159,8 @@ class CiweimaoService:
             transient_api_retries=(
                 self.settings.http_transient_api_retries),
             proxy=proxy_url,
+            web_fallback_enabled=self.settings.web_fallback_enabled,
+            web_min_interval=self.settings.web_min_interval_seconds,
         )
         async with session:
             yield session
@@ -210,6 +238,10 @@ class CiweimaoService:
                 async with self.client(
                         credentials, proxy_url=lease.proxy_url) as session:
                     result = await operation(session)
+                    used_web_fallback = bool(
+                        getattr(session, "web_fallback_used", False))
+                self._last_operation_source = (
+                    "web_fallback" if used_web_fallback else "app")
                 self.proxy_manager.report_success(lease)
                 identity_store = getattr(
                     self.credential_bootstrap, "identity_store", None)
@@ -220,7 +252,17 @@ class CiweimaoService:
                         event_type="request_success",
                         component=operation_name,
                         slot_id=lease.slot_id,
-                        message="App request succeeded",
+                        message=(
+                            "Web fallback request succeeded"
+                            if used_web_fallback
+                            else "App request succeeded"
+                        ),
+                        metadata={
+                            "source": (
+                                "web_fallback"
+                                if used_web_fallback else "app"
+                            )
+                        },
                     )
                 return result
             except Exception as exc:
@@ -258,7 +300,8 @@ class CiweimaoService:
                     else:
                         continue
 
-                if info.category == FailureCategory.RISK_REJECTED:
+                if (info.category == FailureCategory.RISK_REJECTED
+                        and not isinstance(exc, WebChapterError)):
                     identity_store = getattr(
                         self.credential_bootstrap, "identity_store", None)
                     if identity_store is not None:
@@ -415,6 +458,7 @@ class CiweimaoService:
             "file_size": artifact["file_size"],
             "sha256": artifact["sha256"],
             "free_only": True,
+            "content_source": self._last_operation_source,
         }
 
     async def handle_download_by_name(self, payload: dict,
@@ -693,6 +737,8 @@ class CiweimaoService:
         current_endpoint = "search/books"
         started = time.perf_counter()
         checks: list[dict] = []
+        app_protocol_ok = False
+        web_fallback_ok = False
 
         async def _step(endpoint: str, operation):
             nonlocal current_endpoint, started
@@ -746,15 +792,53 @@ class CiweimaoService:
                         session.get_chapter_command(chapter_id)
                     ),
                 )
-                await _step(
-                    "chapter/get_cpt_ifm",
-                    lambda session, chapter_id=chapter_id, command=command: (
-                        session._call("/chapter/get_cpt_ifm", {
-                            "chapter_id": chapter_id,
-                            "chapter_command": command,
-                        })
-                    ),
-                )
+                try:
+                    await _step(
+                        "chapter/get_cpt_ifm",
+                        lambda session, chapter_id=chapter_id, command=command: (
+                            session._call("/chapter/get_cpt_ifm", {
+                                "chapter_id": chapter_id,
+                                "chapter_command": command,
+                            })
+                        ),
+                    )
+                    app_protocol_ok = True
+                except ApiError as exc:
+                    # 310017 is a known App-only client gate.  Keep the
+                    # failed App probe in evidence, then optionally verify
+                    # the isolated public Web route for free-only service use.
+                    if (exc.code != "310017"
+                            or not self.settings.web_fallback_enabled):
+                        raise
+                    app_elapsed = (time.perf_counter() - started) * 1000
+                    await self._record_probe(
+                        endpoint="chapter/get_cpt_ifm",
+                        slot_id=actual_slot,
+                        ok=False,
+                        elapsed_ms=app_elapsed,
+                        exc=exc,
+                        metadata={"route": "app"},
+                    )
+                    checks.append({
+                        "endpoint": "chapter/get_cpt_ifm",
+                        "ok": False,
+                        "code": exc.code,
+                        "latency_ms": round(app_elapsed, 1),
+                        "route": "app",
+                    })
+                    web_content = await _step(
+                        "web/chapter",
+                        lambda session, chapter_id=chapter_id, command=command: (
+                            session.get_chapter_content(
+                                chapter_id,
+                                command,
+                                allow_web_fallback=True,
+                            )
+                        ),
+                    )
+                    if not str(web_content or "").strip():
+                        raise RuntimeError("web fallback returned empty chapter")
+                    web_fallback_ok = True
         except Exception as exc:
             elapsed = (time.perf_counter() - started) * 1000
             await self._record_probe(
@@ -772,10 +856,15 @@ class CiweimaoService:
             })
             raise
         return {
-            "ok": True,
+            # `ok` means the configured service route is usable.  The App
+            # gate remains explicit below and is never promoted silently.
+            "ok": bool(app_protocol_ok or web_fallback_ok),
             "protocol_profile": self.settings.protocol.name,
             "app_version": self.settings.app_version,
             "endpoint": "chapter/get_cpt_ifm",
+            "route": "app" if app_protocol_ok else "web_fallback",
+            "app_protocol_ok": app_protocol_ok,
+            "web_fallback_ok": web_fallback_ok,
             "slot_id": actual_slot,
             "latency_ms": sum(item.get("latency_ms", 0) for item in checks),
             "result_count": len(books),

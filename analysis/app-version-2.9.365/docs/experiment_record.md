@@ -1,5 +1,118 @@
 # 实验记录
 
+## 2026-09-02 官方读章序复放到 Python 自注册游客
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：Web 与 App 风控不是同一套，不能用网页链代替 App `get_cpt_ifm`。pass6 的 `getC` 36/116 先对上路径，再按官方 `url===>` 原序复放。
+- 本轮操作：`getAddr` 表确认 33=`book/get_bookmark_list`，36=`chapter/get_updated_chapter_by_division_new`，116=`chapter/get_tsukkomi_num`，264=`get_chapter_cmd`，259=`get_cpt_ifm`。从 pass10 logcat 抽出书详页/阅读序（只留字段名）。对仍 310017 的 Python 自注册游客复放：书签×2→目录→cmd→cpt；再补 `setting/get_version`/`get_check`/`thired_party_switch`；再补详情/间贴/评论。未写 `tokens.json`，未走 Web。
+- 实验结果：三组 cpt 都是 `310017`。`get_version` 的 `android_version=2.9.293`，`is_force_update=0`，不是商店版本比 2.9.365 新。官方本地 SP 没有单独的「已放行」键。
+- 下一步计划：不要再用 Web 回退冒充 App 门。继续查服务端对官方出生游客放行、对自注册游客仍拦的差异。不要 `pm clear` 已放行官方游客。
+
+## 2026-09-02 官方读章后独立客户端对照
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：slist X0 读不到。静态看 `postHttpsRequest` 每次新 easy、SO 无 Cookie。logcat `post===>` 对字段名。再测 `CURLOPT_IPRESOLVE=V4`。
+- 本轮操作：从 pass6/pass10 设备 logcat 抽 `get_cpt_ifm` 字段名（不落值）。重编 oldcurl 做 V4 / 默认 A/B。同一官方游客再打 Python curl_cffi；对照一份 Python 自注册游客。未写 `tokens.json`，未 `pm clear`。
+- 实验结果：官方 `get_cpt_ifm` 键序与 oldcurl 一致，无 `refresh`。V4 与默认 oldcurl 都是 `100000`。官方游客 Python 双主机也是 `100000`（`chapter_info.txt_content` 为 CDN URL）。Python 自注册游客仍双主机 `310017`。上午同一官方游客移植还是 `310017`。
+- 下一步计划：不要再钩 slist / `0x6ebc0`。不要 `pm clear` 这份已放行游客。310017 还卡 Python 自注册身份。
+
+## 2026-09-02 HWBP pass10 读 slist 链
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：内核查询只留最后一次 hit。UA 入 slist 时 X0 应是已有链。挂钩后立刻走 `/proc/pid/mem`。
+- 本轮操作：第一次在挂钩期间密采 hook log（121 节点），ADB 掉线、官方进程消失。冷启后改成点阅读等 3 秒再读一次 X0。未 `pm clear`。
+- 实验结果：第二次 8 hit，ViseLog `259====>100000` 两次，末次仍是 oldcurl 同款 UA。X0 链读出来是空串或不可读——3 秒后 heap 上的 slist 已经没了。KPM count=0。密采会打死进程，不要再在 HWBP 期间狂打 adb。
+- 下一步计划：不要再钩 `0x6ebc0`，不要再密采 slist。独立客户端 310017 不是 UA 不同；额外头即使有，oldcurl 已经发过仍 310017。
+
+## 2026-09-02 HWBP pass9 未读书详页 slist_append
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：`after_getHead0` 全线程已证伪。改钩 `curl_slist_append` 函数入口，且必须先停在未读过的书详页 `立即阅读`。
+- 本轮操作：免费区热书列表点未读过的书，确认 `立即阅读@540,2263`。只钩 `libcurl.so` `slist_append@0x3365c`（113 节点），再点阅读。跑完卸载。未 `pm clear`。
+- 实验结果：阅读器打开。logcat 有 `get_cpt_ifm` / `get_chapter_cmd`，ViseLog `259====>100000` 两次。hook 打中 8 次，进程仍在，KPM count=0。8 个 dump 的最后一次都是 `User-Agent: Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15`，与 oldcurl `ua.txt` 一致。每个 tid 打印的 hit_count 都是 `#8`，更早的 slist 行（静态分析里的 Content-Type / charsets / Expect）这次没入镜。
+- 下一步计划：310017 不是 UA 字符串不同。不要再钩 `0x6ebc0`。若还要证明 slist 是否只有 UA，需要能看到同 tid 的 1..7 次 append，或 dump slist 链；不要再 Frida attach / eCapture / px-proxy。
+
+## 2026-09-02 HWBP pass8 书详页立即阅读再钩 after_getHead0 — 失败
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：按 pass6 UI，先停在 `立即阅读`，再只钩 `0x6ebc0`，避免 pass7 的 `am start` + 先挂钩。
+- 本轮操作：免费大卡片进入已读过的书详页，确认 `立即阅读@540,2263`。只钩 `after_getHead0`（116 节点）再点阅读。未 `pm clear`。
+- 实验结果：阅读器打开，但 logcat 无 `get_cpt_ifm`（缓存）。hook 0 hit。随后 ADB 再掉线，官方进程消失。KPM count=0。冷启回到 `MainFrameActivity`。
+- 下一步计划：不要再对 `0x6ebc0` 做全线程 HWBP。未缓存章若还要明文头，只钩 `slist_append` 一处，且必须先停在未读过的书详页。不要 hook-first + `am start`。
+
+## 2026-09-02 HWBP pass7 after_getHead0 先挂钩再点网格 — 失败
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：阅读器无目录控件，想换一本未缓存书再 dump `0x6ebc0` 的 UA。
+- 本轮操作：6 次 BACK + `am start MainFrame`，再只钩 `after_getHead0@0x6ebc0`（119 节点），点网格书。未 `pm clear`。
+- 实验结果：hook 已挂上（119 节点）但 0 hit。随后 ADB 掉线，官方进程消失。KPM 恢复后 count=0。冷启 Splash 回到 `MainFrameActivity`，游客数据还在。
+- 下一步计划：不要再 hook-first + `am start` + 网格。按 pass6：先停在书详页 `立即阅读`，再只钩一处。
+
+## 2026-09-02 HWBP pass6 书详页立即阅读只钩 track
+
+- 记录时间：2026-09-02 20:08（Asia/Shanghai）
+- 分析思路：无 hook 先停在书详页 `立即阅读`，再只钩 `track` 一处，避免全线程双断点把设备打掉。
+- 本轮操作：免费大卡片进入《转生成为一只猫的我，决定摆烂了》书详页，确认 `立即阅读@540,2263`。load KPM 后只钩 `track@0x6d260`，再点阅读。跑完卸载。
+- 操作目的：看 X3 是否为 259（get_cpt_ifm）。
+- 所用工具：`official_inprocess_hwbp_pass6.py`
+- 运行命令：`python analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass6.py`
+- 代码变更：work 脚本。
+- 检测代码明细：只读 HWBP，1 个偏移，115 线程。
+- 实验结果：点 `立即阅读` 后进入 `ReaderActivity4`。`track` 打中 16 次，X3 序列含 33/36/264/259/116。ViseLog `259====>` 两次均为 `code=100000`；`get_cpt_ifm` URL 两次打到 `app1.happybooker.cn`。`264` 与 `get_chapter_cmd` 对齐，也是 `100000`。JNI dump 仍是对象头，没有 HTTP 明文。KPM 已卸，进程仍在阅读器，代理 `null`。
+- 下一步计划：只钩 `after_getHead0@0x6ebc0` 或 `curl_slist_append` 一处，抓 259 当次的 UA/头。不要再全线程双断点。
+
+## 2026-09-02 HWBP pass5 等立即阅读再下断
+
+- 记录时间：2026-09-02 19:58–20:04（Asia/Shanghai）
+- 分析思路：上一轮 HWBP 通路已通，但 UI 没等到书详页 `立即阅读`，正文请求没出网。
+- 本轮操作：先免费区点未读过的书并轮询 `立即阅读`（pass5）；失败后改成先挂 `track`+`0x6ebc0` 再点书（pass5b）。未 `pm clear`，未写 `tokens.json`。
+- 操作目的：看官方打开正文时 `track` X3 是否为 259，以及 getHead0 返回 UA。
+- 所用工具：`official_inprocess_hwbp_pass5.py` / `official_inprocess_hwbp_pass5b.py`
+- 运行命令：`python analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass5.py`；`python analysis/app-version-2.9.365/work/official_inprocess_hwbp_pass5b.py`
+- 代码变更：work 脚本。
+- 检测代码明细：只读 HWBP，两处断点。
+- 实验结果：pass5 点网格封面会直接进 `ReaderActivity4`，书详页没有 `立即阅读`，断点还没下正文请求已过。pass5b 先挂上 214 个节点（2 offsets × 107 threads），随后点书仍停在 `MainFrame`，0 hit；全线程 HWBP 再次让 ADB 掉线，官方进程消失。证据 `official-inprocess-hwbp-pass5.json`。
+- 下一步计划：不要再对官方进程挂全线程双断点。先无 hook 打开书详页并确认 `立即阅读`，再只钩 `track` 一处；或等人手点阅读。不要再 Frida attach，不要再 eCapture 本栈。
+
+## 2026-09-02 HWBP 官方进程内 libcwmhttps 头
+
+- 记录时间：2026-09-02 19:45–20:00（Asia/Shanghai）
+- 分析思路：eCapture 钩不到 APK OpenSSL。Frida attach 已失败。改为内核 HWBP 读 `track` / `postHttpsRequest` / `getHead0`。`extractNativeLibs=false`，maps 只有 `base.apk`，不能 `--so libcwmhttps.so`。
+- 本轮操作：`libcwmhttps` zip payload `0x4354000`，`--so 04354000`，pass_off = apk_off + func_off。KPM 用设备侧 env 脚本读 0600 keyfile，不把 superkey 打进 wrapper argv。随后用 libcurl `curl_slist_append` 和阅读器翻章补打，再对免费区新书 `立即阅读`。跑完确认 KPM count=0。未 `pm clear`，未写 `tokens.json`。
+- 操作目的：对照官方进程内 HTTP 头/体与 oldcurl。
+- 所用工具：`xiaojianbang_hook` / `kpm_loader`、`official_inprocess_hwbp.py` 及 pass2/3/4。
+- 运行命令：`python analysis/app-version-2.9.365/work/official_inprocess_hwbp.py`
+- 代码变更：work 脚本（gitignored）；账本增加 F-024。
+- 检测代码明细：只读 HWBP，不 replace-ret / 不改 X0-X7。
+- 实验结果：KPM hello/load/unload 成功。`track`/`postHttpsRequest`/`getHead0` 在书城 `get_index_list`（`track` X3=2）上打中 5 次，PC 与算出的绝对地址一致。`getHead0` listen-ret 落在 `postHttpsRequest` 返回点，X6/X7 小端 ASCII 为 `Expect: `，说明官方仍组这条空 Expect。本轮 UI 先误进阅读历史，后打开免费新书阅读器但翻章无出网（`slist_append` 0 hit，logcat 无 `get_cpt_ifm`）。全线程 HWBP 时 ADB 会短暂掉线。收尾后官方 App 在 `MainFrameActivity`，KPM count=0，代理 `null`。
+- 下一步计划：等书详页出现 `立即阅读` 再下断；优先 `track` 看 X3=259，以及 `postHttpsRequest+0xdc`（`0x6ebc0`）dump getHead0 返回的 UA 串。不要再 Frida attach，不要再 eCapture 本栈。
+
+## 2026-09-02 eCapture 官方进程内明文
+
+- 记录时间：2026-09-02 19:35（Asia/Shanghai）
+- 分析思路：身份移植已证伪。定制系统还没用的明文面是 eCapture。官方业务栈是 APK OpenSSL 1.1.0f，不是系统代理能看到的 OkHttp。
+- 本轮操作：`px-status` ready，代理 `null`。官方 App 冷启动进 `MainFrameActivity`，未 `pm clear`。eCapture v2.3.0 text 模式对着官方 pid/uid。随后从「读书」打开阅读器。再试 Frida 17.15.3 attach。未写 `tokens.json`。
+- 操作目的：拿到官方进程内 `get_cpt_ifm` 原始 HTTP，对照进程外 oldcurl。
+- 所用工具：`ecapture_android.py` / 设备 eCapture、`official_inprocess_ecapture.py`、logcat `curl`/`ViseLog`、Frida CLI。
+- 运行命令：`python analysis/app-version-2.9.365/work/official_inprocess_ecapture.py`；`frida -D 18251FDF6000N9 -p <pid> -l official_inprocess_header_hook.js`
+- 代码变更：work 脚本（gitignored）；账本增加 F-023 / G-006。
+- 检测代码明细：无用户态 patch。KPM 本轮未列出。
+- 实验结果：eCapture 请求 `openssl 1.1.x` 仍加载 `boringssl_a_15_kern_noncore.o`。Connect 能看到官方 pid 的 443 元组，没有 HTTP 头。阅读器打开导流章 `106129841`，logcat 有 `get_bookmark_list` / `get_division_list` / `get_tsukkomi_num` / `set_read_chapter_record`=`100000`，没有 `get_cpt_ifm`（缓存章）。Frida 能枚举「刺猬猫阅读」，attach 报 process not found；无新 tombstone。官方 App 已重新冷启动回书城。
+- 下一步计划：不要再 eCapture 本栈、不要再 Frida attach。HWBP `libcwmhttps` `track@0x6d260` / `postHttpsRequest@0x6eae4` / `getHead0@0x80cf0`，并打开未缓存章。
+
+## 2026-09-02 官方出生身份移植
+
+- 记录时间：2026-09-02 19:10（Asia/Shanghai）
+- 分析思路：未闭合矛盾是「官方进程里注册的游客可读章，进程外注册的不可」。若服务端认的是出生身份，把官方 SharedPreferences 游客拿到独立客户端应过 `get_cpt_ifm`。
+- 本轮操作：Pixel 身份门 ready，无残留代理。读取官方 `LoginedUser`（`is_bind=0`）写入 `work/official-born-guest-tokens.json`。未 `pm clear`，未写 `tokens.json`，不打印凭据。先 Python curl_cffi 打双主机；再同一凭据走 Pixel APK libcurl + getHead0 UA。
+- 操作目的：单变量「官方出生身份 × 独立传输」。
+- 所用工具：`official_born_identity_canary.py`、`official_born_oldcurl_canary.py`、panda `GetBookContentDetailTask.java`。
+- 运行命令：`python analysis/app-version-2.9.365/work/official_born_identity_canary.py`；`python analysis/app-version-2.9.365/work/oldcurl/official_born_oldcurl_canary.py`
+- 代码变更：两份 canary；账本/report/triage/findings 增加 F-022。
+- 检测代码明细：无 hook。代理 `null`。
+- 实验结果：官方游客 `get_my_info`/搜索/目录/cmd=`100000`。Python 双主机正文 `310017`。oldcurl `libcurl/7.56.1` + UA=`Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15` + `content-type,charsets,expect` 正文仍 `310017`。Java 任务只有 `chapter_id`/`chapter_command`/可选 `refresh`。
+- 下一步计划：身份门证伪。对照官方进程内原始 HTTP，不要再移植身份。
+
 ## 2026-08-27 native 三项传输 canary
 
 - 记录时间：2026-08-27 14:43（Asia/Shanghai）
@@ -321,3 +434,60 @@
 - 检测代码明细：无新增。
 - 实验结果：文档与 dump 路径已对齐。工作暂停。
 - 下一步计划：见 `analysis-progress.md`「恢复后只做这些」。
+
+## 2026-09-01 Web fallback 续推进
+
+- 记录时间：2026-09-01（Asia/Shanghai；canary UTC 时间为 2026-08-31 16:16）。
+- 分析思路：App `get_cpt_ifm` 的 310017 已由多轮 HMAC/UA/TLS/native canary
+  证明不是单项传输缺口；转查公开网页产品面，要求与 App credentials、身份槽和
+  购买态严格隔离。
+- 外部取证：`search-layer` deep 查询网页章节接口；`gh api` 交叉读取
+  `guohuiyuan/go-novel-dl`、`dteviot/WebToEpub`、`404-novel-project/novel-downloader`
+  以及 `saudadez21/novel-downloader#157`。一致证据为章节页 GET → session key
+  POST → detail POST，Cookie（`ci_session`）会轮换，单活跃 session 需串行/限速。
+- 本轮操作：新增 `client/web.py`（同步/异步 `WebChapterSession`）、App `310017`
+  后仅 free-only 回退、Web 业务错误分类、readiness 的同槽 Web probe 分流；新增
+  脱敏 canary 脚本与离线 fixture。
+- 操作目的：让现有搜索/目录链在正文 App 门被拦时仍能下载公开文本免费章，同时
+  不把网页成功伪装成 App 协议恢复。
+- 运行命令：
+  `D:\reverse_ENV\.venv\Scripts\python.exe analysis/app-version-2.9.365/scripts/web_fallback_canary.py --chapter-id 112001971 --min-interval 0`
+  以及项目 `python -m unittest discover -s . -p 'test*.py' -q`。
+- 检测/协议细节：`chapter_access_key` 首/末字符按 `ord(...) % len(keys)` 选两层
+  AES-CBC key；每层是 `Base64(IV || ciphertext)` + PKCS#7；解密后删除水印 span。
+  Web 请求不含 `account/login_token/device_token/app_version/p/chapter_command`。
+- 实验结果：公开章节页面/session/detail 均 HTTP 200，detail `code=100000`，
+  解密后非空正文；证据写入 `evidence/web-fallback-canary.json`，只保留状态、
+  字节数、长度、hash 与 Cookie 名称。离线 Web 单测 10 个，项目单测 82 个，均通过。
+- 下一步计划：生产保持每个 Web session 的 Cookie jar、单活跃序列和默认 3 秒间隔；
+  若目标是 VIP/购买态或必须恢复 App gate，再单独安排人工 GT3 取证，不自动解题，
+  也不覆盖 `tokens.json`。
+
+## 2026-09-02 uid MITM 冷启动
+
+- 记录时间：2026-09-02 22:44（Asia/Shanghai）
+- 分析思路：系统 `http_proxy` 只覆盖 OkHttp，官方 `libcurl` 不读它。官方
+  `SSL_VERIFYPEER/HOST=0`，缺的是 uid 级 443 透明转发，不是证书钉扎。
+- 本轮操作：设备 `redir_connect` 听 18085，iptables owner 10237 REDIRECT 443，
+  `route_localnet=1`，`adb reverse` 到 PC mitmdump；addon 只记路径/头名/键名。
+  `force-stop` 后冷启动 Splash。收尾删除 CWM_MITM、杀掉转发、`http_proxy` 仍 null，
+  `route_localnet` 恢复 0。
+- 操作目的：补上原生 HTTPS MITM，核对前置链路是否比 Python 多隐藏头或 Cookie。
+- 实验结果：9 条 HTTP/1.1 POST，路径集合与 `pixel6-startup-urls` 相同。线上头名
+  Host/Accept/Content-Type/charsets/User-Agent/Content-Length；空 Expect 不上线；
+  无 Cookie/Set-Cookie。本窗没有 `get_cpt_ifm`。prelude-canary 早已复放仍 310017。
+- 证据：`evidence/official-uid-mitm-startup.json`
+- 下一步计划：不要再用全局 `http_proxy` 抓 native。不要把冷启动序当充分条件。
+  继续查官方出生游客与 Python 自注册游客的服务端放行差。
+
+## 2026-09-02 uid MITM get_cpt_ifm
+
+- 记录时间：2026-09-02 22:50（Asia/Shanghai）
+- 分析思路：冷启动 MITM 已证明无隐藏头。需要同一平面解密正文请求。
+- 本轮操作：解锁后复用 uid REDIRECT。第一本免费书走本地缓存，只打旧 catalog
+  与 `set_read_chapter_record`。第二本封面直进阅读器，抓到 cmd/cpt 各两次。
+- 实验结果：`get_cpt_ifm` HTTP 200，HTTP/1.1。头名与冷启动相同；键序
+  account/app_version/chapter_command/chapter_id/device_token/login_token/rand_str/p。
+  无 Cookie/Expect/refresh。与 logcat/HWBP 一致，不是新的协议缺口。
+- 证据：`evidence/official-uid-mitm-cpt.json`
+- 下一步计划：不要再为「缺隐藏头」开 MITM。下一步仍是两类游客的服务端放行差。

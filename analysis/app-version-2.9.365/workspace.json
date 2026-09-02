@@ -7,18 +7,48 @@
     "size_bytes": 139366532
   },
   "pipeline": {
-    "phase": "deep_dive",
+    "phase": "rebuild",
     "analysis_depth": "L3-partial",
     "primary_skill": "native-reverse",
     "fallback_skill": "apk-reverse"
   },
   "phases": {
-    "classification": { "status": "complete", "started": "2026-07-18", "completed": "2026-08-23", "notes": "SecShell/Bangcle; native crypto plaintext" },
-    "recon":          { "status": "complete", "started": "2026-07-18", "completed": "2026-08-23", "notes": "SO diff + live canary" },
-    "decision":       { "status": "complete", "started": "2026-08-23", "completed": "2026-08-23", "notes": "HMAC unchanged; chapter content gated" },
-    "deep_dive":      { "status": "paused", "started": "2026-08-23", "completed": "2026-08-27", "notes": "native path + getHead0/charsets/HTTP_VERSION canary still 310017; freeze docs" },
-    "rebuild":        { "status": "partial", "started": "2026-08-23", "completed": null, "notes": "Python client 2.9.365 profile; chapter path not restored" },
-    "review":         { "status": "complete", "started": "2026-08-27", "completed": "2026-08-27", "notes": "public repo documentation freeze" }
+    "classification": {
+      "status": "complete",
+      "started": "2026-07-18",
+      "completed": "2026-08-23",
+      "notes": "SecShell/Bangcle; native crypto plaintext"
+    },
+    "recon": {
+      "status": "complete",
+      "started": "2026-07-18",
+      "completed": "2026-08-23",
+      "notes": "SO diff + live canary"
+    },
+    "decision": {
+      "status": "complete",
+      "started": "2026-08-23",
+      "completed": "2026-08-23",
+      "notes": "HMAC unchanged; chapter content gated"
+    },
+    "deep_dive": {
+      "status": "partial",
+      "started": "2026-08-23",
+      "completed": "2026-08-27",
+      "notes": "App native path and 310017 gate remain partial; public Web free-only fallback verified 2026-09-01"
+    },
+    "rebuild": {
+      "status": "partial",
+      "started": "2026-08-23",
+      "completed": null,
+      "notes": "WebChapterSession sync/async fallback extracted and integrated; App purchase-state chapter path remains unresolved"
+    },
+    "review": {
+      "status": "complete",
+      "started": "2026-08-27",
+      "completed": "2026-08-27",
+      "notes": "public repo documentation freeze"
+    }
   },
   "markers": {
     "file_format": "apk",
@@ -70,16 +100,50 @@
       "analysis/app-version-2.9.365/evidence/geetest-api1-canary.json",
       "analysis/app-version-2.9.365/evidence/native-autoreg-path.json",
       "analysis/app-version-2.9.365/evidence/pixel-native-headers-canary.json",
-      "docs/protocol.md"
+      "docs/protocol.md",
+      "analysis/app-version-2.9.365/evidence/web-fallback-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-born-identity-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-born-oldcurl-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-ecapture.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass2.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass3.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass5.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass6.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass7.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass8.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass9.json",
+      "analysis/app-version-2.9.365/evidence/official-inprocess-hwbp-pass10.json",
+      "analysis/app-version-2.9.365/evidence/official-ipresolve-v4-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-ipresolve-ab-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-vs-python-cpt-now.json",
+      "analysis/app-version-2.9.365/evidence/official-read-sequence.json",
+      "analysis/app-version-2.9.365/evidence/official-read-sequence-replay-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-vs-python-request-compare.json",
+      "analysis/app-version-2.9.365/evidence/official-uid-mitm-startup.json",
+      "analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json",
+      "analysis/app-version-2.9.365/scripts/web_fallback_canary.py",
+      "docs/web-fallback.md",
+      "client/web.py",
+      "test_web.py",
+      "test_web_fallback_integration.py",
+      "test_service_web_probe.py"
     ]
   },
   "review_gate": {
     "all_claims_have_evidence": true,
     "triage_items_documented": true,
     "artifact_paths_recorded": true,
-    "rebuild_scripts_tested": false,
+    "rebuild_scripts_tested": true,
     "sensitive_data_redacted": true,
     "finding_redaction_metadata_complete": true,
     "ready_for_delivery": false
+  },
+  "continuation": {
+    "date": "2026-09-02",
+    "status": "app_gate_python_born_still_310017",
+    "app_gate": "310017_unresolved_for_python_born",
+    "web_is_not_app_gate": true,
+    "next": "uid MITM get_cpt_ifm matches logcat; no hidden wire fields; compare identity blessing"
   }
 }

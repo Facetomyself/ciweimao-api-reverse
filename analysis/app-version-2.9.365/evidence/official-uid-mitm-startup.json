@@ -1,0 +1,70 @@
+{
+  "tested_at": "2026-09-02",
+  "method": "uid-scoped iptables OUTPUT REDIRECT tcp/443 for appId 10237 to on-device CONNECT wrapper, then adb reverse to PC mitmdump; global http_proxy stayed null",
+  "not_used": [
+    "px-proxy global http_proxy",
+    "Frida",
+    "eCapture"
+  ],
+  "prereq": [
+    "AlwaysTrustUserCerts v1.3 already on device",
+    "sysctl net.ipv4.conf.all.route_localnet=1 for OUTPUT REDIRECT to 127.0.0.1",
+    "native CURLOPT_SSL_VERIFYPEER=0 so empty Expect/pinning is not the MITM blocker"
+  ],
+  "window": "am force-stop then SplashActivity; ~16s; no reader tap; no get_cpt_ifm",
+  "teardown": {
+    "http_proxy": "null",
+    "iptables_cwm_chain_removed": true,
+    "redir_connect_gone": true,
+    "route_localnet_restored": "0"
+  },
+  "http_version": "HTTP/1.1",
+  "host": "app1.happybooker.cn",
+  "req_header_names_all_flows": [
+    "Host",
+    "Accept",
+    "Content-Type",
+    "charsets",
+    "User-Agent",
+    "Content-Length"
+  ],
+  "missing_on_wire": [
+    "Cookie",
+    "Expect",
+    "Authorization"
+  ],
+  "resp_header_names": [
+    "Date",
+    "Content-Type",
+    "Transfer-Encoding",
+    "Connection",
+    "Vary",
+    "X-Powered-By",
+    "Cache-Control",
+    "Etag",
+    "X-XSS-Protection"
+  ],
+  "resp_missing": [
+    "Set-Cookie"
+  ],
+  "paths_in_capture_order": [
+    "/setting/get_check",
+    "/meta/get_meta_data",
+    "/setting/thired_party_switch",
+    "/setting/get_version",
+    "/setting/get_startpage_url_list",
+    "/reader/get_my_info",
+    "/bookcity/get_index_list",
+    "/reader/get_prop_info",
+    "/bookcity/add_specific_recommend_exposure"
+  ],
+  "same_set_as": "evidence/pixel6-startup-urls.json",
+  "order_vs_prior_logcat": "same nine paths; not byte-identical order (get_check before get_meta_data this window)",
+  "python_default_skips_this_prelude": true,
+  "prelude_replay_already_failed": "evidence/prelude-canary.json chapter_meta=310017",
+  "notes": [
+    "slist had empty Expect; MITM wire does not send Expect",
+    "Accept is on the wire (libcurl default); HWBP slist last-hit did not show it",
+    "no hidden precheck header or cookie on startup HTTPS"
+  ]
+}

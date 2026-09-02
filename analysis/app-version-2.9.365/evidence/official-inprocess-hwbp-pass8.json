@@ -1,0 +1,62 @@
+{
+  "tested_at": "2026-09-02T12:19:00.637190+00:00",
+  "finished_at": "2026-09-02T12:19:23.084546+00:00",
+  "question": "after_getHead0 dump after 立即阅读 is already visible",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "6106"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcwmhttps.so",
+    "so_token": "04354000",
+    "rx": {
+      "start": "0x6eba8e1000",
+      "offset": "0x4354000"
+    },
+    "hook": {
+      "name": "after_getHead0",
+      "func_off": "0x6ebc0",
+      "abs": "0x6eba94fbc0",
+      "pass_off": "0x43c2bc0"
+    }
+  },
+  "kpm": {
+    "hello_rc": 0,
+    "load_rc": 0,
+    "list_after": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload_rc": 1,
+    "list_final": ""
+  },
+  "hook": {
+    "start": "[+] 04354000 base=0x6eb658d000, 1 offset(s) | [+] HWBP set: 116 nodes (1 offsets x 116 threads), dump_size=128, flags=0x1 | [*] live trace started, press Ctrl+C to stop & unhook... | ",
+    "hit_blocks": 0,
+    "markers": [],
+    "imm_ascii": [],
+    "ascii_preview": []
+  },
+  "ui": {
+    "focus_before": "mCurrentFocus=Window{63079d7 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.frame.MainFrameActivity}",
+    "actions": [
+      "free@369,193",
+      "book:转生成为一只猫的我，决定摆烂了@553,828",
+      "ready:立即阅读@540,2263"
+    ],
+    "tap": [
+      540,
+      2263
+    ],
+    "focus_after": "mCurrentFocus=Window{6054afc u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.bookshelf.reader.ReaderActivity4}"
+  },
+  "logcat": {
+    "get_cpt_ifm": false,
+    "get_chapter_cmd": false,
+    "viselog_259": [],
+    "paths": [],
+    "codes": []
+  },
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false
+  }
+}

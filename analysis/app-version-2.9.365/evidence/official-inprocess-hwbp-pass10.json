@@ -1,0 +1,172 @@
+{
+  "tested_at": "2026-09-02T13:06:03.123681+00:00",
+  "finished_at": "2026-09-02T13:06:25.934189+00:00",
+  "question": "Walk official slist at slist_append X0 after last-hit UA",
+  "device": {
+    "serial": "18251FDF6000N9",
+    "proxy": "null",
+    "pid": "6109"
+  },
+  "mapping": {
+    "so": "lib/arm64-v8a/libcurl.so",
+    "so_token": "04510000",
+    "hook": {
+      "name": "curl_slist_append",
+      "func_off": "0x3365c",
+      "pass_off": "0x454365c"
+    }
+  },
+  "kpm": {
+    "hello_rc": 0,
+    "load_rc": 0,
+    "list_after": "[*] loaded KPM count: 1\n[*] sc_kpm_list ret=1024\n[+] modules:\nxiaojianbang-stealth-hook",
+    "unload_rc": 0,
+    "list_final": "[*] loaded KPM count: 0"
+  },
+  "hook": {
+    "start": "[+] 04510000 base=0x740a346000, 1 offset(s) | [+] HWBP set: 121 nodes (1 offsets x 121 threads), dump_size=128, flags=0x1 | [*] live trace started, press Ctrl+C to stop & unhook... | ",
+    "hit_blocks": 8,
+    "last_append_ascii": [
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr",
+      "User-Agent: Andr"
+    ],
+    "x0_seen": 8,
+    "slist_chains": [
+      {
+        "x0": "0x75992c0cb0",
+        "headers": [
+          "<empty>",
+          "<empty>"
+        ]
+      },
+      {
+        "x0": "0x75992c0a70",
+        "headers": [
+          "<empty>",
+          "<empty>",
+          "<empty>",
+          "<empty>"
+        ]
+      },
+      {
+        "x0": "0x75992bf530",
+        "headers": [
+          "<empty>",
+          "<empty>",
+          "<unreadable-node>"
+        ]
+      },
+      {
+        "x0": "0x75992e9390",
+        "headers": [
+          "<unreadable-node>"
+        ]
+      },
+      {
+        "x0": "0x7599291510",
+        "headers": [
+          "<unreadable-node>"
+        ]
+      },
+      {
+        "x0": "0x7599303bf0",
+        "headers": [
+          "<unreadable-node>"
+        ]
+      },
+      {
+        "x0": "0x7599308250",
+        "headers": [
+          "<unreadable-node>"
+        ]
+      },
+      {
+        "x0": "0x75993090d0",
+        "headers": [
+          "<unreadable-node>"
+        ]
+      }
+    ],
+    "unique_headers": [
+      "<empty>",
+      "<unreadable-node>"
+    ],
+    "header_names": [
+      "User-Agent"
+    ]
+  },
+  "ui": {
+    "actions": [
+      "free@369,193",
+      "book:崩坏世界：在天命当舰长的日子@581,1658",
+      "ready:立即阅读@540,2263"
+    ],
+    "tap": [
+      540,
+      2263
+    ],
+    "focus_after": "mCurrentFocus=Window{de6da89 u0 com.kuangxiangciweimao.novel/com.kuangxiangciweimao.novel.activity.bookshelf.detail.BookDetailActivity}"
+  },
+  "logcat": {
+    "get_cpt_ifm": true,
+    "viselog_259": [
+      "100000",
+      "100000"
+    ],
+    "paths": [
+      "/0/com",
+      "/5/l",
+      "/7/w",
+      "/accs/auth",
+      "/amdc/mobile",
+      "/android/internal",
+      "/apex/com",
+      "/book/get_book_fans_list",
+      "/book/get_bookmark_list",
+      "/book/get_info_by_id",
+      "/book/get_recommend_by_book_id",
+      "/book/get_review_list",
+      "/bookcity/get_book_correlation_lists",
+      "/cate/66650",
+      "/cgroup/uid_10175",
+      "/cgroup/uid_10237",
+      "/chapter/get_chapter_cmd",
+      "/chapter/get_cpt_ifm",
+      "/chapter/get_tsukkomi_num",
+      "/chapter/get_updated_chapter_by_division_new",
+      "/crashsdk/ucrash",
+      "/data/app",
+      "/data/huanleshuke",
+      "/data/tombstones",
+      "/data/user",
+      "/data/user_de",
+      "/detail/118637",
+      "/detail/194590",
+      "/detail/66976",
+      "/detail/67146",
+      "/dev/trusty",
+      "/docs/119267",
+      "/docs/193624",
+      "/docs/66632",
+      "/docs/66650",
+      "/files/awcn_strategy",
+      "/javalib/framework",
+      "/lib/arm64",
+      "/lib/armeabi",
+      "/lib64/libframework"
+    ],
+    "codes": [
+      "100000"
+    ]
+  },
+  "redaction": {
+    "redacted": true,
+    "raw_value_stored": false
+  }
+}

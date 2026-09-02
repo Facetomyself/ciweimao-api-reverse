@@ -5,15 +5,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
+from client.api import ApiError
+from client.downloader import NoDownloadableChapters
+from client.guest import GuestRegistrationError
+from client.web import WebChapterError
 from curl_cffi.requests.exceptions import (
     ConnectionError as CurlConnectionError,
 )
 from curl_cffi.requests.exceptions import ProxyError as CurlProxyError
 from curl_cffi.requests.exceptions import Timeout as CurlTimeout
-
-from client.api import ApiError
-from client.downloader import NoDownloadableChapters
-from client.guest import GuestRegistrationError
 
 
 class FailureCategory(StrEnum):
@@ -124,6 +124,25 @@ def classify_failure(exc: BaseException) -> FailureInfo:
                     retry_same_egress=True,
                     switch_egress=True,
                 )
+        if isinstance(current, WebChapterError):
+            status = current.status_code
+            code = current.code or (
+                f"http-{status}" if status is not None else "web-error")
+            if status in {403, 429}:
+                return FailureInfo(
+                    FailureCategory.RISK_REJECTED,
+                    code=code,
+                    retry_same_egress=True,
+                    switch_egress=True,
+                )
+            if status is not None and status >= 500:
+                return FailureInfo(
+                    FailureCategory.TRANSPORT_FAILED,
+                    code=code,
+                    retry_same_egress=True,
+                    switch_egress=True,
+                )
+            return FailureInfo(FailureCategory.CONTENT_UNAVAILABLE, code=code)
         if isinstance(current, (
                 CurlConnectionError, CurlProxyError, CurlTimeout)):
             return FailureInfo(
