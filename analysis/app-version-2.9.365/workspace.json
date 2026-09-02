@@ -122,6 +122,7 @@
       "analysis/app-version-2.9.365/evidence/official-vs-python-request-compare.json",
       "analysis/app-version-2.9.365/evidence/official-uid-mitm-startup.json",
       "analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json",
+      "analysis/app-version-2.9.365/evidence/official-vs-python-field-compare.json",
       "analysis/app-version-2.9.365/scripts/web_fallback_canary.py",
       "docs/web-fallback.md",
       "client/web.py",
@@ -144,6 +145,6 @@
     "status": "app_gate_python_born_still_310017",
     "app_gate": "310017_unresolved_for_python_born",
     "web_is_not_app_gate": true,
-    "next": "uid MITM get_cpt_ifm matches logcat; no hidden wire fields; compare identity blessing"
+    "next": "field shapes match; packet mismatch is not the gate; compare identity blessing"
   }
 }

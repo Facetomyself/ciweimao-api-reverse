@@ -1,5 +1,13 @@
 # 实验记录
 
+## 2026-09-02 官方 MITM vs Python 字段形状对照
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：顾问建议「先按设备真包逐字段对齐」。用 uid MITM 当 oracle，只记头值白名单与 body 形状，不落 token/command/`p`。
+- 本轮操作：`run_uid_mitm_read_canary.py` 再抓未缓存 `get_cpt_ifm`（缓存书仍跳过）。`compare_cpt_field_shapes.py` 用官方出生 / Python 自注册各打默认包与对齐包。未写 `tokens.json`，未 `pm clear`，`http_proxy` 保持 null。
+- 实验结果：官方头值 `Accept=*/*`、`charsets=utf-8`、长 UA，无 Expect / Cookie / Accept-Encoding。两边都是 8 个同名字段，形状一致。Python 默认键序不同、无 charsets。官方出生默认包 `100000`，自注册默认包 `310017`。
+- 下一步计划：不要再把头值/键序当 310017 门。不要对齐报文指望自注册过门。继续查两类身份的服务端放行差。
+
 ## 2026-09-02 官方读章序复放到 Python 自注册游客
 
 - 记录时间：2026-09-02（Asia/Shanghai）

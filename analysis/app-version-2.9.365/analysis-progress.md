@@ -1,6 +1,6 @@
 # 2.9.365 协议升级进度
 
-更新于 2026-09-02。状态：**App `get_cpt_ifm` 仍是主线。** Python 自注册游客固定 310017；官方出生游客在官方进程读章后，独立 App 客户端已 100000。官方读章序复放不能放行自注册游客。uid 级 MITM 已解密冷启动 9 条 HTTPS：无隐藏头/Cookie。Web 与 App 风控不同级，不能用网页链代替 App 门。
+更新于 2026-09-02。状态：**App `get_cpt_ifm` 仍是主线。** Python 自注册游客固定 310017；官方出生游客在官方进程读章后，独立 App 客户端已 100000。官方读章序复放不能放行自注册游客。uid MITM 字段对照：官方与 Python 是同一 8 键集合与同一形状；头值/键序差不是门。Web 与 App 风控不同级，不能用网页链代替 App 门。
 
 ## 目标
 
@@ -35,7 +35,7 @@ LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过�
 
 ## 当前阶段
 
-L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单键与 oldcurl 一致，无 Cookie，每次新 easy。同日官方读章成功后，该官方出生游客在 Python / oldcurl 上也变成 `100000`；Python 自注册游客仍 `310017`。uid 级透明 MITM（不是 `px-proxy` 全局代理）已解密冷启动链路。不要再钩 `0x6ebc0`，不要再密采 slist，不要 `pm clear` 这份已放行游客。不要再 Frida attach，不要再 eCapture 本栈，不要长期开全局 `http_proxy`。
+L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单键与 oldcurl 一致，无 Cookie，每次新 easy。同日官方读章成功后，该官方出生游客在 Python / oldcurl 上也变成 `100000`；Python 自注册游客仍 `310017`。uid MITM 已解密冷启动与正文，并完成字段形状对照：同一 8 键，形状一致；官方 `Accept=*/*` + `charsets`，Python 默认短 UA、无 charsets、键序不同。同一默认 Python 包仍按身份分叉。不要再对齐头/键序指望自注册过门。不要再钩 `0x6ebc0`，不要再密采 slist，不要 `pm clear` 这份已放行游客。不要再 Frida attach，不要再 eCapture 本栈，不要长期开全局 `http_proxy`。
 
 ## 2026-09-02 HWBP
 
@@ -56,6 +56,7 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 - `getAddr`：33=书签，36=目录 new，116=间贴数，264=cmd，259=cpt。官方阅读前缀复放到自注册游客仍 310017。`get_version.android_version=2.9.293`。
 - uid MITM：`http_proxy` 保持 null。冷启动 9 条 HTTP/1.1 POST，头名 Host/Accept/Content-Type/charsets/User-Agent/Content-Length；空 Expect 不上线；无 Cookie/Set-Cookie。路径集合与 `pixel6-startup-urls` 相同。prelude 复放早已 310017。
 - uid MITM 阅读：未缓存封面直进阅读器，抓到两次 `get_cpt_ifm`。键序=OFFICIAL_CPT_ORDER，头名与冷启动相同。缓存书只打旧 `get_updated_chapter_by_division_id` + `set_read_chapter_record`，不出 cpt。
+- 字段对照：官方线上头值 `Accept=*/*`、`charsets=utf-8`、长 UA；无 Expect / Cookie / Accept-Encoding。Python 默认 session 只有短 UA + Content-Type。两边 body 都是同一 8 键，形状一致。官方出生默认包 `100000`，自注册默认包 `310017`。见 `evidence/official-vs-python-field-compare.json`。
 
 ## 2026-09-02 身份移植
 
@@ -131,6 +132,7 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 | `evidence/official-vs-python-cpt-now.json` | 官方游客 Python 100000；Python 自注册仍 310017 |
 | `evidence/official-uid-mitm-startup.json` | uid MITM 冷启动 9 条；只记路径/头名 |
 | `evidence/official-uid-mitm-cpt.json` | uid MITM 官方 get_cpt_ifm 明文；只记路径/头名/键名 |
+| `evidence/official-vs-python-field-compare.json` | 官方 MITM vs Python 默认/对齐包：头值白名单 + body 形状 |
 | `evidence/official-inprocess-ecapture.json` | eCapture 强制 boringssl_a_15；无 get_cpt_ifm 明文；Frida attach 失败 |
 | `scripts/spawn_secshell_arm.py` | Frida 17 spawn + `frida:load-bridge` 投递 |
 | `scripts/secshell_arm_frida_agent.js` | 当前：过滤 maps 并 dump so 页；不要 `Interceptor.replace(fclose)` |
@@ -144,6 +146,7 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 - 正文 `310017` 不是 Python UA 写成版本号：换成 native 常量 `Android  com.kuangxiangciweimao.novel.c  ` 仍 `310017`。完整 `getHead0` UA（`2.9.365, google, Pixel 6, 35, 15`）加上 `charsets: utf-8` / `Expect:` 仍 `310017`。
 - 正文 `310017` **不是**「身份必须在官方进程里注册」：上午官方 SharedPreferences 游客移植到 Python / oldcurl 仍 `310017`。同日官方进程读章成功后，该游客在独立客户端也变成 `100000`；Python 自注册游客仍 `310017`。
 - 正文 `310017` **不是** Cookie / 连接复用 / 额外 POST 键 / `CURLOPT_IPRESOLVE=V4`：官方每次新 easy，SO 无 Cookie，`post===>` 键序与 oldcurl 一致；默认与 V4 都已 100000。
+- 正文 `310017` **不是**「Python 默认包字段集合或形状不对」：官方 MITM 与 Python 默认是同一 8 键、同一形状。头值/键序差真实存在（官方有 `Accept=*/*` 与 `charsets`），但官方出生游客用未对齐的 Python 默认包仍 `100000`。
 - eCapture **不能**作为本栈官方进程内明文面：Android 15 构建强制 BoringSSL a15，钩不到 APK OpenSSL 1.1.0f。官方阅读器打开缓存导流章时甚至不会再打 `get_cpt_ifm`。
 - 正文 `310017` **不是** native `CURLOPT_HTTP_VERSION=3`：APK `libcurl/7.56.1` 版本串无 nghttp2，setopt 返回 1（`CURLE_UNSUPPORTED_PROTOCOL`），协商 `http_version=2`（HTTP/1.1），与官方 pcap ALPN 仅 `http/1.1` 一致。
 - 正文 `310017` 不是「游客不能读」：官方匿名可打开正文；`pm clear` 后 viselog `get_cpt_ifm=100000`。
@@ -162,8 +165,8 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 ## 下一步
 
 1. App 门继续走 `/chapter/get_cpt_ifm`，不要用 Web fallback 当完成条件。
-2. 不要再钩 `after_getHead0`，不要再密采 slist，不要再复放已对齐的书签/目录/版本检查/冷启动 prelude 指望自注册游客过门。
-3. 不要 `pm clear` 已放行的官方游客。下一步对比两类身份在服务端/官方进程里的差，而不是再改 UA。
+2. 不要再钩 `after_getHead0`，不要再密采 slist，不要再复放已对齐的书签/目录/版本检查/冷启动 prelude，不要再对齐 Accept/charsets/键序指望自注册游客过门。
+3. 不要 `pm clear` 已放行的官方游客。下一步对比两类身份在服务端/官方进程里的差，而不是再改报文。
 4. 人机 GT3 只验证被拦身份恢复。不要覆盖 `tokens.json`。抓原生 HTTPS 用 uid REDIRECT，不要长期开 `px-proxy` 全局代理。不要再 Frida attach / eCapture 本栈。
 
 不要：再试 houdini ARM 改写、再 `replace(fclose)`、再盲改 `app_version`、覆盖 `tokens.json`、碰 LDPlayer index 0、把死代理留在 Pixel 上。

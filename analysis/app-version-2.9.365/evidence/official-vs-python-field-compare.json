@@ -1,0 +1,466 @@
+{
+  "tested_at": "2026-09-02",
+  "diff": {
+    "official_has_accept": true,
+    "official_accept": "*/*",
+    "official_ua": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+    "python_default_has_charsets": false,
+    "key_order_official": [
+      "account",
+      "app_version",
+      "chapter_command",
+      "chapter_id",
+      "device_token",
+      "login_token",
+      "rand_str",
+      "p"
+    ],
+    "key_order_python_default": [
+      "login_token",
+      "account",
+      "device_token",
+      "app_version",
+      "rand_str",
+      "p",
+      "chapter_id",
+      "chapter_command"
+    ],
+    "same_body_field_set": true
+  },
+  "rows": {
+    "official_mitm": {
+      "host": "app1.happybooker.cn",
+      "http_version": "HTTP/1.1",
+      "status": 200,
+      "headers": [
+        {
+          "name": "Host",
+          "value": "app1.happybooker.cn",
+          "len": 19
+        },
+        {
+          "name": "Accept",
+          "value": "*/*",
+          "len": 3
+        },
+        {
+          "name": "Content-Type",
+          "value": "application/x-www-form-urlencoded",
+          "len": 33
+        },
+        {
+          "name": "charsets",
+          "value": "utf-8",
+          "len": 5
+        },
+        {
+          "name": "User-Agent",
+          "value": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+          "len": 73
+        },
+        {
+          "name": "Content-Length",
+          "value": "268",
+          "len": 3
+        }
+      ],
+      "body_keys": [
+        "account",
+        "app_version",
+        "chapter_command",
+        "chapter_id",
+        "device_token",
+        "login_token",
+        "rand_str",
+        "p"
+      ],
+      "body_fields": [
+        {
+          "name": "account",
+          "len": 9,
+          "class": "guest_nick"
+        },
+        {
+          "name": "app_version",
+          "len": 7,
+          "class": "semver",
+          "value": "2.9.365"
+        },
+        {
+          "name": "chapter_command",
+          "len": 32,
+          "class": "hex"
+        },
+        {
+          "name": "chapter_id",
+          "len": 9,
+          "class": "digits"
+        },
+        {
+          "name": "device_token",
+          "len": 9,
+          "class": "device_token",
+          "prefix": "ciweimao_",
+          "suffix_len": 0
+        },
+        {
+          "name": "login_token",
+          "len": 32,
+          "class": "hex"
+        },
+        {
+          "name": "rand_str",
+          "len": 16,
+          "class": "hex"
+        },
+        {
+          "name": "p",
+          "len": 44,
+          "class": "ascii"
+        }
+      ]
+    },
+    "official_born": {
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "curl_cffi_session_headers": [
+        {
+          "name": "user-agent",
+          "value": "Android com.kuangxiangciweimao.novel 2.9.365",
+          "len": 44
+        },
+        {
+          "name": "content-type",
+          "value": "application/x-www-form-urlencoded",
+          "len": 33
+        }
+      ],
+      "default": {
+        "headers": [
+          {
+            "name": "User-Agent",
+            "value": "Android com.kuangxiangciweimao.novel 2.9.365",
+            "len": 44
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "len": 33
+          }
+        ],
+        "header_names": [
+          "User-Agent",
+          "Content-Type"
+        ],
+        "body_keys": [
+          "login_token",
+          "account",
+          "device_token",
+          "app_version",
+          "rand_str",
+          "p",
+          "chapter_id",
+          "chapter_command"
+        ],
+        "body_fields": [
+          {
+            "name": "login_token",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "account",
+            "len": 9,
+            "class": "guest_nick"
+          },
+          {
+            "name": "device_token",
+            "len": 9,
+            "class": "device_token",
+            "prefix": "ciweimao_",
+            "suffix_len": 0
+          },
+          {
+            "name": "app_version",
+            "len": 7,
+            "class": "semver",
+            "value": "2.9.365"
+          },
+          {
+            "name": "rand_str",
+            "len": 16,
+            "class": "hex"
+          },
+          {
+            "name": "p",
+            "len": 44,
+            "class": "base64"
+          },
+          {
+            "name": "chapter_id",
+            "len": 9,
+            "class": "digits"
+          },
+          {
+            "name": "chapter_command",
+            "len": 32,
+            "class": "hex"
+          }
+        ],
+        "body_len": 266,
+        "cpt": "100000"
+      },
+      "aligned": {
+        "headers": [
+          {
+            "name": "User-Agent",
+            "value": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+            "len": 73
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "len": 33
+          },
+          {
+            "name": "charsets",
+            "value": "utf-8",
+            "len": 5
+          }
+        ],
+        "header_names": [
+          "User-Agent",
+          "Content-Type",
+          "charsets"
+        ],
+        "body_keys": [
+          "account",
+          "app_version",
+          "chapter_command",
+          "chapter_id",
+          "device_token",
+          "login_token",
+          "rand_str",
+          "p"
+        ],
+        "body_fields": [
+          {
+            "name": "account",
+            "len": 9,
+            "class": "guest_nick"
+          },
+          {
+            "name": "app_version",
+            "len": 7,
+            "class": "semver",
+            "value": "2.9.365"
+          },
+          {
+            "name": "chapter_command",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "chapter_id",
+            "len": 9,
+            "class": "digits"
+          },
+          {
+            "name": "device_token",
+            "len": 9,
+            "class": "device_token",
+            "prefix": "ciweimao_",
+            "suffix_len": 0
+          },
+          {
+            "name": "login_token",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "rand_str",
+            "len": 16,
+            "class": "hex"
+          },
+          {
+            "name": "p",
+            "len": 44,
+            "class": "ascii"
+          }
+        ],
+        "body_len": 272
+      }
+    },
+    "python_born": {
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "curl_cffi_session_headers": [
+        {
+          "name": "user-agent",
+          "value": "Android com.kuangxiangciweimao.novel 2.9.365",
+          "len": 44
+        },
+        {
+          "name": "content-type",
+          "value": "application/x-www-form-urlencoded",
+          "len": 33
+        }
+      ],
+      "default": {
+        "headers": [
+          {
+            "name": "User-Agent",
+            "value": "Android com.kuangxiangciweimao.novel 2.9.365",
+            "len": 44
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "len": 33
+          }
+        ],
+        "header_names": [
+          "User-Agent",
+          "Content-Type"
+        ],
+        "body_keys": [
+          "login_token",
+          "account",
+          "device_token",
+          "app_version",
+          "rand_str",
+          "p",
+          "chapter_id",
+          "chapter_command"
+        ],
+        "body_fields": [
+          {
+            "name": "login_token",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "account",
+            "len": 9,
+            "class": "guest_nick"
+          },
+          {
+            "name": "device_token",
+            "len": 9,
+            "class": "device_token",
+            "prefix": "ciweimao_",
+            "suffix_len": 0
+          },
+          {
+            "name": "app_version",
+            "len": 7,
+            "class": "semver",
+            "value": "2.9.365"
+          },
+          {
+            "name": "rand_str",
+            "len": 16,
+            "class": "hex"
+          },
+          {
+            "name": "p",
+            "len": 44,
+            "class": "base64"
+          },
+          {
+            "name": "chapter_id",
+            "len": 9,
+            "class": "digits"
+          },
+          {
+            "name": "chapter_command",
+            "len": 32,
+            "class": "hex"
+          }
+        ],
+        "body_len": 266,
+        "cpt": "310017"
+      },
+      "aligned": {
+        "headers": [
+          {
+            "name": "User-Agent",
+            "value": "Android  com.kuangxiangciweimao.novel.c  2.9.365, google, Pixel 6, 35, 15",
+            "len": 73
+          },
+          {
+            "name": "Content-Type",
+            "value": "application/x-www-form-urlencoded",
+            "len": 33
+          },
+          {
+            "name": "charsets",
+            "value": "utf-8",
+            "len": 5
+          }
+        ],
+        "header_names": [
+          "User-Agent",
+          "Content-Type",
+          "charsets"
+        ],
+        "body_keys": [
+          "account",
+          "app_version",
+          "chapter_command",
+          "chapter_id",
+          "device_token",
+          "login_token",
+          "rand_str",
+          "p"
+        ],
+        "body_fields": [
+          {
+            "name": "account",
+            "len": 9,
+            "class": "guest_nick"
+          },
+          {
+            "name": "app_version",
+            "len": 7,
+            "class": "semver",
+            "value": "2.9.365"
+          },
+          {
+            "name": "chapter_command",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "chapter_id",
+            "len": 9,
+            "class": "digits"
+          },
+          {
+            "name": "device_token",
+            "len": 9,
+            "class": "device_token",
+            "prefix": "ciweimao_",
+            "suffix_len": 0
+          },
+          {
+            "name": "login_token",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "rand_str",
+            "len": 16,
+            "class": "hex"
+          },
+          {
+            "name": "p",
+            "len": 44,
+            "class": "base64"
+          }
+        ],
+        "body_len": 272
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@
 
 仓库：<https://github.com/Facetomyself/ciweimao-api-reverse>
 
-## 项目状态（2026-09-02 uid MITM 已对齐线上请求，Python 自注册仍 310017）
+## 项目状态（2026-09-02 字段对照已闭合，Python 自注册仍 310017）
 
 | 能力 | 状态 |
 |------|------|
@@ -16,11 +16,11 @@
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
 | 独立客户端读章 `get_cpt_ifm` | Python 自注册游客仍 `310017`；官方出生游客在官方进程读章成功后，同一身份在 Python / oldcurl 也可 `100000`。free-only 已接入公开 Web fallback |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
-| 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie |
+| 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie；字段集合与形状已和 Python 对齐 |
 
-章节正文接口 `310017`（提示「请升级到最新版本客户端」）不是 HMAC 换代、不是缺 POST 字段、不是 JA3 / UA / HTTP 头单项缺口，也不是 Cookie / 连接复用 / `IPRESOLVE_V4`，也不是 Python 默认键序或 TLS 栈。uid 级透明 MITM（不是全局 `http_proxy`）确认官方线上 HTTP/1.1，头名只有 Host / Accept / Content-Type / charsets / User-Agent / Content-Length；slist 里的空 `Expect` 不上线；`get_cpt_ifm` 键序与 logcat 一致。同一套 Python 默认请求：官方出生游客（今日官方读章后）`100000`，Python 自注册仍 `310017`。同一套 APK libcurl 也跟着身份走，不跟着库走。
+`get_cpt_ifm` 的 `310017` 跟着身份走，不跟着库或当前请求包走。uid MITM 官方线上是 HTTP/1.1，头为 Host / `Accept=*/*` / Content-Type / `charsets` / 长 UA / Content-Length；空 `Expect` 不上线。官方与 Python 是同一 8 键、同一形状；Python 默认短 UA、无 `charsets`、键序不同，但已放行官方出生游客用这套默认包仍 `100000`。
 
-2026-09-02 上午把官方游客移植到独立客户端仍 310017；同日官方进程内多次读章 `100000` 之后，**同一**官方游客在独立客户端变成 `100000`。不要 `pm clear` 这份已放行游客。不要再试 `getHead0` 全线程 HWBP、挂钩期间密采 slist、全局 `px-proxy`。被拦身份可走 GT3 API1。新游客 free-only 仍走公开网页链；Web 成功 ≠ App gate，见 [docs/web-fallback.md](docs/web-fallback.md)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
+2026-09-02 上午把官方游客移出官方进程仍 310017；同日官方进程多次读章后，**同一**身份在独立客户端变成 `100000`。不要 `pm clear` 这份已放行游客。不要再对齐头/键序、再钩 `getHead0`、密采 slist，或开全局 `px-proxy`。排除项见 [docs/protocol.md](docs/protocol.md)。字段对照：[official-vs-python-field-compare.json](analysis/app-version-2.9.365/evidence/official-vs-python-field-compare.json)。Web 成功 ≠ App gate，见 [docs/web-fallback.md](docs/web-fallback.md)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
 
 ## 仓库结构
 
@@ -85,7 +85,7 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 | 官方 App / APK libcurl | `1aee0238942d453d679fc1e37a303387` | `http/1.1` |
 | Python `curl_cffi` 默认 | `87e2668215f385b4ea50bcc9cbe4279d` | `h2,http/1.1` |
 
-对照证据：[evidence/tls-hello-compare.json](analysis/app-version-2.9.365/evidence/tls-hello-compare.json)。Pixel 上 APK libcurl 注册仍 `310017`；官方出生游客用 `curl_cffi` 默认 JA3 也可 `100000`。因此 JA3 / 键序 / 短 UA 都不是当前门。线上明文见 [official-uid-mitm-cpt.json](analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json)。
+对照证据：[evidence/tls-hello-compare.json](analysis/app-version-2.9.365/evidence/tls-hello-compare.json)。Pixel 上 APK libcurl 注册仍 `310017`；官方出生游客用 `curl_cffi` 默认 JA3 也可 `100000`。因此 JA3 / 键序 / 短 UA 都不是当前门。线上明文见 [official-uid-mitm-cpt.json](analysis/app-version-2.9.365/evidence/official-uid-mitm-cpt.json)，字段对照见 [official-vs-python-field-compare.json](analysis/app-version-2.9.365/evidence/official-vs-python-field-compare.json)。
 
 采集与核验入口（匿名、无需登录）：
 
@@ -105,7 +105,7 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 
 | 文档 | 内容 |
 |------|------|
-| [docs/protocol.md](docs/protocol.md) | 签名、Native 注册通路、310017 排除项（含 uid MITM） |
+| [docs/protocol.md](docs/protocol.md) | 签名、Native 注册通路、310017 排除项（含 uid MITM 与字段对照） |
 | [docs/architecture.md](docs/architecture.md) | 采集服务分层、队列与调度 |
 | [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md) | Compose / 出口 / 密钥挂载 |
 | [analysis/app-workflow/report.md](analysis/app-workflow/report.md) | 2.9.362 HMAC/AES 恢复 |

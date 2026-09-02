@@ -81,7 +81,7 @@ account, app_version, chapter_command, chapter_id, device_token, login_token, ra
 - 官方 extras + 导流章 `106129841`
 - 官方出生身份本身：2026-09-02 11:09Z SharedPreferences 游客移植到 Python 或进程外官方 libcurl，正文仍 `310017`
 - Cookie / 连接复用 / 额外 POST 键 / `CURLOPT_IPRESOLVE=V4`：官方 `post===>` 与 uid MITM 键序一致，SO 无 Cookie，每次新 easy；默认与 V4 在已放行身份上均为 100000
-- Python 默认键序、短 UA、缺 `charsets`、`curl_cffi` JA3：同一套默认 Python 请求下，已放行官方出生游客 `100000`，自注册游客 `310017`
+- Python 默认键序、短 UA、缺 `charsets`、`curl_cffi` JA3，以及字段集合/形状：官方 MITM 与 Python 默认是同一 8 键、同一形状，官方线上 `Accept=*/*`；同一套默认 Python 请求下，已放行官方出生游客 `100000`，自注册游客 `310017`（`official-vs-python-field-compare.json`）
 - 官方读章序 / 冷启动 prelude 复放
 - uid MITM 才能看见的隐藏头或 Set-Cookie：冷启动 9 条与未缓存 `get_cpt_ifm` 均无
 
@@ -89,7 +89,7 @@ account, app_version, chapter_command, chapter_id, device_token, login_token, ra
 
 官方游客完整链（`pm clear` 后）在**官方进程内** `get_cpt_ifm=100000`，不进极验。上午把同一官方出生凭据移出该进程仍 310017；当日官方读章成功后才放行。被拦身份的 310017 回包只有 `code`+`tip`；GT3 API1 可给出 `gt`/`challenge`。残留系统代理会造成「真机无法加载」，与该业务码无关。
 
-证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。身份对照：`official-vs-python-cpt-now.json`。
+证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。身份对照：`official-vs-python-cpt-now.json`。
 
 ## 独立客户端的免费章回退
 

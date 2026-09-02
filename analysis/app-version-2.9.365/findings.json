@@ -897,6 +897,33 @@
       "confidence": "high",
       "rebuild_status": "verified",
       "rebuild_path": "analysis/app-version-2.9.365/work/mitm-canary/run_uid_mitm_read_canary.py"
+    },
+    {
+      "id": "F-034",
+      "category": "network",
+      "claim": "官方 get_cpt_ifm 与 Python 默认包字段集合相同；头值/键序不同，但不是 310017 门",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST HTTP/1.1",
+        "address": "",
+        "line": 0
+      },
+      "description": "uid MITM 官方包：Accept=*/*、charsets=utf-8、长 UA、OFFICIAL_CPT_ORDER、无 Expect/Cookie/Accept-Encoding。Python 默认 session 头只有短 UA+Content-Type，键序不同。两边都是 8 个同名字段，形状一致（guest_nick 9、command 32 hex、chapter_id 9 digits、device_token=ciweimao_ suffix 0、login 32 hex、rand 16 hex、p 44）。同一默认 Python 包：官方出生 100000，自注册 310017。",
+      "evidence": {
+        "type": "network_capture",
+        "source": "analysis/app-version-2.9.365/evidence/official-vs-python-field-compare.json",
+        "value": "same_body_field_set=true; official_accept=*/*; official_born default=100000; python_born default=310017"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只记头值白名单与 body 形状；不写 token/command/p/chapter_id"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/compare_cpt_field_shapes.py"
     }
   ],
   "triage_items": [
@@ -904,8 +931,8 @@
       "id": "B-001",
       "description": "正文接口 310017：Python 自注册游客仍固定该码；官方出生游客在官方进程读章成功后，独立客户端也可 100000",
       "severity": "blocker",
-      "reason": "不是当前请求的 UA/头/表单键/IPRESOLVE，也不是 MITM 才能看见的隐藏头/Cookie。更像身份在官方进程成功读章后被服务端放行",
-      "suggested_next": "不要用 Web 链代替 App 门。不要再钩 after_getHead0 / 密采 slist。不要 pm clear 已放行官方游客。不要再用 global http_proxy。uid MITM 可复用但不要长期开。下一步仍查两类游客的服务端放行差。"
+      "reason": "不是当前请求的 UA/头/表单键/IPRESOLVE，也不是 MITM 才能看见的隐藏头/Cookie。字段集合与形状已对齐，默认包差异也已被身份交叉证伪。更像身份在官方进程成功读章后被服务端放行",
+      "suggested_next": "不要用 Web 链代替 App 门。不要再对齐 Accept/charsets/键序指望自注册过门。不要再钩 after_getHead0 / 密采 slist。不要 pm clear 已放行官方游客。不要再用 global http_proxy。下一步仍查两类游客的服务端放行差。"
     },
     {
       "id": "B-002",

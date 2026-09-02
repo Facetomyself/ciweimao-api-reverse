@@ -22,11 +22,18 @@
 2. `libcurlhttps.so` 与 `libJavaJni.so` 与 2.9.362 字节级相同。
 3. 本地过期 token 解密后得到 `200100`，证明 2.9.365 HMAC 与 AES 解密可用。
 4. 新游客下：搜索、目录、`get_chapter_cmd`、`get_chapter_download_cmd` 均为 `100000`；`get_cpt_ifm` / `download_cpt` / `check_download_cpt` 均为 `310017`，提示「请升级到最新版本客户端」。把 `app_version` 改成 `2.9.365` 并重算 HMAC **不能**过正文门。
-5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-02 上午官方出生游客离开官方进程仍 310017；同日官方进程读章成功后，该身份在 Python / oldcurl 上也变成 100000。Python 自注册游客仍 310017。uid MITM 证明不是隐藏头、Cookie、键序或 TLS 栈。
+5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-02 上午官方出生游客离开官方进程仍 310017；同日官方进程读章成功后，该身份在 Python / oldcurl 上也变成 100000。Python 自注册游客仍 310017。uid MITM 证明不是隐藏头、Cookie、TLS 栈。字段对照证明官方与 Python 是同一 8 键集合与同一形状；头值/键序差异真实存在，但官方出生游客用未对齐的 Python 默认包也能 100000。
 6. Java 仍被 SecShell 加密（`assets/classes0.jar` 约 18.9MB，非 ZIP/DEX magic）。LDPlayer 上 x86 `libSecShell-x86.so` 在 maps/`fclose` SIGSEGV。**Pixel 6 原包 ARM64 冷启动进入 `WelcomeActivity`，panda 拉到 43 个结构有效 DEX（71,775,408 字节），含 `com.kuangxiangciweimao`。** wrapper 因 dump 后进程已死标 `partial`。已 dump DEX 字符串中无明文 `get_cpt_ifm`。debug 重签包仍不能当完整性单变量。
 7. 外部源码与真实 canary 证明公开网页是可用的独立产品面：章节页 GET 后串行调用 `ajax_get_session_code` 与 `get_book_chapter_detail_info`，双层 AES-CBC 解密成功。客户端已将它接入 free-only fallback；App gate 仍单独记录为 310017。
 
 ## 关键发现
+
+### F-034：官方与 Python 默认包字段集合相同，头值/键序差不是门
+
+- **位置**：`/chapter/get_cpt_ifm` HTTP/1.1
+- **描述**：官方线上头值 `Accept=*/*`、`charsets=utf-8`、长 UA；无 Expect / Cookie / Accept-Encoding。Python 默认 session 只有短 UA + Content-Type，键序不同。两边都是 8 个同名字段，形状一致。同一默认 Python 包：官方出生 `100000`，自注册 `310017`。
+- **证据**：`evidence/official-vs-python-field-compare.json`
+- **置信度**：high
 
 ### F-033：uid MITM 已解密官方 get_cpt_ifm 明文
 

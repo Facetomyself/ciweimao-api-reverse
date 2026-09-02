@@ -17,10 +17,10 @@
 
 - **位置**：`/chapter/get_cpt_ifm`、`/chapter/download_cpt`、`/chapter/check_download_cpt`
 - **严重程度**：`blocker`
-- **原因**：Python 自注册游客仍固定 `310017`。官方出生游客在官方进程读章成功后，独立客户端也可 `100000`。不是当前请求的 UA/头/表单键/Cookie/IPRESOLVE，也不是 MITM 才能看见的隐藏头。
-- **已尝试的手段**：2.9.362/2.9.365 对照、新游客、官方 POST 键、官方 JA3、官方出生身份移植、进程外官方 libcurl、slist/X0、IPRESOLVE A/B、官方读章序复放、uid MITM 冷启动解密。
-- **证据**：`evidence/official-born-identity-canary.json`（上午 310017）、`evidence/official-vs-python-cpt-now.json`（读章后 100000 / 自注册仍 310017）、`evidence/official-ipresolve-ab-canary.json`、`evidence/official-uid-mitm-startup.json`、`evidence/official-uid-mitm-cpt.json`
-- **建议下一步**：不要用 Web 链代替 App 门。官方读章序与冷启动 prelude 复放已证伪。下一步查两类游客的服务端放行差。不要 `pm clear` 已放行官方游客，不要再钩 `0x6ebc0` / 密采 slist，不要用全局 `http_proxy`。
+- **原因**：Python 自注册游客仍固定 `310017`。官方出生游客在官方进程读章成功后，独立客户端也可 `100000`。不是当前请求的 UA/头/表单键/Cookie/IPRESOLVE，也不是 MITM 才能看见的隐藏头。字段集合与形状已对齐。
+- **已尝试的手段**：2.9.362/2.9.365 对照、新游客、官方 POST 键、官方 JA3、官方出生身份移植、进程外官方 libcurl、slist/X0、IPRESOLVE A/B、官方读章序复放、uid MITM 冷启动/正文解密、官方 vs Python 字段形状对照。
+- **证据**：`evidence/official-born-identity-canary.json`（上午 310017）、`evidence/official-vs-python-cpt-now.json`（读章后 100000 / 自注册仍 310017）、`evidence/official-ipresolve-ab-canary.json`、`evidence/official-uid-mitm-startup.json`、`evidence/official-uid-mitm-cpt.json`、`evidence/official-vs-python-field-compare.json`
+- **建议下一步**：不要用 Web 链代替 App 门。不要再对齐 Accept/charsets/键序指望自注册过门。官方读章序与冷启动 prelude 复放已证伪。下一步查两类游客的服务端放行差。不要 `pm clear` 已放行官方游客，不要再钩 `0x6ebc0` / 密采 slist，不要用全局 `http_proxy`。
 
 **当前处理**：不再把该 App gate 作为 free-only 采集的唯一阻塞。`client.web`
 在确认 `free_only=True` 后走公开章节页 + 两次 AJAX，并保持独立 Cookie jar、
