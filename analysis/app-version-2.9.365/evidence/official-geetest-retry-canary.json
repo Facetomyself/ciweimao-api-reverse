@@ -1,0 +1,65 @@
+{
+  "tested_at": "2026-09-03T00:57:57.432985+08:00",
+  "hypothesis": "API1 plus empty or dummy geetest fields cannot stamp python-born get_cpt_ifm",
+  "identity_source": "python-born-guest-canary",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "gt3_solved": false,
+  "host": "app1.hbooker.com",
+  "official_path": {
+    "trigger": "BaseTaskNew 310017 -> initJiyan setPattern(1) -> startCustomFlow",
+    "api1": "GET /signup/geetest_first_register?t=&user_id=<account>",
+    "retry": "onDialogResult writes geetest_challenge/validate/seccode then getC again",
+    "api2_used_on_stamp_event": false
+  },
+  "steps": {
+    "cpt_baseline": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    },
+    "api1": {
+      "ok": true,
+      "http_code": 200,
+      "top_keys": [
+        "challenge",
+        "gt",
+        "new_captcha",
+        "success"
+      ],
+      "success": 1,
+      "new_captcha": true,
+      "gt_len": 32,
+      "challenge_len": 32
+    },
+    "cpt_empty_geetest": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    },
+    "cpt_challenge_only": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "used_challenge_len": 32
+    },
+    "cpt_dummy_triple": {
+      "ok": false,
+      "code": "280002",
+      "tip": "登录失败,请稍后再试",
+      "validate_len": 32,
+      "seccode_len": 39,
+      "seccode_suffix": "|jordan"
+    },
+    "cpt_after": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  },
+  "chapter_id_len": 9,
+  "command_len": 32,
+  "all_still_310017": false,
+  "stamped": false,
+  "ok": false
+}

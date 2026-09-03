@@ -1,0 +1,58 @@
+{
+  "tested_at": "2026-09-03T08:25:20+08:00",
+  "hypothesis": "official GT3 bind can stamp a python-born guest when that identity is loaded into the official process",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "pm_clear_used": false,
+  "gt3_solved_by_us": false,
+  "ajax_php_solver": false,
+  "identity_source": "python-born-guest-canary",
+  "python_account_fp": "83ae0babe4e9",
+  "blessed_account_fp": "41c934e820ac",
+  "http_proxy": "null",
+  "passes": [
+    {
+      "id": "pass1",
+      "injected": true,
+      "identity_held": true,
+      "cpt_before": "310017",
+      "nav": "open_fresh_book_detail skipped ReaderActivity4 as cache-reader",
+      "stopped": "no unread BookDetail",
+      "blessed_restored": true,
+      "cpt_restored_blessed": "100000"
+    },
+    {
+      "id": "pass2",
+      "injected": true,
+      "identity_held": true,
+      "cpt_before": "310017",
+      "wipe_reader_cache": true,
+      "nav": "free-list still opened ReaderActivity4; automation backed out, but official process could complete GT3",
+      "stopped": "no unread BookDetail",
+      "blessed_restored": true,
+      "cpt_restored_blessed": "100000"
+    },
+    {
+      "id": "pass3-verify",
+      "injected": false,
+      "cpt_before": "100000",
+      "stopped": "already-stamped",
+      "note": "same guest-canary tokens, no Web, no dummy geetest"
+    }
+  ],
+  "verify_after": {
+    "python_born": {
+      "account_fp": "83ae0babe4e9",
+      "host": "app1.hbooker.com",
+      "cpt": "100000"
+    },
+    "blessed_on_device": {
+      "account_fp": "41c934e820ac",
+      "host": "app1.happybooker.cn",
+      "cpt": "100000"
+    }
+  },
+  "stamped": true,
+  "ok": true,
+  "note": "App-only. Official process used as GT3 oracle for a python-born identity. Do not treat Web chapter API as this gate."
+}

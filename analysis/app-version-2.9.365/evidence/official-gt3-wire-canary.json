@@ -1,0 +1,85 @@
+{
+  "tested_at": "2026-09-03T00:39:35+08:00",
+  "source": "analysis/app-version-2.9.365/work/mitm-canary/mitmdump-stamp.log",
+  "hypothesis": "official 310017 recovery is GT3 bind one-tap on a third-party host, not a slider UI",
+  "tokens_json_written": false,
+  "gt3_solved_by_us": false,
+  "note": "Addon only kept hbooker hosts. GeeTest plane is recovered from mitmdump access log. Query values omitted.",
+  "planes": {
+    "app_native": "HTTP/1.1 POST app host",
+    "app_okhttp_api1": "HTTP/2 GET /signup/geetest_first_register",
+    "gt3_sdk": "HTTP/1.1 to 103.143.17.166 gettype.php / get.php / ajax.php"
+  },
+  "sequence": [
+    {
+      "t": "00:39:35.595",
+      "method": "POST",
+      "path": "/chapter/get_cpt_ifm",
+      "plane": "app_native",
+      "status": 200,
+      "resp_size": "128b"
+    },
+    {
+      "t": "00:39:35.930",
+      "method": "GET",
+      "path": "/signup/geetest_first_register",
+      "plane": "app_okhttp_api1",
+      "http_version": "HTTP/2.0",
+      "status": 200,
+      "resp_size": "120b"
+    },
+    {
+      "t": "00:39:36.224",
+      "method": "GET",
+      "path": "/gettype.php",
+      "plane": "gt3_sdk",
+      "status": 200,
+      "resp_size": "234b",
+      "query_keys": ["gt"]
+    },
+    {
+      "t": "00:39:36.242",
+      "method": "GET",
+      "path": "/get.php",
+      "plane": "gt3_sdk",
+      "status": 200,
+      "resp_size": "608b",
+      "query_keys": ["gt"]
+    },
+    {
+      "t": "00:39:36.722",
+      "method": "POST",
+      "path": "/ajax.php",
+      "plane": "gt3_sdk",
+      "status": 200,
+      "resp_size": "112b",
+      "query_keys": ["gt"]
+    },
+    {
+      "t": "00:39:37.018",
+      "method": "POST",
+      "path": "/chapter/get_cpt_ifm",
+      "plane": "app_native",
+      "status": 200,
+      "resp_size": "1.0k"
+    }
+  ],
+  "timings_ms": {
+    "first_cpt_to_api1": 335,
+    "api1_to_gettype": 294,
+    "gettype_to_get": 18,
+    "get_to_ajax": 480,
+    "ajax_to_second_cpt": 296,
+    "first_cpt_to_ajax": 1127,
+    "first_cpt_to_second_cpt": 1423
+  },
+  "missing_slider_assets": true,
+  "no_pic_php": true,
+  "no_static_geetest_images": true,
+  "cpt_size_jump": {
+    "first": "128b",
+    "after_ajax": "1.0k",
+    "note": "first body matches 310017-sized encrypt; after ajax matches chapter-info-sized encrypt"
+  },
+  "ok": true
+}

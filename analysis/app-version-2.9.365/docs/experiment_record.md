@@ -1,5 +1,45 @@
 # 实验记录
 
+## 2026-09-03 Python 自注册官方 GT3 oracle
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：网页章节链风控不同，不能代替 App 门。假三元组已证伪。把仍 310017 的 Python 自注册身份交给官方 GT3 SDK。
+- 本轮操作：复用已放行备份，不 `pm clear`。把 `guest-canary-tokens.json` 写入 `LoginedUser`。清本地阅读缓存后进书城免费区。未写 `tokens.json`，未走 Web。
+- 实验结果：注入后身份能保住（`83ae0babe4e9`）。免费列表直进 `ReaderActivity4`。第一、二轮脚本把这当成失败并还原已放行游客。第三轮同一自注册身份 Python `get_cpt_ifm=100000`。设备仍是已放行游客 `41c934e820ac`，cpt `100000`。`stamped=true`。
+- 下一步计划：新身份继续用官方进程当 GT3 oracle，不要写 `ajax.php` 解题器，不要改走网页章节链。
+
+## 2026-09-03 官方 GT3 一键三枪
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：stamp-event 没点验证码却出了三元组。addon 只留 hbooker 主机，回看 mitmdump access log。
+- 本轮操作：只解析 `mitmdump-stamp.log` 的方法/路径/状态/体积/时序，去掉查询串。addon 补记 geetest 路径名。未再 `pm clear`。
+- 实验结果：第一次 cpt 128b → API1 120b → `103.143.17.166` `gettype.php`/`get.php`/`ajax.php` → 第二次 cpt 1.0k。ajax 距第一次 cpt 约 1.1s。无滑块图。
+- 下一步计划：过 App 门要接同一 bind 一键，不要写 `ajax.php` 解题器。
+
+## 2026-09-03 Python 自注册假极验重试
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：官方 310017 后走 `BaseTaskNew.initJiyan`（GT3 `setPattern(1)`），`onDialogResult` 回写三元组再 `getC`。先测 API1 + 空/假字段够不够，不解滑块。
+- 本轮操作：只用 `guest-canary-tokens.json`。基线 cpt 后拉 API1，再分别带空三元组、只带 challenge、假 validate+`|jordan` 重试，最后再打普通包。未写 `tokens.json`。
+- 实验结果：API1 `success=1`。空字段与只带 challenge 仍 `310017`。假三元组 `280002`。随后普通包回到 `310017`。`stamped=false`。
+- 下一步计划：不要再补空/假 `geetest_*`。过 App 门需要真实 GT3，不要写解题器。
+
+## 2026-09-03 全新官方游客 stamp-event
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：放行戳发生在官方进程第一次未缓存读章。已放行包没有隐藏字段，所以要抓「还没打戳」的那一次。
+- 本轮操作：备份已放行游客后 `pm clear`。新游客 Python 先打 cpt。无 MITM 进书详页，再 uid MITM 点立即阅读。跑完还原备份。未写 `tokens.json`。
+- 实验结果：新游客 Python 先 `310017`。官方第一次 `get_cpt_ifm` 仍是普通 8 键；接着 OkHttp HTTP/2 GET `/signup/geetest_first_register`；第二次 cpt 多 `geetest_challenge` / `geetest_validate` / `geetest_seccode`。之后 Python 复打 `100000`。本轮没有点验证码控件。已放行游客还原后仍 `100000`。
+- 下一步计划：查官方怎么填极验三元组。不要再复放普通 8 键包。
+
+## 2026-09-02 官方独有前置接口复放到 Python 自注册游客
+
+- 记录时间：2026-09-02（Asia/Shanghai）
+- 分析思路：已放行身份不需要当前请求带前置链。仍可能是「官方独有接口打一次戳」。先前 prelude 缺 `height`/`width`，读章序没打 `add_readbook` / `set_read_chapter_record` / `add_specific_recommend_exposure`。
+- 本轮操作：只用 `guest-canary-tokens.json`。基线 cpt 后补 `get_startpage_url_list(2400x1080)`、`get_index_list`、`get_prop_info`、曝光、阅读记录、`add_readbook(getTime 本地 19 字节, readTimes=42)`，再打 cpt。未写 `tokens.json`，未碰已放行官方游客。
+- 实验结果：补打接口全部 `100000`（曝光「上报成功」，记录「记录成功」）。cpt 前/后都是 `310017`。`stamped=false`。
+- 下一步计划：不要再复放这些前置接口。放行仍只发生在官方进程内读章成功之后。
+
 ## 2026-09-02 官方 MITM vs Python 字段形状对照
 
 - 记录时间：2026-09-02（Asia/Shanghai）

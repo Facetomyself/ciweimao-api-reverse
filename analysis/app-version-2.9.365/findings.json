@@ -924,15 +924,150 @@
       "confidence": "high",
       "rebuild_status": "verified",
       "rebuild_path": "analysis/app-version-2.9.365/work/compare_cpt_field_shapes.py"
+    },
+    {
+      "id": "F-035",
+      "category": "network",
+      "claim": "补齐官方独有前置接口不能给 Python 自注册游客打放行戳",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST after official-only prelude",
+        "address": "",
+        "line": 0
+      },
+      "description": "自注册游客补打 get_startpage_url_list(height=2400,width=1080)、get_index_list、get_prop_info、add_specific_recommend_exposure、set_read_chapter_record、add_readbook，接口本身均为 100000；cpt 前/后仍 310017。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/official-unique-replay-canary.json",
+        "value": "unique APIs 100000; cpt_baseline=310017; cpt_after=310017; stamped=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "不写 token/book_id/chapter_id"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_unique_replay_canary.py"
+    },
+    {
+      "id": "F-036",
+      "category": "network",
+      "claim": "全新官方游客的放行戳发生在官方进程对第一次 get_cpt_ifm 做极验重试之后",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "",
+        "method": "POST after geetest_first_register",
+        "address": "",
+        "line": 0
+      },
+      "description": "pm clear 后新游客 Python 先打 cpt=310017。官方进程立即阅读：第一次 get_cpt_ifm 仍是普通 8 键；接着 OkHttp HTTP/2 GET /signup/geetest_first_register；第二次 get_cpt_ifm 多 geetest_challenge/validate/seccode。之后第三次 cpt 与 Python 复打都是 100000。本轮未点验证码控件。已放行官方游客已还原。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/official-stamp-event-canary.json",
+        "value": "fresh_is_new=true; cpt_before=310017; second cpt extra=geetest_*; cpt_after=100000; stamped=true; blessed_restored=true"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "不写 token/challenge/validate/seccode/chapter_id"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_stamp_event_canary.py"
+    },
+    {
+      "id": "F-037",
+      "category": "network",
+      "claim": "只调极验 API1 或回填空/假三元组不能给 Python 自注册游客打戳",
+      "location": {
+        "file": "/chapter/get_cpt_ifm",
+        "class": "com.kuangxiangciweimao.novel.task.newtask.BaseTaskNew",
+        "method": "Glistener.onDialogResult / initJiyan setPattern(1)",
+        "address": "",
+        "line": 442
+      },
+      "description": "官方 310017 后 startCustomFlow，onButtonClick 拉 API1，onDialogResult 把 geetest_challenge/validate/seccode 写回同一 getC。Python 自注册：API1 success=1；空三元组与只带 challenge 仍 310017；假 validate+|jordan 变为 280002 登录失败；随后普通包回到 310017。stamped=false。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/official-geetest-retry-canary.json",
+        "value": "api1.ok=true; empty/challenge_only=310017; dummy_triple=280002; cpt_after=310017; stamped=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "不写 gt/challenge/validate/token"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_geetest_retry_canary.py"
+    },
+    {
+      "id": "F-038",
+      "category": "network",
+      "claim": "官方 310017 恢复是 GT3 bind 一键：gettype/get/ajax 约 1 秒，无滑块资源",
+      "location": {
+        "file": "analysis/app-version-2.9.365/work/mitm-canary/mitmdump-stamp.log",
+        "class": "com.geetest.sdk.GT3GeetestUtils",
+        "method": "startCustomFlow",
+        "address": "103.143.17.166",
+        "line": 0
+      },
+      "description": "第一次 get_cpt_ifm 回包 128b。接着 API1 120b，再对 103.143.17.166 打 GET /gettype.php、GET /get.php、POST /ajax.php（无 pic.php / 静态图）。ajax 后第二次 cpt 变成 1.0k。全程约 1.4s，自动化未点验证码。addon 原先只记 hbooker 主机，这条面在 access log。",
+      "evidence": {
+        "type": "network_trace",
+        "source": "analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json",
+        "value": "gettype+get+ajax in 1127ms; first cpt 128b; second cpt 1.0k; no slider assets"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "不写 gt/challenge 查询串"
+      },
+      "confidence": "high",
+      "rebuild_status": "extracted",
+      "rebuild_path": "analysis/app-version-2.9.365/work/mitm-canary/header_names.py"
+    },
+    {
+      "id": "F-039",
+      "category": "network",
+      "claim": "官方进程 GT3 bind 能给 Python 自注册游客打戳，之后独立客户端普通 8 键也是 100000",
+      "location": {
+        "file": "/data/data/com.kuangxiangciweimao.novel/shared_prefs/com.kuangxiangciweimao.novel_preferences.xml",
+        "class": "LoginedUser",
+        "method": "official ReaderActivity4 after prefs inject",
+        "address": "",
+        "line": 0
+      },
+      "description": "不 pm clear。自注册 83ae0babe4e9 写入官方 LoginedUser 后身份能保住。清本地阅读缓存后免费列表直进阅读器。随后同一身份 Python get_cpt_ifm=100000。已放行游客仍在设备上且 cpt=100000。未走网页章节链，未写 ajax.php 解题器。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/official-python-born-gt3-oracle-canary.json",
+        "value": "python_born 83ae0babe4e9 cpt 310017->100000; blessed 41c934e820ac still 100000; web_fallback=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只写 account_fp，不写 token/account/gt"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_python_born_gt3_oracle_canary.py"
     }
   ],
   "triage_items": [
     {
       "id": "B-001",
-      "description": "正文接口 310017：Python 自注册游客仍固定该码；官方出生游客在官方进程读章成功后，独立客户端也可 100000",
+      "description": "正文接口 310017：未打戳身份固定该码；官方进程完成 GT3 bind 后，官方出生与 Python 自注册在独立客户端都是 100000",
       "severity": "blocker",
-      "reason": "不是当前请求的 UA/头/表单键/IPRESOLVE，也不是 MITM 才能看见的隐藏头/Cookie。字段集合与形状已对齐，默认包差异也已被身份交叉证伪。更像身份在官方进程成功读章后被服务端放行",
-      "suggested_next": "不要用 Web 链代替 App 门。不要再对齐 Accept/charsets/键序指望自注册过门。不要再钩 after_getHead0 / 密采 slist。不要 pm clear 已放行官方游客。不要再用 global http_proxy。下一步仍查两类游客的服务端放行差。"
+      "reason": "门在身份有没有走过官方 GT3 bind，不在 TLS/8 键/网页章节链。本份自注册游客已被官方进程打戳。新身份仍要同一 oracle。",
+      "suggested_next": "新游客走官方 App GT3 黑盒：注入身份 → 官方读章 → 还原已放行游客。"
     },
     {
       "id": "B-002",

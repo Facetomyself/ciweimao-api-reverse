@@ -1,0 +1,233 @@
+{
+  "tested_at": "2026-09-03T00:37:38.033090+08:00",
+  "hypothesis": "first official-process uncached get_cpt_ifm is the stamp event",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "pm_clear_used": true,
+  "blessed_restored": true,
+  "actions": [
+    "unlock",
+    "cold-start",
+    "unlock",
+    "agree",
+    "onboard:跳过",
+    "mainframe",
+    "python-pre-cpt",
+    "tab:书城@coord",
+    "free@369,193",
+    "book:人在方舟，老婆是老天师",
+    "book:病弱少女的柯学攻略手册",
+    "book:我的系统带着聊天群？",
+    "book:从星铁归来的方舟陈父",
+    "book:能连接次元的我想成为英雄",
+    "book:从零开始的观影体，得知真相后，她们崩溃了",
+    "scroll-free",
+    "book:人在方舟，老婆是老天师",
+    "book-detail",
+    "mitm-up",
+    "read:立即阅读",
+    "back",
+    "dismiss-shelf",
+    "back"
+  ],
+  "steps": {
+    "backup": {
+      "reused": true,
+      "bytes": 60938789,
+      "has_prefs": true,
+      "owner": "10237:10237",
+      "tar_rc": 0,
+      "pull_rc": 0,
+      "file_count": 0,
+      "ok": true
+    },
+    "blessed_identity": {
+      "account_len": 9,
+      "account_fp": "41c934e820ac",
+      "login_token_len": 32,
+      "device_token": "ciweimao_",
+      "device_token_is_prefix_only": true,
+      "is_bind": 0,
+      "reader_id_len": 8,
+      "reader_id_last": "2"
+    },
+    "pm_clear": "Success",
+    "fresh_identity": {
+      "account_len": 9,
+      "account_fp": "e9341c592c27",
+      "login_token_len": 32,
+      "device_token": "ciweimao_",
+      "device_token_is_prefix_only": true,
+      "is_bind": 0,
+      "reader_id_len": 8,
+      "reader_id_last": "7"
+    },
+    "fresh_is_new": true,
+    "cpt_before_official_read": {
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.hbooker.com"
+    },
+    "mitm": {
+      "flow_count": 14,
+      "paths": [
+        "/book/get_bookmark_list",
+        "/chapter/get_updated_chapter_by_division_new",
+        "/book/get_bookmark_list",
+        "/chapter/get_chapter_cmd",
+        "/chapter/get_cpt_ifm",
+        "/signup/geetest_first_register",
+        "/chapter/get_cpt_ifm",
+        "/chapter/get_tsukkomi_num",
+        "/chapter/get_chapter_cmd",
+        "/chapter/get_cpt_ifm",
+        "/reader/add_readbook",
+        "/bookshelf/get_shelf_list",
+        "/task/get_sign_record",
+        "/bookshelf/get_shelf_book_list_new"
+      ],
+        "has_auto_reg": false,
+      "has_get_cpt_ifm": true,
+      "has_geetest_api1": true,
+      "geetest_api1": {
+        "path": "/signup/geetest_first_register",
+        "method": "GET",
+        "http_version": "HTTP/2.0",
+        "status": 200,
+        "note": "OkHttp plane; query string not kept by addon. No captcha tap in this run."
+      },
+      "cpt_variants": [
+        {
+          "index": 0,
+          "extra_keys": [],
+          "has_geetest": false
+        },
+        {
+          "index": 1,
+          "extra_keys": [
+            "geetest_challenge",
+            "geetest_seccode",
+            "geetest_validate"
+          ],
+          "has_geetest": true,
+          "field_shapes": [
+            {"name": "geetest_challenge", "len": 32, "class": "hex"},
+            {"name": "geetest_seccode", "len": 39, "class": "ascii"},
+            {"name": "geetest_validate", "len": 32, "class": "hex"}
+          ]
+        },
+        {
+          "index": 2,
+          "extra_keys": [],
+          "has_geetest": false
+        }
+      ],
+      "first_cpt": {
+        "host": "app1.hbooker.com",
+        "http_version": "HTTP/1.1",
+        "status": 200,
+        "header_names": [
+          "Host",
+          "Accept",
+          "Content-Type",
+          "charsets",
+          "User-Agent",
+          "Content-Length"
+        ],
+        "body_keys": [
+          "account",
+          "app_version",
+          "chapter_command",
+          "chapter_id",
+          "device_token",
+          "login_token",
+          "rand_str",
+          "p"
+        ],
+        "same_key_set": true,
+        "same_key_order": true,
+        "extra_keys": [],
+        "missing_keys": [],
+        "body_fields": [
+          {
+            "name": "account",
+            "len": 9,
+            "class": "guest_nick"
+          },
+          {
+            "name": "app_version",
+            "len": 7,
+            "class": "semver",
+            "value": "2.9.365"
+          },
+          {
+            "name": "chapter_command",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "chapter_id",
+            "len": 9,
+            "class": "digits"
+          },
+          {
+            "name": "device_token",
+            "len": 9,
+            "class": "device_token",
+            "prefix": "ciweimao_",
+            "suffix_len": 0
+          },
+          {
+            "name": "login_token",
+            "len": 32,
+            "class": "hex"
+          },
+          {
+            "name": "rand_str",
+            "len": 16,
+            "class": "hex"
+          },
+          {
+            "name": "p",
+            "len": 44,
+            "class": "base64"
+          }
+        ]
+      }
+    },
+    "cpt_after_official_read": {
+      "code": "100000",
+      "tip": "",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.hbooker.com"
+    },
+    "restore": {
+      "ok": true,
+      "tar_rc": 0
+    },
+    "restored_identity": {
+      "account_len": 9,
+      "account_fp": "41c934e820ac",
+      "login_token_len": 32,
+      "device_token": "ciweimao_",
+      "device_token_is_prefix_only": true,
+      "is_bind": 0,
+      "reader_id_len": 8,
+      "reader_id_last": "2"
+    },
+    "cpt_restored_blessed": {
+      "code": "100000",
+      "tip": "",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.happybooker.cn"
+    }
+  },
+  "http_proxy_before": "null",
+  "stamped": true,
+  "http_proxy_after_mitm": "null",
+  "ok": true
+}

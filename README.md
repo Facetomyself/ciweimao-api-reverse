@@ -6,7 +6,7 @@
 
 仓库：<https://github.com/Facetomyself/ciweimao-api-reverse>
 
-## 项目状态（2026-09-02 字段对照已闭合，Python 自注册仍 310017）
+## 项目状态（2026-09-03：App 门是官方 GT3 bind；自注册可被官方进程打戳）
 
 | 能力 | 状态 |
 |------|------|
@@ -14,13 +14,13 @@
 | 响应 AES-256-CBC | 已复现（2.9.352+ current key） |
 | 游客注册 / 搜索 / 书城 / 目录 / `get_chapter_cmd` | 已复现，业务码 `100000` |
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
-| 独立客户端读章 `get_cpt_ifm` | Python 自注册游客仍 `310017`；官方出生游客在官方进程读章成功后，同一身份在 Python / oldcurl 也可 `100000`。free-only 已接入公开 Web fallback |
+| 独立客户端读章 `get_cpt_ifm` | 未打戳身份 `310017`。官方进程走完 GT3 bind 后，同一身份（含 Python 自注册）普通 8 键也是 `100000` |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
 | 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie；字段集合与形状已和 Python 对齐 |
 
-`get_cpt_ifm` 的 `310017` 跟着身份走，不跟着库或当前请求包走。uid MITM 官方线上是 HTTP/1.1，头为 Host / `Accept=*/*` / Content-Type / `charsets` / 长 UA / Content-Length；空 `Expect` 不上线。官方与 Python 是同一 8 键、同一形状；Python 默认短 UA、无 `charsets`、键序不同，但已放行官方出生游客用这套默认包仍 `100000`。
+`get_cpt_ifm` 的 `310017` 跟着「这个身份有没有走过官方 GT3 bind 一键」走。官方线是 API1 → `gettype.php`/`get.php`/`ajax.php`（约 1s，无滑块图）→ 带三元组的第二次 cpt。只调 API1 或假 `validate|jordan` 不能打戳。把 Python 自注册身份写进官方 App 后，官方进程可以给它打戳；之后独立客户端普通 8 键也是 `100000`。网页章节链是另一条产品面。
 
-2026-09-02 上午把官方游客移出官方进程仍 310017；同日官方进程多次读章后，**同一**身份在独立客户端变成 `100000`。不要 `pm clear` 这份已放行游客。不要再对齐头/键序、再钩 `getHead0`、密采 slist，或开全局 `px-proxy`。排除项见 [docs/protocol.md](docs/protocol.md)。字段对照：[official-vs-python-field-compare.json](analysis/app-version-2.9.365/evidence/official-vs-python-field-compare.json)。Web 成功 ≠ App gate，见 [docs/web-fallback.md](docs/web-fallback.md)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
+闭合事实见 [docs/protocol.md](docs/protocol.md)。GT3 线：[official-gt3-wire-canary.json](analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json)。自注册打戳：[official-python-born-gt3-oracle-canary.json](analysis/app-version-2.9.365/evidence/official-python-born-gt3-oracle-canary.json)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
 
 ## 仓库结构
 
@@ -71,7 +71,7 @@ Native 发送路径：`AutoRegTask.getC(17)` → `NetUtils.track` → `CenterDat
 | 评论 | `/book/get_review_list` | 热门 `type=2`；普通 `type=1` |
 | 整本目录 | `/chapter/get_updated_chapter_by_division_new` | `division_id=0` |
 | 章节 command | `/chapter/get_chapter_cmd` | `chapter_id` |
-| 章节元数据 | `/chapter/get_cpt_ifm` | `chapter_id`、`chapter_command`；官方进程 `100000`；Python 自注册仍 `310017` |
+| 章节元数据 | `/chapter/get_cpt_ifm` | `chapter_id`、`chapter_command`；被拦时官方会再带 `geetest_*` 重试；打戳后普通 8 键即可 |
 | 间贴计数 | `/chapter/get_tsukkomi_num` | `chapter_id` |
 
 免费章过滤必须同时满足 `is_paid=0` 且 `auth_access=1`。正文 CDN 为 `gzip → zlib → UTF-8 HTML fragment`。业务 API 走 native libcurl；CDN 走 Java/OkHttp，服从系统代理。残留 `http_proxy=127.0.0.1:8085` 会让官方阅读器停在加载中，与协议门无关。

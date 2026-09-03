@@ -1,6 +1,6 @@
 # App 2.9.365 协议冻结说明
 
-更新：2026-09-02。正文接口对 Python 自注册游客仍是 `310017`。本文件只记录已经闭合的事实。
+更新：2026-09-03。正文接口跟着「这个身份有没有走过官方 GT3 bind」走。Python 自注册在官方进程打戳后普通 8 键也是 `100000`。本文件只记录已经闭合的事实。
 
 详细 canary 与排除项见 [analysis/app-version-2.9.365/analysis-progress.md](../analysis/app-version-2.9.365/analysis-progress.md)、[report.md](../analysis/app-version-2.9.365/report.md)。
 
@@ -83,13 +83,19 @@ account, app_version, chapter_command, chapter_id, device_token, login_token, ra
 - Cookie / 连接复用 / 额外 POST 键 / `CURLOPT_IPRESOLVE=V4`：官方 `post===>` 与 uid MITM 键序一致，SO 无 Cookie，每次新 easy；默认与 V4 在已放行身份上均为 100000
 - Python 默认键序、短 UA、缺 `charsets`、`curl_cffi` JA3，以及字段集合/形状：官方 MITM 与 Python 默认是同一 8 键、同一形状，官方线上 `Accept=*/*`；同一套默认 Python 请求下，已放行官方出生游客 `100000`，自注册游客 `310017`（`official-vs-python-field-compare.json`）
 - 官方读章序 / 冷启动 prelude 复放
+- 官方独有前置接口：`get_startpage_url_list(height=2400,width=1080)`、`get_index_list`、`get_prop_info`、`add_specific_recommend_exposure`、`set_read_chapter_record`、`add_readbook` 在自注册游客上都是 `100000`，随后 cpt 仍 `310017`（`official-unique-replay-canary.json`）
 - uid MITM 才能看见的隐藏头或 Set-Cookie：冷启动 9 条与未缓存 `get_cpt_ifm` 均无
+- 全新官方游客的**第一次** `get_cpt_ifm` 另有隐藏字段：第一次仍是上面那 8 键。打戳发生在随后的极验重试（`official-stamp-event-canary.json`）
+- 只调 API1，或回填空/`challenge` only / 假 `validate|jordan`：空与 only 仍 `310017`，假三元组是 `280002`，随后普通包回到 `310017`（`official-geetest-retry-canary.json`）
+- 「没点验证码」不是漏字段：官方 GT3 是 bind 一键，`gettype.php` → `get.php` → `ajax.php` 约 1s，无滑块资源；第一次 cpt 128b，ajax 后 1.0k（`official-gt3-wire-canary.json`）
 
-2026-09-02 官方进程内多次 `get_cpt_ifm=100000` 之后，**同一**官方出生游客在 Python curl_cffi 与 APK libcurl 上变成 `100000`。对照的 Python 自注册游客仍 `310017`。不要把「已放行官方游客」写成协议已对所有独立客户端恢复。不要用全局 `http_proxy` 抓 native；uid `10237` REDIRECT 才看得到业务 HTTPS。
+2026-09-03 对 `pm clear` 后的全新官方游客：Python 先打 `310017`。官方立即阅读时第一次 `get_cpt_ifm` 仍是 8 键；接着 OkHttp HTTP/2 GET `/signup/geetest_first_register`；第二次 `get_cpt_ifm` 增加 `geetest_challenge` / `geetest_validate` / `geetest_seccode`。之后同一游客在 Python 上变成 `100000`。已放行身份再用普通 8 键也能 `100000`。
 
-官方游客完整链（`pm clear` 后）在**官方进程内** `get_cpt_ifm=100000`，不进极验。上午把同一官方出生凭据移出该进程仍 310017；当日官方读章成功后才放行。被拦身份的 310017 回包只有 `code`+`tip`；GT3 API1 可给出 `gt`/`challenge`。残留系统代理会造成「真机无法加载」，与该业务码无关。
+同日把仍 `310017` 的 Python 自注册身份写入官方 SharedPreferences：官方进程能保住该身份。清掉本地阅读缓存后进入 `ReaderActivity4`，随后同一自注册身份在独立客户端变成 `100000`。已放行官方游客还原后仍 `100000`。网页章节链是另一条产品面。uid `10237` REDIRECT 才能看见 native 业务 HTTPS；全局 `http_proxy` 看不到这条面。
 
-证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。身份对照：`official-vs-python-cpt-now.json`。
+被拦身份的 310017 回包只有 `code`+`tip`。官方 `BaseTaskNew` 对 310017 走 GT3 bind（`setPattern(1)` + `startCustomFlow`），`onDialogResult` 把三元组写回同一 `getC`。API1 本身不够；假三元组是 `280002`。官方 SDK 自己走完 bind 一键。残留系统代理会造成「真机无法加载」，与该业务码无关。
+
+证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。自注册官方打戳：`official-python-born-gt3-oracle-canary.json`。stamp-event：`official-stamp-event-canary.json`。假重试：`official-geetest-retry-canary.json`。GT3 线：`official-gt3-wire-canary.json`。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。官方独有接口复放：`official-unique-replay-canary.json`。身份对照：`official-vs-python-cpt-now.json`。
 
 ## 独立客户端的免费章回退
 

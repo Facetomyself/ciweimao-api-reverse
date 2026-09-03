@@ -1,0 +1,66 @@
+{
+  "tested_at": "2026-09-02T23:56:26.588500+08:00",
+  "hypothesis": "official-only startpage/exposure/read-record APIs stamp python-born get_cpt_ifm",
+  "identity_source": "python-born-guest-canary",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "host": "app1.hbooker.com",
+  "steps": {
+    "get_my_info": {
+      "ok": true,
+      "code": "100000"
+    },
+    "cpt_baseline": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    },
+    "get_startpage_url_list": {
+      "ok": true,
+      "code": "100000",
+      "extras": {
+        "height": "2400",
+        "width": "1080"
+      }
+    },
+    "get_index_list": {
+      "ok": true,
+      "code": "100000"
+    },
+    "get_prop_info": {
+      "ok": true,
+      "code": "100000"
+    },
+    "add_specific_recommend_exposure": {
+      "ok": true,
+      "code": "100000",
+      "tip": "上报成功",
+      "extras": {
+        "from_module_name": "module_list",
+        "from_page_name": "bookcity"
+      }
+    },
+    "set_read_chapter_record": {
+      "ok": true,
+      "code": "100000",
+      "tip": "记录成功"
+    },
+    "add_readbook": {
+      "ok": true,
+      "code": "100000",
+      "tip": "记录成功",
+      "getTime_len": 19,
+      "readTimes": "42"
+    },
+    "cpt_after": {
+      "ok": false,
+      "code": "310017",
+      "tip": "请升级到最新版本客户端"
+    }
+  },
+  "book_id_len": 9,
+  "chapter_id_len": 9,
+  "command_len": 32,
+  "ok": false,
+  "stamped": false
+}

@@ -1,6 +1,6 @@
 # 2.9.365 协议升级进度
 
-更新于 2026-09-02。状态：**App `get_cpt_ifm` 仍是主线。** Python 自注册游客固定 310017；官方出生游客在官方进程读章后，独立 App 客户端已 100000。官方读章序复放不能放行自注册游客。uid MITM 字段对照：官方与 Python 是同一 8 键集合与同一形状；头值/键序差不是门。Web 与 App 风控不同级，不能用网页链代替 App 门。
+更新于 2026-09-03。状态：**这份 Python 自注册游客已被官方进程 GT3 bind 打戳，独立客户端 `get_cpt_ifm=100000`。** 新身份仍走同一官方 SDK 黑盒。
 
 ## 目标
 
@@ -8,7 +8,7 @@
 
 ## 暂停原因（已解除）
 
-LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过，不再作为主阻塞。正文接口 `310017` 仍未过。
+LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过，不再作为主阻塞。本份 Python 自注册游客正文已 `100000`；新身份仍要官方 GT3 打戳。
 
 ## 执行环境（恢复时核对）
 
@@ -35,7 +35,43 @@ LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过�
 
 ## 当前阶段
 
-L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单键与 oldcurl 一致，无 Cookie，每次新 easy。同日官方读章成功后，该官方出生游客在 Python / oldcurl 上也变成 `100000`；Python 自注册游客仍 `310017`。uid MITM 已解密冷启动与正文，并完成字段形状对照：同一 8 键，形状一致；官方 `Accept=*/*` + `charsets`，Python 默认短 UA、无 charsets、键序不同。同一默认 Python 包仍按身份分叉。不要再对齐头/键序指望自注册过门。不要再钩 `0x6ebc0`，不要再密采 slist，不要 `pm clear` 这份已放行游客。不要再 Frida attach，不要再 eCapture 本栈，不要长期开全局 `http_proxy`。
+L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保住该身份并完成 GT3 bind。随后独立客户端普通 8 键 `100000`。已放行游客仍在设备上。新游客继续走官方 SDK 黑盒。
+
+## 2026-09-03 Python 自注册官方 GT3 oracle
+
+- 不 `pm clear`。备份已放行游客后，把 `guest-canary-tokens.json` 写入官方 `LoginedUser`。
+- 注入后 `account_fp` 从 `41c934e820ac` 变成 `83ae0babe4e9`，冷启动仍是这份自注册身份。
+- 已放行游客的本地阅读缓存会让免费列表直进 `ReaderActivity4`。清缓存后官方进程仍走阅读器。
+- 自动化第一、二轮把直进阅读器当成失败并还原。第三轮再打同一自注册身份：`get_cpt_ifm=100000`。
+- 设备上已放行游客仍是 `41c934e820ac`，cpt `100000`。`http_proxy=null`。未写 `tokens.json`，未走 Web。
+- 见 `evidence/official-python-born-gt3-oracle-canary.json`。
+
+## 2026-09-03 GT3 一键三枪
+
+- stamp mitmdump 里除了 hbooker，还有 `103.143.17.166`：`GET /gettype.php` → `GET /get.php` → `POST /ajax.php`。
+- 第一次 `get_cpt_ifm` 128b，ajax 后第二次 1.0k。全程约 1.4s，无 `pic.php`、无静态图。
+- 这就是「没点验证码也出三元组」：bind 一键，不是漏了隐藏 8 键。
+- addon 补记 `geetest.com` / `geevisit.com` 与这三条 path。查询串不落盘。
+- 见 `evidence/official-gt3-wire-canary.json`。
+
+## 2026-09-03 假极验重试
+
+- Python 自注册 `guest-canary-tokens.json`。未写 `tokens.json`，未碰已放行游客。
+- API1 `success=1`，`gt`/`challenge` 各 32。
+- 空三元组、只带 challenge：cpt 仍 `310017`。
+- 假 validate + `seccode=validate|jordan`：`280002`「登录失败,请稍后再试」。
+- 随后普通包回到 `310017`。`stamped=false`。
+- 官方 Java：`310017` → `initJiyan` `setPattern(1)` → `startCustomFlow` → `onDialogResult` 回写三元组再 `getC`。没有走 `geetest_second_validate`。
+- 见 `evidence/official-geetest-retry-canary.json`。
+
+## 2026-09-03 stamp-event
+
+- 先备份已放行官方游客（`cwm-blessed.tgz`），`pm clear` 出全新游客，Python 先打 cpt=`310017`。
+- 无 MITM 进书详页，再 uid MITM，点立即阅读。
+- 线上序：bookmark → `division_new` → bookmark → cmd → **8 键 cpt** → GET `geetest_first_register`（HTTP/2）→ **11 键 cpt（多 geetest 三元组）** → 间贴 → cmd → 8 键 cpt → `add_readbook`。
+- 之后同一新游客 Python cpt=`100000`。`stamped=true`。已放行游客已还原，cpt 仍 100000。
+- 第一次 8 键包没有隐藏头。打戳差在极验重试，不在 TLS / 键序 / 前置接口。
+- 见 `evidence/official-stamp-event-canary.json`。
 
 ## 2026-09-02 HWBP
 
@@ -57,6 +93,7 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 - uid MITM：`http_proxy` 保持 null。冷启动 9 条 HTTP/1.1 POST，头名 Host/Accept/Content-Type/charsets/User-Agent/Content-Length；空 Expect 不上线；无 Cookie/Set-Cookie。路径集合与 `pixel6-startup-urls` 相同。prelude 复放早已 310017。
 - uid MITM 阅读：未缓存封面直进阅读器，抓到两次 `get_cpt_ifm`。键序=OFFICIAL_CPT_ORDER，头名与冷启动相同。缓存书只打旧 `get_updated_chapter_by_division_id` + `set_read_chapter_record`，不出 cpt。
 - 字段对照：官方线上头值 `Accept=*/*`、`charsets=utf-8`、长 UA；无 Expect / Cookie / Accept-Encoding。Python 默认 session 只有短 UA + Content-Type。两边 body 都是同一 8 键，形状一致。官方出生默认包 `100000`，自注册默认包 `310017`。见 `evidence/official-vs-python-field-compare.json`。
+- 官方独有前置接口复放：`get_startpage_url_list(2400x1080)`、`get_index_list`、`get_prop_info`、`add_specific_recommend_exposure`、`set_read_chapter_record`、`add_readbook` 在自注册游客上均为 `100000`；cpt 前/后仍 `310017`。见 `evidence/official-unique-replay-canary.json`。
 
 ## 2026-09-02 身份移植
 
@@ -83,7 +120,7 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 | 游客注册 | 可用 |
 | 搜索/榜单/目录 | 可用 |
 | `get_chapter_cmd` | 可用 |
-| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 官方进程内 100000。官方出生游客在今日进程内读章成功后，Python / oldcurl 也 100000；Python 自注册游客仍 310017。free-only 已有 Web fallback |
+| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 未打戳 `310017`。官方进程 GT3 bind 后，官方出生与 Python 自注册都可用普通 8 键 `100000`。网页链不是这条门 |
 | `client.web` Web fallback | 已实现；文本免费章 Web detail=`100000`，VIP/图片章不覆盖 |
 | SecShell 解密 DEX | Pixel 6 panda：43 DEX / 71MB，业务包名已在 `dex_0x72090ab000.dex` 等；wrapper 标 `partial`（dump 后 SIGCONT 时进程已死）。不是完整脱壳声明 |
 | LDPlayer 原包启动 | x86 so 可映射，随后 maps/`fclose` SIGSEGV；停在 Splash 或直接崩。真机已替代 |
@@ -129,10 +166,15 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 | `evidence/official-born-oldcurl-canary.json` | 上午同一官方游客 → Pixel 官方 libcurl：正文 310017 |
 | `evidence/official-inprocess-hwbp-pass10.json` | slist 末次 UA；X0 链空；正文 100000 |
 | `evidence/official-ipresolve-ab-canary.json` | 官方游客 oldcurl 默认/V4 均为 100000 |
-| `evidence/official-vs-python-cpt-now.json` | 官方游客 Python 100000；Python 自注册仍 310017 |
+| `evidence/official-vs-python-cpt-now.json` | 当时：官方游客 Python 100000；自注册仍 310017。已被 F-039 更新 |
 | `evidence/official-uid-mitm-startup.json` | uid MITM 冷启动 9 条；只记路径/头名 |
 | `evidence/official-uid-mitm-cpt.json` | uid MITM 官方 get_cpt_ifm 明文；只记路径/头名/键名 |
 | `evidence/official-vs-python-field-compare.json` | 官方 MITM vs Python 默认/对齐包：头值白名单 + body 形状 |
+| `evidence/official-unique-replay-canary.json` | 官方独有前置接口复放到自注册游客：接口 100000，cpt 仍 310017 |
+| `evidence/official-stamp-event-canary.json` | 全新官方游客：8 键 cpt → 极验 API1 → 带 `geetest_*` 的第二次 cpt → Python 100000 |
+| `evidence/official-geetest-retry-canary.json` | 自注册 API1 + 空/假三元组：空仍 310017，假三元组 280002，未打戳 |
+| `evidence/official-gt3-wire-canary.json` | stamp mitmdump：gettype/get/ajax ~1s，cpt 128b→1.0k，无滑块资源 |
+| `evidence/official-python-born-gt3-oracle-canary.json` | 自注册写入官方 App 后打戳；Python cpt 310017→100000；已放行游客仍在 |
 | `evidence/official-inprocess-ecapture.json` | eCapture 强制 boringssl_a_15；无 get_cpt_ifm 明文；Frida attach 失败 |
 | `scripts/spawn_secshell_arm.py` | Frida 17 spawn + `frida:load-bridge` 投递 |
 | `scripts/secshell_arm_frida_agent.js` | 当前：过滤 maps 并 dump so 页；不要 `Interceptor.replace(fclose)` |
@@ -144,9 +186,13 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 - 业务码 `code` 不是接口生成的 token：客户端只读解密 JSON 的 `code`；`100000`/`200100`/`310001`/`310002`/`310017` 在 `BaseTaskNew` 硬编码分支。真正由接口生成的是 `chapter_command`（`get_chapter_cmd`）和极验三元组（`310017` 之后）。
 - 正文 `310017` 不是缺 `send_client_info`、不是主机 `hbooker.com` vs `happybooker.cn`、不是 `chrome99_android` impersonate、不是缺官方冷启动 prelude。Python 空参 `send_client_info` 已 `100000`。官方启动未打该接口。uid MITM 确认 prelude 线上也没有隐藏头/Cookie。
 - 正文 `310017` 不是 Python UA 写成版本号：换成 native 常量 `Android  com.kuangxiangciweimao.novel.c  ` 仍 `310017`。完整 `getHead0` UA（`2.9.365, google, Pixel 6, 35, 15`）加上 `charsets: utf-8` / `Expect:` 仍 `310017`。
-- 正文 `310017` **不是**「身份必须在官方进程里注册」：上午官方 SharedPreferences 游客移植到 Python / oldcurl 仍 `310017`。同日官方进程读章成功后，该游客在独立客户端也变成 `100000`；Python 自注册游客仍 `310017`。
+- 正文 `310017` **不是**「身份必须在官方进程里注册」：上午官方 SharedPreferences 游客移植到 Python / oldcurl 仍 `310017`。官方进程读章成功后该游客变成 `100000`。Python 自注册也不是「永远不能打戳」：写入官方 prefs 后官方 GT3 bind 同样能放行。
 - 正文 `310017` **不是** Cookie / 连接复用 / 额外 POST 键 / `CURLOPT_IPRESOLVE=V4`：官方每次新 easy，SO 无 Cookie，`post===>` 键序与 oldcurl 一致；默认与 V4 都已 100000。
 - 正文 `310017` **不是**「Python 默认包字段集合或形状不对」：官方 MITM 与 Python 默认是同一 8 键、同一形状。头值/键序差真实存在（官方有 `Accept=*/*` 与 `charsets`），但官方出生游客用未对齐的 Python 默认包仍 `100000`。
+- 正文 `310017` **不是**缺官方独有前置接口：自注册游客补 `startpage`/`index`/`prop`/曝光/阅读记录/`add_readbook` 全部 `100000`，cpt 仍 `310017`。
+- 正文 `310017` **不是**全新官方游客第一次 cpt 有隐藏 8 键外字段：第一次仍是 `OFFICIAL_CPT_ORDER`。差在随后的极验重试。
+- 正文 `310017` **不是**只调 API1 或回填空/假三元组：空与 challenge-only 仍 310017；假 `validate|jordan` 是 280002。三元组必须来自 GT3 `onDialogResult`。
+- 「没点验证码」**不是**漏了隐藏业务字段：官方 GT3 是 bind 一键三枪，无滑块资源。
 - eCapture **不能**作为本栈官方进程内明文面：Android 15 构建强制 BoringSSL a15，钩不到 APK OpenSSL 1.1.0f。官方阅读器打开缓存导流章时甚至不会再打 `get_cpt_ifm`。
 - 正文 `310017` **不是** native `CURLOPT_HTTP_VERSION=3`：APK `libcurl/7.56.1` 版本串无 nghttp2，setopt 返回 1（`CURLE_UNSUPPORTED_PROTOCOL`），协商 `http_version=2`（HTTP/1.1），与官方 pcap ALPN 仅 `http/1.1` 一致。
 - 正文 `310017` 不是「游客不能读」：官方匿名可打开正文；`pm clear` 后 viselog `get_cpt_ifm=100000`。
@@ -164,9 +210,5 @@ L3 运行时：官方进程内 `get_cpt_ifm` 已多次 `100000`。官方表单�
 
 ## 下一步
 
-1. App 门继续走 `/chapter/get_cpt_ifm`，不要用 Web fallback 当完成条件。
-2. 不要再钩 `after_getHead0`，不要再密采 slist，不要再复放已对齐的书签/目录/版本检查/冷启动 prelude，不要再对齐 Accept/charsets/键序指望自注册游客过门。
-3. 不要 `pm clear` 已放行的官方游客。下一步对比两类身份在服务端/官方进程里的差，而不是再改报文。
-4. 人机 GT3 只验证被拦身份恢复。不要覆盖 `tokens.json`。抓原生 HTTPS 用 uid REDIRECT，不要长期开 `px-proxy` 全局代理。不要再 Frida attach / eCapture 本栈。
-
-不要：再试 houdini ARM 改写、再 `replace(fclose)`、再盲改 `app_version`、覆盖 `tokens.json`、碰 LDPlayer index 0、把死代理留在 Pixel 上。
+1. 新游客走官方 App GT3 黑盒：注入身份 → 官方读章 → 还原已放行游客。
+2. 客户端接上同一胶水：`310017` → API1 → 官方 SDK 回写三元组 → 再打 `get_cpt_ifm`。

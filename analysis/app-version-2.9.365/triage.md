@@ -1,14 +1,14 @@
 # Triage — App 2.9.365 协议升级
 
-更新于 2026-09-02。Pixel 6 真机原包已过 Splash 并 dump 业务 DEX。官方进程内 `get_cpt_ifm` 100000。同日官方读章成功后，该官方出生游客在 Python / oldcurl 上也是 100000；Python 自注册游客仍 310017。eCapture 看不了 APK OpenSSL 明文。公开 Web free-only 回退可用。
+更新于 2026-09-03。App 门是官方 GT3 bind。本份 Python 自注册游客经官方进程打戳后独立客户端 `100000`。新身份仍走同一官方 SDK 黑盒。网页章节链是另一条产品面。
 
 ## 状态速览
 
 | 深度等级 | 已完成 | 部分完成 | 阻滞 | 未开始 |
 |----------|--------|----------|------|--------|
-| L1（便携） | HMAC/AES 常量对照、真实搜索 canary、Web 双层 AES 复现 | 0 | App 正文接口 310017 | 0 |
-| L2（上下文） | 游客注册、命令/目录可用；官方 POST 键对齐；Web session/detail 可用 | 0 | Python App 正文 310017（VIP/购买态） | 0 |
-| L3（运行时） | Pixel 6 原包过 Splash；panda 43 DEX；官方 `get_cpt_ifm` POST 已抓 | dump 后进程被 panda 暂停致死；App `get_cpt_ifm` 明文未入 DEX | App Python 正文 310017 | 极验路径（仅当被打到该码） |
+| L1（便携） | HMAC/AES 常量对照、真实搜索 canary、Web 双层 AES 复现 | 0 | 新身份未打戳时 310017 | 0 |
+| L2（上下文） | 游客注册、命令/目录可用；官方 POST 键对齐 | 0 | 新身份须官方 GT3 oracle | 0 |
+| L3（运行时） | Pixel 6 原包过 Splash；panda 43 DEX；官方正文 MITM；stamp-event；GT3 一键；自注册官方打戳 | dump 后进程被 panda 暂停致死 | 新游客尚未产品化 oracle | 官方 App GT3 黑盒 |
 | L4（triage） | SecShell 路由确认 | 0 | 0 | 0 |
 
 ## 阻滞项
@@ -17,14 +17,12 @@
 
 - **位置**：`/chapter/get_cpt_ifm`、`/chapter/download_cpt`、`/chapter/check_download_cpt`
 - **严重程度**：`blocker`
-- **原因**：Python 自注册游客仍固定 `310017`。官方出生游客在官方进程读章成功后，独立客户端也可 `100000`。不是当前请求的 UA/头/表单键/Cookie/IPRESOLVE，也不是 MITM 才能看见的隐藏头。字段集合与形状已对齐。
-- **已尝试的手段**：2.9.362/2.9.365 对照、新游客、官方 POST 键、官方 JA3、官方出生身份移植、进程外官方 libcurl、slist/X0、IPRESOLVE A/B、官方读章序复放、uid MITM 冷启动/正文解密、官方 vs Python 字段形状对照。
-- **证据**：`evidence/official-born-identity-canary.json`（上午 310017）、`evidence/official-vs-python-cpt-now.json`（读章后 100000 / 自注册仍 310017）、`evidence/official-ipresolve-ab-canary.json`、`evidence/official-uid-mitm-startup.json`、`evidence/official-uid-mitm-cpt.json`、`evidence/official-vs-python-field-compare.json`
-- **建议下一步**：不要用 Web 链代替 App 门。不要再对齐 Accept/charsets/键序指望自注册过门。官方读章序与冷启动 prelude 复放已证伪。下一步查两类游客的服务端放行差。不要 `pm clear` 已放行官方游客，不要再钩 `0x6ebc0` / 密采 slist，不要用全局 `http_proxy`。
+- **原因**：门在身份有没有走过官方 GT3 bind。本份 Python 自注册已通过官方进程打戳。只调 API1、空字段、假 `|jordan` 都不能打戳。网页章节链风控不同。
+- **已尝试的手段**：对照/新游客/JA3/身份移植/读章序/uid MITM/字段对照/官方独有接口/stamp-event/API1+假三元组/官方 prefs 注入 oracle。
+- **证据**：`evidence/official-python-born-gt3-oracle-canary.json`、`evidence/official-stamp-event-canary.json`、`evidence/official-geetest-retry-canary.json`
+- **建议下一步**：新游客走官方 App GT3 黑盒（注入身份 → 官方读章 → 还原已放行游客）。
 
-**当前处理**：不再把该 App gate 作为 free-only 采集的唯一阻塞。`client.web`
-在确认 `free_only=True` 后走公开章节页 + 两次 AJAX，并保持独立 Cookie jar、
-串行与 3 秒默认间隔。Web 成功只记为 `web_fallback`，不改写本条 App blocker。
+**当前处理**：App 门按官方 GT3 oracle 推进。`client.web` 仍是另一条产品面，不能记成这条门已过。
 
 ### W-001：公开 Web free-only 回退（已落地）
 

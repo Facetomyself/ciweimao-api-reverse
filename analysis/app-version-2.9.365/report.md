@@ -9,8 +9,8 @@
 | 文件类型 | Android APK，Bangcle/SecNeo（SecShell），Native Android |
 | 架构 | ARM64 主分析；APK 同时含 ARMv7 与 `libSecShell-x86.so` |
 | App | `com.kuangxiangciweimao.novel` 2.9.365 (`290365`) |
-| 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 |
-| 分析深度 | L3-partial；Python 自注册游客 `get_cpt_ifm` 仍 310017。uid MITM 已解密冷启动与正文 HTTPS |
+| 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 / 2026-09-03 |
+| 分析深度 | L3-partial；本份 Python 自注册游客经官方 GT3 oracle 后 `get_cpt_ifm=100000` |
 
 ## 目标概述
 
@@ -22,11 +22,46 @@
 2. `libcurlhttps.so` 与 `libJavaJni.so` 与 2.9.362 字节级相同。
 3. 本地过期 token 解密后得到 `200100`，证明 2.9.365 HMAC 与 AES 解密可用。
 4. 新游客下：搜索、目录、`get_chapter_cmd`、`get_chapter_download_cmd` 均为 `100000`；`get_cpt_ifm` / `download_cpt` / `check_download_cpt` 均为 `310017`，提示「请升级到最新版本客户端」。把 `app_version` 改成 `2.9.365` 并重算 HMAC **不能**过正文门。
-5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-02 上午官方出生游客离开官方进程仍 310017；同日官方进程读章成功后，该身份在 Python / oldcurl 上也变成 100000。Python 自注册游客仍 310017。uid MITM 证明不是隐藏头、Cookie、TLS 栈。字段对照证明官方与 Python 是同一 8 键集合与同一形状；头值/键序差异真实存在，但官方出生游客用未对齐的 Python 默认包也能 100000。
+5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-03 对全新官方游客取证：第一次 `get_cpt_ifm` 仍是普通 8 键；官方接着 HTTP/2 GET 极验 API1，第二次 cpt 带 `geetest_*` 后身份放行。同日把 Python 自注册身份写入官方 App，官方进程打戳后独立客户端也变成 100000。网页章节链风控不同，不能代替这次 App 门。
 6. Java 仍被 SecShell 加密（`assets/classes0.jar` 约 18.9MB，非 ZIP/DEX magic）。LDPlayer 上 x86 `libSecShell-x86.so` 在 maps/`fclose` SIGSEGV。**Pixel 6 原包 ARM64 冷启动进入 `WelcomeActivity`，panda 拉到 43 个结构有效 DEX（71,775,408 字节），含 `com.kuangxiangciweimao`。** wrapper 因 dump 后进程已死标 `partial`。已 dump DEX 字符串中无明文 `get_cpt_ifm`。debug 重签包仍不能当完整性单变量。
 7. 外部源码与真实 canary 证明公开网页是可用的独立产品面：章节页 GET 后串行调用 `ajax_get_session_code` 与 `get_book_chapter_detail_info`，双层 AES-CBC 解密成功。客户端已将它接入 free-only fallback；App gate 仍单独记录为 310017。
 
 ## 关键发现
+
+### F-039：官方进程 GT3 bind 能给 Python 自注册游客打戳
+
+- **位置**：官方 `LoginedUser` 注入 + 免费区 `ReaderActivity4`
+- **描述**：不 `pm clear`。自注册 `83ae0babe4e9` 写入官方 prefs 后身份能保住。清本地阅读缓存后官方进入阅读器。随后同一身份独立客户端 `get_cpt_ifm=100000`。已放行游客还原/仍在设备上，cpt `100000`。未走网页章节链。
+- **证据**：`evidence/official-python-born-gt3-oracle-canary.json`
+- **置信度**：high
+
+### F-038：官方 GT3 是 bind 一键，约 1 秒无滑块资源
+
+- **位置**：`103.143.17.166` `/gettype.php` → `/get.php` → `/ajax.php`
+- **描述**：第一次 `get_cpt_ifm` 128b。API1 之后 1.1s 内打完三枪极验机，无 `pic.php` / 静态图。ajax 后第二次 cpt 变成 1.0k。自动化未点验证码。
+- **证据**：`evidence/official-gt3-wire-canary.json`
+- **置信度**：high
+
+### F-037：API1 或假极验三元组不能给自注册游客打戳
+
+- **位置**：`BaseTaskNew` 310017 → `initJiyan` `setPattern(1)` → `onDialogResult` 回写三元组
+- **描述**：Python 自注册 API1 已是 `success=1`。空字段 / 只带 challenge 仍 `310017`。假 `validate` + `|jordan` 变成 `280002`。之后普通包回到 `310017`。
+- **证据**：`evidence/official-geetest-retry-canary.json`
+- **置信度**：high
+
+### F-036：全新官方游客靠极验重试打放行戳
+
+- **位置**：第一次 `/chapter/get_cpt_ifm`（8 键）→ GET `/signup/geetest_first_register`（HTTP/2）→ 第二次 `get_cpt_ifm`（多 `geetest_challenge` / `geetest_validate` / `geetest_seccode`）
+- **描述**：`pm clear` 后新游客 Python 先打 `310017`。官方立即阅读后按上序走完，Python 复打变成 `100000`。本轮没有点验证码控件。已放行官方游客已还原。
+- **证据**：`evidence/official-stamp-event-canary.json`
+- **置信度**：high
+
+### F-035：官方独有前置接口不能给自注册游客打戳
+
+- **位置**：`get_startpage_url_list` / `add_specific_recommend_exposure` / `set_read_chapter_record` / `add_readbook` 之后再打 `get_cpt_ifm`
+- **描述**：这些接口补参后自身都是 `100000`。自注册游客 cpt 前/后仍 `310017`。
+- **证据**：`evidence/official-unique-replay-canary.json`
+- **置信度**：high
 
 ### F-034：官方与 Python 默认包字段集合相同，头值/键序差不是门
 
