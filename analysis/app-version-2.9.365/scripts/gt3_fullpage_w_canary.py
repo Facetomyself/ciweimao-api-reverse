@@ -1,4 +1,4 @@
-"""GT3 fullpage bind canary：RuyiDOM 黑盒优先，失败再打 AES+RSA ajax。
+"""GT3 fullpage bind canary：默认本机 Node 黑盒，不依赖 RuyiDOM。
 
 新游客、不写 tokens.json、不走网页章节链。验收只认 get_cpt_ifm=100000。
 不打印 gt/challenge/validate/w 原文。
@@ -86,15 +86,15 @@ def main() -> int:
     parser.add_argument("--chapter-id", default=DEFAULT_CHAPTER_ID)
     parser.add_argument(
         "--prefer",
-        choices=("ruyidom", "aes-rsa"),
-        default="ruyidom",
+        choices=("node", "ruyidom", "aes-rsa", "node-then-ruyidom"),
+        default="node",
     )
     args = parser.parse_args()
 
     payload = {
         "tested_at": datetime.now(timezone.utc).astimezone().isoformat(),
         "hypothesis": (
-            "RuyiDOM black-box initGeetest bind or AES+RSA packed ajax w "
+            "Node black-box initGeetest bind (no RuyiDOM) "
             "can produce a GT3 triple that stamps get_cpt_ifm"
         ),
         "tokens_json_written": False,

@@ -10,7 +10,7 @@
 | 架构 | ARM64 主分析；APK 同时含 ARMv7 与 `libSecShell-x86.so` |
 | App | `com.kuangxiangciweimao.novel` 2.9.365 (`290365`) |
 | 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 / 2026-09-03 |
-| 分析深度 | L3-partial；RuyiDOM 黑盒 GT3 bind 已过 `get_cpt_ifm=100000`；纯算 `w` 仍 `error_03` |
+| 分析深度 | L3-partial；Node 黑盒 GT3 bind 已过 `get_cpt_ifm=100000`（不依赖 RuyiDOM）；纯算 `w` 仍 `error_03` |
 
 ## 目标概述
 
@@ -27,6 +27,13 @@
 7. 外部源码与真实 canary 证明公开网页是可用的独立产品面：章节页 GET 后串行调用 `ajax_get_session_code` 与 `get_book_chapter_detail_info`，双层 AES-CBC 解密成功。客户端已将它接入 free-only fallback；App gate 仍单独记录为 310017。
 
 ## 关键发现
+
+### F-044：Node 黑盒 bind 已过 App 门（不依赖 RuyiDOM）
+
+- **位置**：`client/gt3_node_bind.mjs` / `client/gt3_w.py` / `static/tools/gt.js`
+- **描述**：新游客 `310017` → 本机 Node `initGeetest` bind → 三元组 32/32/39 → `get_cpt_ifm=100000`。薄宿主 `w` len=704 会 `error_100` 并掉进 slide；补 Audio/WebGL/canvas 后 `w` len=1088 过 ajax。AES+RSA packing 仍 `error_03`。
+- **证据**：`evidence/gt3-node-bind-canary.json`
+- **置信度**：high
 
 ### F-043：RuyiDOM 黑盒 bind 已过 App 门
 

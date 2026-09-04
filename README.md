@@ -6,7 +6,7 @@
 
 仓库：<https://github.com/Facetomyself/ciweimao-api-reverse>
 
-## 项目状态（2026-09-04：RuyiDOM 黑盒 GT3 bind 已过 App 门；纯算 `w` 未完成）
+## 项目状态（2026-09-04：Node 黑盒 GT3 bind 已过 App 门；不依赖 RuyiDOM；纯算 `w` 未完成）
 
 | 能力 | 状态 |
 |------|------|
@@ -14,13 +14,13 @@
 | 响应 AES-256-CBC | 已复现（2.9.352+ current key） |
 | 游客注册 / 搜索 / 书城 / 目录 / `get_chapter_cmd` | 已复现，业务码 `100000` |
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
-| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。下载/探测在该码上先 `stamp_gt3()`（RuyiDOM `gt.js` bind），失败且 `free_only` 才 Web fallback。纯算 `w` 仍 `error_03` |
+| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。下载/探测在该码上先 `stamp_gt3()`（本机 Node 跑官方 `gt.js` bind，不依赖 RuyiDOM），失败且 `free_only` 才 Web fallback。纯算 `w` 仍 `error_03` |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
 | 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie；字段集合与形状已和 Python 对齐 |
 
-`get_cpt_ifm` 的 `310017` 跟着「这个身份有没有走过 GT3 bind 一键」走。官方线是 API1 → `gettype.php`/`get.php`/`ajax.php`（约 1s，无滑块图）→ 带三元组的第二次 cpt。只调 API1 或假 `validate|jordan` 不能打戳。Python 已用 RuyiDOM 跑官方 `static/tools/gt.js` 完成同一条 bind（`Session.stamp_gt3()`）；AES+RSA packing 对 fullpage 9.2.0 是 `error_03`，不得标纯算完成。网页章节链是另一条产品面。
+`get_cpt_ifm` 的 `310017` 跟着「这个身份有没有走过 GT3 bind 一键」走。官方线是 API1 → `gettype.php`/`get.php`/`ajax.php`（约 1s，无滑块图）→ 带三元组的第二次 cpt。只调 API1 或假 `validate|jordan` 不能打戳。Python 已用本机 Node 跑官方 `static/tools/gt.js` 完成同一条 bind（`Session.stamp_gt3()`，不依赖 RuyiDOM）；AES+RSA packing 对 fullpage 9.2.0 是 `error_03`，不得标纯算完成。网页章节链是另一条产品面。
 
-闭合事实见 [docs/protocol.md](docs/protocol.md)。黑盒 bind：[gt3-fullpage-w-canary.json](analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json)。GT3 线：[official-gt3-wire-canary.json](analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
+闭合事实见 [docs/protocol.md](docs/protocol.md)。Node 黑盒 bind：[gt3-node-bind-canary.json](analysis/app-version-2.9.365/evidence/gt3-node-bind-canary.json)。RuyiDOM 对照：[gt3-fullpage-w-canary.json](analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json)。GT3 线：[official-gt3-wire-canary.json](analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
 
 ## 仓库结构
 

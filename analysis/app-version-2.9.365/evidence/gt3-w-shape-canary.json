@@ -1,0 +1,171 @@
+{
+  "tested_at": "2026-09-04T21:49:00.034756+08:00",
+  "hypothesis": "RuyiDOM black-box initGeetest bind or AES+RSA packed ajax w can produce a GT3 triple that stamps get_cpt_ifm",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "prefer": "ruyidom",
+  "origin": "ruyidom",
+  "guest": {
+    "account_fp": "8dd635761dc4",
+    "account_len": 9,
+    "login_token_len": 32,
+    "reader_id_last": "3"
+  },
+  "host": "app1.happybooker.cn",
+  "cpt_before": {
+    "ok": false,
+    "code": "310017",
+    "tip": "请升级到最新版本客户端",
+    "chapter_id_len": 9
+  },
+  "api1": {
+    "success": true,
+    "new_captcha": true,
+    "gt": {
+      "present": true,
+      "len": 32
+    },
+    "challenge": {
+      "present": true,
+      "len": 32
+    },
+    "top_keys": [
+      "challenge",
+      "gt",
+      "new_captcha",
+      "success"
+    ]
+  },
+  "bind": {
+    "ok": true,
+    "origin": "ruyidom",
+    "challenge_len": 32,
+    "validate_len": 32,
+    "seccode_len": 39
+  },
+  "plane": {
+    "origin": "ruyidom",
+    "ok": true,
+    "exit_code": 0,
+    "script_loaded": true,
+    "ready": true,
+    "success": true,
+    "error": null,
+    "gettype": {
+      "host": "api.geetest.com",
+      "path": "/gettype.php",
+      "query_keys": [
+        "callback",
+        "gt"
+      ],
+      "http_code": 200,
+      "ok": true,
+      "resp_len": 465,
+      "resp_class": "jsonp",
+      "label": "fullpage",
+      "error": null,
+      "shape": {
+        "kind": "object",
+        "keys": [
+          "data",
+          "status"
+        ],
+        "fields": [
+          {
+            "name": "status",
+            "type": "str",
+            "len": 7,
+            "value": "success"
+          },
+          {
+            "name": "data",
+            "type": "dict",
+            "keys": [
+              "aspect_radio",
+              "beeline",
+              "click",
+              "fullpage",
+              "geetest",
+              "slide",
+              "static_servers",
+              "type",
+              "voice"
+            ],
+            "fields": [
+              {
+                "name": "type",
+                "type": "str",
+                "len": 8,
+                "value": "fullpage"
+              },
+              {
+                "name": "click",
+                "type": "str",
+                "len": 25,
+                "value": "/static/js/click.3.1.2.js"
+              },
+              {
+                "name": "beeline",
+                "type": "str",
+                "len": 27,
+                "value": "/static/js/beeline.1.0.1.js"
+              },
+              {
+                "name": "voice",
+                "type": "str",
+                "len": 25,
+                "value": "/static/js/voice.1.2.6.js"
+              },
+              {
+                "name": "fullpage",
+                "type": "str",
+                "len": 35,
+                "value": "/static/js/fullpage.9.2.0-guwyxh.js"
+              },
+              {
+                "name": "slide",
+                "type": "str",
+                "len": 25,
+                "value": "/static/js/slide.7.9.3.js"
+              },
+              {
+                "name": "geetest",
+                "type": "str",
+                "len": 27,
+                "value": "/static/js/geetest.6.0.9.js"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "gt_js_path": "tools/gt.js",
+    "validate_len": 32,
+    "challenge_len": 32,
+    "seccode_len": 39,
+    "w_shape": {
+      "len": 1240,
+      "body_len": 984,
+      "rsa_hex_len": 256,
+      "alphabet_ok": true,
+      "rsa_hex_ok": false,
+      "has_paren": true
+    },
+    "tried": [
+      "ruyidom",
+      "aes-rsa"
+    ],
+    "attempts": []
+  },
+  "cpt_retry": {
+    "ok": true,
+    "code": "100000"
+  },
+  "cpt_after": {
+    "ok": true,
+    "code": "100000",
+    "chapter_id_len": 9
+  },
+  "gt3_solved_by_us": true,
+  "ok": true
+}

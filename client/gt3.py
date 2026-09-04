@@ -8,7 +8,7 @@
 4. 同一 ``get_cpt_ifm`` 再打一次
 
 ``bind()`` 默认 ``Gt3BindNotReady``。黑盒出参走 ``gt3_w.FullpageWProvider``
-（RuyiDOM 跑官方 ``static/tools/gt.js``）。AES+RSA packing 对 fullpage
+（本机 Node 跑官方 ``static/tools/gt.js``，不依赖 RuyiDOM）。AES+RSA packing 对 fullpage
 9.2.0 是 ``error_03 param decrypt error``，不能标 ``algorithmic``。
 公开滑块轨迹解题器不是这条线。
 """

@@ -1,6 +1,6 @@
 # 2.9.365 协议升级进度
 
-更新于 2026-09-04。状态：**RuyiDOM 黑盒 GT3 bind 已把新游客 `get_cpt_ifm` 从 310017 打成 100000。** 落地是 env-patch（官方 `static/tools/gt.js` + `initGeetest` bind），不是纯算 `w`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`。官方 App oracle 只当对照。
+更新于 2026-09-04。状态：**本机 Node 黑盒 GT3 bind 已把新游客 `get_cpt_ifm` 从 310017 打成 100000，不依赖 RuyiDOM。** 落地是官方 `static/tools/gt.js` + `initGeetest` bind 的 Node `vm` 宿主，不是纯算 `w`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`。官方 App oracle 只当对照。
 
 ## 目标
 
@@ -35,16 +35,17 @@ LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过�
 
 ## 当前阶段
 
-L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组，独立会话 `get_cpt_ifm=100000`。`bind()` 默认仍 `Gt3BindNotReady`。纯算 `w` 未过 sampleParity（ajax `error_03`）。不要把 RuyiDOM 成功标成 algorithmic。
+L3 运行时：`Session.stamp_gt3()` 用本机 Node 跑官方 `gt.js` 出三元组，独立会话 `get_cpt_ifm=100000`。不依赖 RuyiDOM。`bind()` 默认仍 `Gt3BindNotReady`。纯算 `w` 未过 sampleParity（ajax `error_03`）。不要把 Node 黑盒成功标成 algorithmic。
 
-## 2026-09-04 GT3 黑盒 bind 过门
+## 2026-09-04 Node 黑盒 bind 过门
 
+- 需求：不依赖 RuyiDOM；官方 `gt.js` 黑盒能过就行。
 - 新游客基线 cpt=`310017`，API1 成功，gettype `type=fullpage`，fullpage JS=`fullpage.9.2.0-guwyxh.js`。
-- 误加载 `geetest.6.0.9.js` 时 `initGeetest` 不存在。loader 是 `https://static.geetest.com/static/tools/gt.js`。
-- RuyiDOM：`initGeetest` bind + `verify` + `getValidate()`，三元组长度 32/32/39。带三元组重试 cpt=`100000`，随后普通 8 键也是 `100000`。
-- AES+RSA 公开 packing 打 ajax：HTTP 200，`error_03` `param decrypt error`。get.php `api_server=api.geevisit.com`。
-- `Session.stamp_gt3()` 封装这条黑盒面。未写 `tokens.json`，未走网页章节链。
-- 见 `client/gt3_w.py`、`client/gt3_ruyidom_bind.js`、`evidence/gt3-fullpage-w-canary.json`。
+- `D:\reverse_ENV\tools\node\node.exe` + `client/gt3_node_bind.mjs`：JSONP 宿主跑 `initGeetest` bind + `verify` + `getValidate()`。
+- 薄宿主（无 Audio/WebGL debug/canvas 噪声）时 `w` len=704，ajax 后掉进 slide，`error_100`。补 AudioContext / WebGL `Mali-G78` / canvas 操作后再打 ajax，`w` len=1088，三元组 32/32/39。
+- 带三元组重试 cpt=`100000`，随后普通 8 键也是 `100000`。未写 `tokens.json`，未走网页章节链。
+- RuyiDOM 仍可 `prefer=ruyidom` 对照（`evidence/gt3-fullpage-w-canary.json`，`w` len=1240）。
+- 见 `client/gt3_w.py`、`client/gt3_node_bind.mjs`、`evidence/gt3-node-bind-canary.json`。
 
 ## 2026-09-03 Python GT3 bind 面
 
@@ -146,7 +147,7 @@ L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组�
 | 游客注册 | 可用 |
 | 搜索/榜单/目录 | 可用 |
 | `get_chapter_cmd` | 可用 |
-| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 未打戳 `310017`。RuyiDOM 黑盒 bind 已把新游客打成 `100000`（`stamp_gt3`）。纯算 `w` 仍 `error_03`。网页链不是这条门 |
+| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 未打戳 `310017`。Node 黑盒 bind 已把新游客打成 `100000`（`stamp_gt3`，不依赖 RuyiDOM）。纯算 `w` 仍 `error_03`。网页链不是这条门 |
 | `client.web` Web fallback | 已实现；文本免费章 Web detail=`100000`，VIP/图片章不覆盖 |
 | SecShell 解密 DEX | Pixel 6 panda：43 DEX / 71MB，业务包名已在 `dex_0x72090ab000.dex` 等；wrapper 标 `partial`（dump 后 SIGCONT 时进程已死）。不是完整脱壳声明 |
 | LDPlayer 原包启动 | x86 so 可映射，随后 maps/`fclose` SIGSEGV；停在 Splash 或直接崩。真机已替代 |
@@ -160,7 +161,8 @@ L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组�
 | 路径 | 说明 |
 |---|---|
 | `input/ciweimao-2.9.365.apk` | SHA-256 `C9B2DA20…F6CB6B` |
-| `evidence/gt3-fullpage-w-canary.json` | RuyiDOM bind：新游客 cpt 310017→100000；AES+RSA ajax=`error_03` |
+| `evidence/gt3-node-bind-canary.json` | Node bind：新游客 cpt 310017→100000；不依赖 RuyiDOM |
+| `evidence/gt3-fullpage-w-canary.json` | RuyiDOM 对照 bind：新游客 cpt 310017→100000；AES+RSA ajax=`error_03` |
 | `evidence/protocol-canary.json` | 搜索/目录/cmd=`100000`，正文=`310017` |
 | `evidence/download-cpt-canary.json` | `download_cpt` / `check_download_cpt`=`310017` |
 | `artifacts/dumps/libSecShell-x86.mem.so` | 1,458,176 字节，x86_64 ELF，SHA-256 `66396047aa619f374069db2d35edce77924a4a1619543399dbaa24b309c52054` |
@@ -240,4 +242,4 @@ L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组�
 ## 下一步
 
 1. 采集/探测已在 `310017` 时 `allow_gt3_stamp=True`：先 `stamp_gt3()`，失败且 `free_only` 才 Web fallback。
-2. 纯算 `w` 仍对不齐 fullpage 9.2.0（`error_03`）。要对齐再冻官方 `w` fixture，不要把 RuyiDOM 出参标 algorithmic。
+2. 纯算 `w` 仍对不齐 fullpage 9.2.0（`error_03`）。要对齐再冻官方 `w` fixture，不要把 Node 黑盒出参标 algorithmic。

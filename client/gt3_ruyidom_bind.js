@@ -71,15 +71,49 @@ RuyiDOM.main(function () {
     );
     dom.evalInPage(
       "(function(){" +
+      "  function noteW(src){" +
+      "    var text = String(src || '');" +
+      "    if (text.indexOf('ajax.php') < 0) return;" +
+      "    window.__gt3.ajaxSeen = true;" +
+      "    var q = text.split('?')[1] || '';" +
+      "    var w = '';" +
+      "    q.split('&').forEach(function(part){" +
+      "      var kv = part.split('=');" +
+      "      if (decodeURIComponent(kv[0] || '') === 'w') {" +
+      "        try { w = decodeURIComponent(kv.slice(1).join('=') || ''); }" +
+      "        catch (e) { w = kv.slice(1).join('=') || ''; }" +
+      "      }" +
+      "    });" +
+      "    if (!w) return;" +
+      "    var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()';" +
+      "    var body = w.length >= 256 ? w.slice(0, w.length - 256) : w;" +
+      "    var tail = w.length >= 256 ? w.slice(w.length - 256) : '';" +
+      "    var bodyOk = true;" +
+      "    for (var i = 0; i < body.length; i++) {" +
+      "      if (alpha.indexOf(body.charAt(i)) < 0) { bodyOk = false; break; }" +
+      "    }" +
+      "    window.__gt3.wShape = {" +
+      "      len: w.length," +
+      "      body_len: body.length," +
+      "      rsa_hex_len: tail.length," +
+      "      alphabet_ok: bodyOk," +
+      "      rsa_hex_ok: /^[0-9a-fA-F]*$/.test(tail)," +
+      "      has_paren: w.indexOf('(') >= 0 || w.indexOf(')') >= 0" +
+      "    };" +
+      "  }" +
       "  var orig = Node.prototype.appendChild;" +
       "  Node.prototype.appendChild = function(node){" +
       "    try {" +
       "      if (node && node.tagName === 'SCRIPT') {" +
-      "        var src = node.src || node.getAttribute('src') || '';" +
-      "        if (String(src).indexOf('ajax.php') >= 0) window.__gt3.ajaxSeen = true;" +
+      "        noteW(node.src || node.getAttribute('src') || '');" +
       "      }" +
       "    } catch (e) {}" +
       "    return orig.apply(this, arguments);" +
+      "  };" +
+      "  var setAttr = Element.prototype.setAttribute;" +
+      "  Element.prototype.setAttribute = function(name, value){" +
+      "    try { if (String(name).toLowerCase() === 'src') noteW(value); } catch (e) {}" +
+      "    return setAttr.apply(this, arguments);" +
       "  };" +
       "})();"
     );
@@ -150,7 +184,8 @@ RuyiDOM.main(function () {
     var state = dom.eval(
       "({scriptLoaded: window.__gt3.scriptLoaded, ready: window.__gt3.ready," +
       " success: window.__gt3.success, ajaxSeen: window.__gt3.ajaxSeen," +
-      " error: window.__gt3.error, validate: window.__gt3.validate})"
+      " error: window.__gt3.error, validate: window.__gt3.validate," +
+      " wShape: window.__gt3.wShape || null})"
     ) || {};
     if (!done && !state.success) {
       fail("verify-timeout", {
@@ -178,6 +213,7 @@ RuyiDOM.main(function () {
       ready: !!state.ready,
       success: true,
       ajax_seen: !!state.ajaxSeen,
+      w_shape: state.wShape || null,
       challenge: challengeOut,
       validate: validateOut,
       seccode: seccodeOut,

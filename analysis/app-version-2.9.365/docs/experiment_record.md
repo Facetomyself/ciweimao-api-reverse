@@ -1,6 +1,14 @@
 # 实验记录
 
-## 2026-09-04 GT3 黑盒 bind
+## 2026-09-04 Node 黑盒 bind（不依赖 RuyiDOM）
+
+- 记录时间：2026-09-04（Asia/Shanghai）
+- 分析思路：用户只要章节打戳，不要绑 RuyiDOM。用本机 Node `vm` 跑官方 `gt.js` 黑盒。
+- 本轮操作：`client/gt3_node_bind.mjs` + `NodeWProvider`。`stamp_gt3(prefer=node)` 为默认。现场 canary 新游客，不写 `tokens.json`。
+- 实验结果：薄宿主 ajax `error_100` 并加载 slide。补 Audio/WebGL/canvas 后 `w` len=1088（RuyiDOM 对照 1240），三元组 32/32/39，重试 cpt=`100000`，随后 8 键 `100000`。进程必须在写出 JSON 后 `process.exit(0)`，否则 GeeTest `setInterval` 挂住事件循环。
+- 下一步计划：采集走 Node `stamp_gt3`。纯算 `w` 另开，不要把黑盒出参标 algorithmic。
+
+## 2026-09-04 RuyiDOM 黑盒 bind（对照）
 
 - 记录时间：2026-09-04（Asia/Shanghai）
 - 分析思路：卡点是 GT3 fullpage `w`。官方 SDK 是 WebView + `initGeetest` bind，不是滑块。按宿主黑盒跑官方 JS 出三元组，用 `get_cpt_ifm=100000` 验收。AES+RSA packing 只作对照。

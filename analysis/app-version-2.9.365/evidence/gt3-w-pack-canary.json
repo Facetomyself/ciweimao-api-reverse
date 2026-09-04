@@ -1,0 +1,214 @@
+{
+  "tested_at": "2026-09-04T21:50:52.061681+08:00",
+  "hypothesis": "9.2.0 official w is GeeTest-alphabet throughout; b64-hex RSA tail causes error_03",
+  "tokens_json_written": false,
+  "official_w_shape": {
+    "len": 1240,
+    "body_len": 984,
+    "rsa_hex_ok": false,
+    "alphabet_ok": true,
+    "has_paren": true,
+    "source": "gt3-w-shape-canary.json"
+  },
+  "modes": [
+    {
+      "mode": "b64-hex",
+      "w": {
+        "len": 704,
+        "rsa_hex_len": 256,
+        "body_len": 448,
+        "alphabet_ok": true,
+        "rsa_hex_ok": true
+      },
+      "get_ok": true,
+      "ajax_host": "api.geevisit.com",
+      "ajax": {
+        "host": "api.geevisit.com",
+        "path": "/ajax.php",
+        "query_keys": [
+          "callback",
+          "challenge",
+          "client_type",
+          "gt",
+          "lang",
+          "pt",
+          "w"
+        ],
+        "http_code": 200,
+        "ok": true,
+        "resp_len": 148,
+        "resp_class": "jsonp",
+        "label": "param decrypt error",
+        "error": null,
+        "shape": {
+          "kind": "object",
+          "keys": [
+            "error",
+            "error_code",
+            "status",
+            "user_error"
+          ],
+          "fields": [
+            {
+              "name": "status",
+              "type": "str",
+              "len": 5,
+              "value": "error"
+            },
+            {
+              "name": "error",
+              "type": "str",
+              "len": 19,
+              "value": "param decrypt error"
+            },
+            {
+              "name": "user_error",
+              "type": "str",
+              "len": 5,
+              "value": "网络不给力"
+            },
+            {
+              "name": "error_code",
+              "type": "str",
+              "len": 8,
+              "value": "error_03"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "mode": "b64-b64",
+      "w": {
+        "len": 619,
+        "rsa_hex_len": 256,
+        "body_len": 363,
+        "alphabet_ok": true,
+        "rsa_hex_ok": false
+      },
+      "get_ok": true,
+      "ajax_host": "api.geevisit.com",
+      "ajax": {
+        "host": "api.geevisit.com",
+        "path": "/ajax.php",
+        "query_keys": [
+          "callback",
+          "challenge",
+          "client_type",
+          "gt",
+          "lang",
+          "pt",
+          "w"
+        ],
+        "http_code": 200,
+        "ok": true,
+        "resp_len": 148,
+        "resp_class": "jsonp",
+        "label": "param decrypt error",
+        "error": null,
+        "shape": {
+          "kind": "object",
+          "keys": [
+            "error",
+            "error_code",
+            "status",
+            "user_error"
+          ],
+          "fields": [
+            {
+              "name": "status",
+              "type": "str",
+              "len": 5,
+              "value": "error"
+            },
+            {
+              "name": "error",
+              "type": "str",
+              "len": 19,
+              "value": "param decrypt error"
+            },
+            {
+              "name": "user_error",
+              "type": "str",
+              "len": 5,
+              "value": "网络不给力"
+            },
+            {
+              "name": "error_code",
+              "type": "str",
+              "len": 8,
+              "value": "error_03"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "mode": "b64-concat",
+      "w": {
+        "len": 619,
+        "rsa_hex_len": 256,
+        "body_len": 363,
+        "alphabet_ok": true,
+        "rsa_hex_ok": false
+      },
+      "get_ok": true,
+      "ajax_host": "api.geevisit.com",
+      "ajax": {
+        "host": "api.geevisit.com",
+        "path": "/ajax.php",
+        "query_keys": [
+          "callback",
+          "challenge",
+          "client_type",
+          "gt",
+          "lang",
+          "pt",
+          "w"
+        ],
+        "http_code": 200,
+        "ok": true,
+        "resp_len": 148,
+        "resp_class": "jsonp",
+        "label": "param decrypt error",
+        "error": null,
+        "shape": {
+          "kind": "object",
+          "keys": [
+            "error",
+            "error_code",
+            "status",
+            "user_error"
+          ],
+          "fields": [
+            {
+              "name": "status",
+              "type": "str",
+              "len": 5,
+              "value": "error"
+            },
+            {
+              "name": "error",
+              "type": "str",
+              "len": 19,
+              "value": "param decrypt error"
+            },
+            {
+              "name": "user_error",
+              "type": "str",
+              "len": 5,
+              "value": "网络不给力"
+            },
+            {
+              "name": "error_code",
+              "type": "str",
+              "len": 8,
+              "value": "error_03"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "ok": true
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from pathlib import Path
 from unittest.mock import Mock
 
 from client import gt3
@@ -240,9 +241,48 @@ class Gt3WPackingTests(unittest.TestCase):
         self.assertTrue(shape["rsa_hex_ok"])
         self.assertNotIn("fullpage", packed)
 
+    def test_pack_w_concat_stays_in_alphabet(self):
+        from client import gt3_w
+        packed = gt3_w.pack_w(
+            '{"type":"fullpage"}',
+            aes_key="0123456789abcdef",
+            mode="b64-concat",
+        )
+        shape = gt3_w.w_public_shape(packed)
+        self.assertTrue(all(ch in gt3_w.GEETEST_B64_ALPHABET for ch in packed))
+        self.assertFalse(shape["rsa_hex_ok"])
+        self.assertNotIn("fullpage", packed)
+
     def test_gt_loader_url_is_tools_gt_js(self):
         from client import gt3_w
         self.assertTrue(gt3_w.gt_loader_url(None).endswith("/static/tools/gt.js"))
+
+    def test_provider_order_node_is_default_and_skips_ruyidom(self):
+        from client import gt3_w
+        self.assertEqual(("node",), gt3_w.provider_order("node"))
+        self.assertEqual(("ruyidom",), gt3_w.provider_order("ruyidom"))
+        self.assertEqual(("node", "ruyidom"),
+                         gt3_w.provider_order("node-then-ruyidom"))
+        provider = gt3_w.FullpageWProvider()
+        self.assertEqual("node", provider.prefer)
+        self.assertTrue(gt3_w.NODE_BIND_JS.is_file())
+        self.assertTrue(gt3_w.NODE_EXE.is_file())
+
+    def test_node_provider_missing_binary(self):
+        from client import gt3_w
+        api1 = gt3.Api1Result(
+            success=True,
+            new_captcha=True,
+            gt_len=32,
+            challenge_len=32,
+            top_keys=("challenge", "gt"),
+            _gt="g" * 32,
+            _challenge="c" * 32,
+        )
+        provider = gt3_w.NodeWProvider(node=Path("Z:/missing-node.exe"))
+        with self.assertRaises(gt3_w.Gt3WError) as ctx:
+            provider.complete_bind(api1)
+        self.assertIn("node-missing", str(ctx.exception))
 
     def test_pack_w_rsa_is_not_deterministic(self):
         from client import gt3_w
