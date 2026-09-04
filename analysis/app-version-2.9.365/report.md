@@ -10,7 +10,7 @@
 | 架构 | ARM64 主分析；APK 同时含 ARMv7 与 `libSecShell-x86.so` |
 | App | `com.kuangxiangciweimao.novel` 2.9.365 (`290365`) |
 | 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 / 2026-09-03 |
-| 分析深度 | L3-partial；本份 Python 自注册游客经官方 GT3 oracle 后 `get_cpt_ifm=100000` |
+| 分析深度 | L3-partial；RuyiDOM 黑盒 GT3 bind 已过 `get_cpt_ifm=100000`；纯算 `w` 仍 `error_03` |
 
 ## 目标概述
 
@@ -22,11 +22,39 @@
 2. `libcurlhttps.so` 与 `libJavaJni.so` 与 2.9.362 字节级相同。
 3. 本地过期 token 解密后得到 `200100`，证明 2.9.365 HMAC 与 AES 解密可用。
 4. 新游客下：搜索、目录、`get_chapter_cmd`、`get_chapter_download_cmd` 均为 `100000`；`get_cpt_ifm` / `download_cpt` / `check_download_cpt` 均为 `310017`，提示「请升级到最新版本客户端」。把 `app_version` 改成 `2.9.365` 并重算 HMAC **不能**过正文门。
-5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-03 对全新官方游客取证：第一次 `get_cpt_ifm` 仍是普通 8 键；官方接着 HTTP/2 GET 极验 API1，第二次 cpt 带 `geetest_*` 后身份放行。同日把 Python 自注册身份写入官方 App，官方进程打戳后独立客户端也变成 100000。网页章节链风控不同，不能代替这次 App 门。
+5. Wandoujia 当前公开版仍是 2.9.365。因此 310017 不是“仓库里的 APK 过旧”。2026-09-03 对全新官方游客取证：第一次 `get_cpt_ifm` 仍是普通 8 键；官方接着 HTTP/2 GET 极验 API1，第二次 cpt 带 `geetest_*` 后身份放行。同日把 Python 自注册身份写入官方 App，官方进程打戳后独立客户端也变成 100000。当晚再注册一份全新游客，无 MITM 走同一 oracle，约 53s 后独立客户端也是 100000。网页章节链风控不同，不能代替这次 App 门。
 6. Java 仍被 SecShell 加密（`assets/classes0.jar` 约 18.9MB，非 ZIP/DEX magic）。LDPlayer 上 x86 `libSecShell-x86.so` 在 maps/`fclose` SIGSEGV。**Pixel 6 原包 ARM64 冷启动进入 `WelcomeActivity`，panda 拉到 43 个结构有效 DEX（71,775,408 字节），含 `com.kuangxiangciweimao`。** wrapper 因 dump 后进程已死标 `partial`。已 dump DEX 字符串中无明文 `get_cpt_ifm`。debug 重签包仍不能当完整性单变量。
 7. 外部源码与真实 canary 证明公开网页是可用的独立产品面：章节页 GET 后串行调用 `ajax_get_session_code` 与 `get_book_chapter_detail_info`，双层 AES-CBC 解密成功。客户端已将它接入 free-only fallback；App gate 仍单独记录为 310017。
 
 ## 关键发现
+
+### F-043：RuyiDOM 黑盒 bind 已过 App 门
+
+- **位置**：`client/gt3_w.py` / `static/tools/gt.js`
+- **描述**：新游客 `310017` → RuyiDOM `initGeetest` bind → 三元组 32/32/39 → `get_cpt_ifm=100000`。误加载 `geetest.6.0.9.js` 没有 `initGeetest`。AES+RSA packing ajax=`error_03`。fullpage JS=`fullpage.9.2.0-guwyxh.js`。
+- **证据**：`evidence/gt3-fullpage-w-canary.json`
+- **置信度**：high
+
+### F-042：Python 已冻 fullpage gettype/get 键，未打 ajax
+
+- **位置**：`https://api.geetest.com/gettype.php`、`/get.php`
+- **描述**：新游客 API1 成功。`gettype` 的 `type=fullpage`。`get.php` 必须带 `challenge`，成功包含 `c`/`s`。官方 stamp 用过的 `103.143.17.166` 现在 404。未 POST `ajax.php`。
+- **证据**：`evidence/gt3-bind-boundary-canary.json`
+- **置信度**：high
+
+### F-041：Python 已接 GT3 bind 合同，`w` 仍不能标纯算
+
+- **位置**：`client/gt3.py`
+- **描述**：`first_register` 复现官方 API1。`retry_chapter_params` 只追加三元组。`bind()` 默认 `Gt3BindNotReady`。过滤 jadx 没有 `com.geetest.sdk`。公开滑块解题器不接入。
+- **证据**：`client/gt3.py`、`test_gt3.py`
+- **置信度**：high
+
+### F-040：新注册游客可重复走官方 App GT3 oracle
+
+- **位置**：官方 `LoginedUser` 注入 + 免费区 `ReaderActivity4`
+- **描述**：全新 `auto_reg_v2` 游客 `40fe19acfd04` 基线 `310017`。写入官方 prefs 后身份保住。清阅读缓存后免费列表直进阅读器。停留后独立客户端普通 8 键 `100000`。已放行游客 `41c934e820ac` 还原后仍 `100000`。无 MITM，无 `ajax.php` 解题器，未写 `tokens.json`。
+- **证据**：`evidence/official-gt3-new-guest-oracle-canary.json`
+- **置信度**：high
 
 ### F-039：官方进程 GT3 bind 能给 Python 自注册游客打戳
 
@@ -346,4 +374,4 @@ LDPlayer x86_64 + libnb
 
 ## Triage 遗留项
 
-见 `triage.md` 与 `analysis-progress.md`。当前 App 侧 blocker 为正文接口客户端证明（B-001）；LDPlayer maps/`fclose`（B-002）已在 Pixel 6 侧旁路。free-only 采集已由公开 Web fallback 继续推进，但不冒充 App 协议完成。
+见 `triage.md` 与 `analysis-progress.md`。当前 App 侧 blocker 为客户端尚未接上官方 GT3 oracle（B-001）；新游客打戳流程已复验。LDPlayer maps/`fclose`（B-002）已在 Pixel 6 侧旁路。free-only 采集已由公开 Web fallback 继续推进，但不冒充 App 协议完成。

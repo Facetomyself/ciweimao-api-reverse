@@ -1,6 +1,6 @@
 # App 2.9.365 协议冻结说明
 
-更新：2026-09-03。正文接口跟着「这个身份有没有走过官方 GT3 bind」走。Python 自注册在官方进程打戳后普通 8 键也是 `100000`。本文件只记录已经闭合的事实。
+更新：2026-09-04。正文接口跟着「这个身份有没有走过 GT3 bind」走。RuyiDOM 黑盒 `stamp_gt3()` 已把新游客独立会话打成 `100000`。纯算 `w` 仍是 `error_03`，不能标 algorithmic。本文件只记录已经闭合的事实。
 
 详细 canary 与排除项见 [analysis/app-version-2.9.365/analysis-progress.md](../analysis/app-version-2.9.365/analysis-progress.md)、[report.md](../analysis/app-version-2.9.365/report.md)。
 
@@ -91,11 +91,13 @@ account, app_version, chapter_command, chapter_id, device_token, login_token, ra
 
 2026-09-03 对 `pm clear` 后的全新官方游客：Python 先打 `310017`。官方立即阅读时第一次 `get_cpt_ifm` 仍是 8 键；接着 OkHttp HTTP/2 GET `/signup/geetest_first_register`；第二次 `get_cpt_ifm` 增加 `geetest_challenge` / `geetest_validate` / `geetest_seccode`。之后同一游客在 Python 上变成 `100000`。已放行身份再用普通 8 键也能 `100000`。
 
-同日把仍 `310017` 的 Python 自注册身份写入官方 SharedPreferences：官方进程能保住该身份。清掉本地阅读缓存后进入 `ReaderActivity4`，随后同一自注册身份在独立客户端变成 `100000`。已放行官方游客还原后仍 `100000`。网页章节链是另一条产品面。uid `10237` REDIRECT 才能看见 native 业务 HTTPS；全局 `http_proxy` 看不到这条面。
+同日把仍 `310017` 的 Python 自注册身份写入官方 SharedPreferences：官方进程能保住该身份。清掉本地阅读缓存后进入 `ReaderActivity4`，随后同一自注册身份在独立客户端变成 `100000`。已放行官方游客还原后仍 `100000`。当晚再注册一份全新游客（`40fe19acfd04`），无 MITM 走同一 oracle，约 53s 后独立客户端也是 `100000`。网页章节链是另一条产品面。uid `10237` REDIRECT 才能看见 native 业务 HTTPS；全局 `http_proxy` 看不到这条面。
 
 被拦身份的 310017 回包只有 `code`+`tip`。官方 `BaseTaskNew` 对 310017 走 GT3 bind（`setPattern(1)` + `startCustomFlow`），`onDialogResult` 把三元组写回同一 `getC`。API1 本身不够；假三元组是 `280002`。官方 SDK 自己走完 bind 一键。残留系统代理会造成「真机无法加载」，与该业务码无关。
 
-证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。自注册官方打戳：`official-python-born-gt3-oracle-canary.json`。stamp-event：`official-stamp-event-canary.json`。假重试：`official-geetest-retry-canary.json`。GT3 线：`official-gt3-wire-canary.json`。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。官方独有接口复放：`official-unique-replay-canary.json`。身份对照：`official-vs-python-cpt-now.json`。
+Python 目标是同一条 bind，而不是官方进程 oracle。`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `static/tools/gt.js` 的 `initGeetest` bind，出三元组后独立会话 `get_cpt_ifm=100000`（`gt3-fullpage-w-canary.json`）。`bind()` 默认仍 `Gt3BindNotReady`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`，不得标 `algorithmic`。
+
+证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。黑盒 bind：`gt3-fullpage-w-canary.json`。新游客 oracle：`official-gt3-new-guest-oracle-canary.json`。自注册官方打戳：`official-python-born-gt3-oracle-canary.json`。stamp-event：`official-stamp-event-canary.json`。假重试：`official-geetest-retry-canary.json`。GT3 线：`official-gt3-wire-canary.json`。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。官方独有接口复放：`official-unique-replay-canary.json`。身份对照：`official-vs-python-cpt-now.json`。
 
 ## 独立客户端的免费章回退
 

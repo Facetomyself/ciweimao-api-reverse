@@ -1059,15 +1059,123 @@
       "confidence": "high",
       "rebuild_status": "verified",
       "rebuild_path": "analysis/app-version-2.9.365/work/official_python_born_gt3_oracle_canary.py"
+    },
+    {
+      "id": "F-040",
+      "category": "network",
+      "claim": "新注册 Python 游客可在约 53s 内经官方 App GT3 oracle 打戳，无需 MITM 或 ajax.php 解题器",
+      "location": {
+        "file": "/data/data/com.kuangxiangciweimao.novel/shared_prefs/com.kuangxiangciweimao.novel_preferences.xml",
+        "class": "LoginedUser",
+        "method": "official ReaderActivity4 after prefs inject",
+        "address": "",
+        "line": 0
+      },
+      "description": "全新 auto_reg_v2 游客 40fe19acfd04 基线 get_cpt_ifm=310017。写入官方 LoginedUser 后身份保住。清阅读缓存后免费列表直进 ReaderActivity4。停留阅读器后独立客户端普通 8 键变成 100000。已放行游客 41c934e820ac 还原后仍 100000。http_proxy 保持 null。未写 tokens.json，未走网页章节链，未开 MITM。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/official-gt3-new-guest-oracle-canary.json",
+        "value": "new guest 40fe19acfd04 cpt 310017->100000; entry=reader; blessed 41c934e820ac still 100000; mitm_used=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只写 account_fp，不写 token/account/gt"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/work/official_gt3_new_guest_oracle.py"
+    },
+    {
+      "id": "F-041",
+      "category": "protocol",
+      "claim": "Python 已接官方 GT3 bind 合同（API1 + 三元组重试键）；ajax w 仍不可标 algorithmic",
+      "location": {
+        "file": "client/gt3.py",
+        "class": "NotReadyWProvider",
+        "method": "complete_bind",
+        "address": "",
+        "line": 0
+      },
+      "description": "first_register 复现 BaseTaskNew.RequestAPI1：GET /signup/geetest_first_register?t=&user_id=。retry_chapter_params 只追加 geetest_challenge/validate/seccode。bind() 默认 Gt3BindNotReady，避免再打假 ajax。panda 过滤 jadx 没有 com.geetest.sdk。公开 fullpage w（AES 字典 + RSA 包 key）只作假设，等官方 gettype/get 键对齐后再移植。",
+      "evidence": {
+        "type": "static",
+        "source": "client/gt3.py",
+        "value": "API1_PATH=/signup/geetest_first_register; RETRY_KEYS=geetest_*; bind raises Gt3BindNotReady"
+      },
+      "redaction": {
+        "redacted": false,
+        "redaction_method": "none",
+        "raw_value_stored": false,
+        "notes": "模块与测试不含真实 gt/validate"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "client/gt3.py"
+    },
+    {
+      "id": "F-042",
+      "category": "network",
+      "claim": "Python 可独立打通 API1 与 fullpage gettype/get；get.php 必须带 challenge，返回 c/s；103.143.17.166 现已 404",
+      "location": {
+        "file": "https://api.geetest.com/gettype.php",
+        "class": "",
+        "method": "GET gettype + GET get",
+        "address": "",
+        "line": 0
+      },
+      "description": "新游客 cpt 仍 310017。API1 顶层键 challenge/gt/new_captcha/success，gt/challenge 各 32。gettype?gt&callback 的 type=fullpage。get.php 缺 challenge 是 error_22；带 challenge+callback 一次成功，data 键含 api_server/c/s/static_servers。未 POST ajax。bind() 仍 Gt3BindNotReady。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/gt3-bind-boundary-canary.json",
+        "value": "api1.success=true; gettype.type=fullpage; get.php data keys include c,s; ajax_posted=false"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只写键名/长度/type=fullpage，不写 gt/challenge/c/s 值"
+      },
+      "confidence": "high",
+      "rebuild_status": "partial",
+      "rebuild_path": "analysis/app-version-2.9.365/scripts/gt3_bind_boundary_canary.py"
+    },
+    {
+      "id": "F-043",
+      "category": "protocol",
+      "claim": "RuyiDOM 黑盒 GT3 bind 能给新游客打戳；AES+RSA packing 对 fullpage 9.2.0 是 error_03",
+      "location": {
+        "file": "client/gt3_w.py",
+        "class": "RuyiDomWProvider",
+        "method": "complete_bind",
+        "address": "",
+        "line": 0
+      },
+      "description": "新游客 cpt=310017。gettype type=fullpage，fullpage JS=fullpage.9.2.0-guwyxh.js。geetest.6.0.9.js 没有 initGeetest；loader 是 static/tools/gt.js。RuyiDOM initGeetest bind + verify + getValidate 三元组长度 32/32/39；带三元组重试与随后普通 8 键均为 100000。AES+RSA ajax HTTP 200、error_03 param decrypt error。未写 tokens.json。不能标 algorithmic。",
+      "evidence": {
+        "type": "dynamic",
+        "source": "analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json",
+        "value": "origin=ruyidom; cpt 310017->100000; seccode_len=39; aes-rsa error_03"
+      },
+      "redaction": {
+        "redacted": true,
+        "redaction_method": "omit",
+        "raw_value_stored": false,
+        "notes": "只写长度/error_code/JS 文件名，不写 gt/challenge/validate/w"
+      },
+      "confidence": "high",
+      "rebuild_status": "verified",
+      "rebuild_path": "analysis/app-version-2.9.365/scripts/gt3_fullpage_w_canary.py"
     }
   ],
   "triage_items": [
     {
       "id": "B-001",
-      "description": "正文接口 310017：未打戳身份固定该码；官方进程完成 GT3 bind 后，官方出生与 Python 自注册在独立客户端都是 100000",
-      "severity": "blocker",
-      "reason": "门在身份有没有走过官方 GT3 bind，不在 TLS/8 键/网页章节链。本份自注册游客已被官方进程打戳。新身份仍要同一 oracle。",
-      "suggested_next": "新游客走官方 App GT3 黑盒：注入身份 → 官方读章 → 还原已放行游客。"
+      "description": "正文接口 310017：未打戳身份固定该码。RuyiDOM 黑盒 stamp_gt3 已把新游客打成 100000。纯算 w 仍 error_03。",
+      "severity": "resolved-ruyidom",
+      "reason": "官方 gt.js bind 出三元组后独立会话 100000。AES+RSA packing 不是 9.2.0 w。假三元组是 280002。",
+      "suggested_next": "采集调用 stamp_gt3。纯算需另冻 9.2.0 w fixture。"
     },
     {
       "id": "B-002",

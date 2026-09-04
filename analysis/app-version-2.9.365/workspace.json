@@ -128,6 +128,15 @@
       "analysis/app-version-2.9.365/evidence/official-geetest-retry-canary.json",
       "analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json",
       "analysis/app-version-2.9.365/evidence/official-python-born-gt3-oracle-canary.json",
+      "analysis/app-version-2.9.365/evidence/official-gt3-new-guest-oracle-canary.json",
+      "client/gt3.py",
+      "test_gt3.py",
+      "analysis/app-version-2.9.365/scripts/gt3_bind_boundary_canary.py",
+      "analysis/app-version-2.9.365/evidence/gt3-bind-boundary-canary.json",
+      "analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json",
+      "client/gt3_w.py",
+      "client/gt3_ruyidom_bind.js",
+      "analysis/app-version-2.9.365/scripts/gt3_fullpage_w_canary.py",
       "analysis/app-version-2.9.365/scripts/web_fallback_canary.py",
       "docs/web-fallback.md",
       "client/web.py",
@@ -146,10 +155,11 @@
     "ready_for_delivery": false
   },
   "continuation": {
-    "date": "2026-09-03",
-    "status": "python_born_stamped_by_official_gt3",
-    "app_gate": "100000_for_current_python_born",
+    "date": "2026-09-04",
+    "status": "ruyidom_gt3_bind_passed",
+    "app_gate": "stamp_gt3_ruyidom",
+    "algorithmic_w": "error_03",
     "web_is_not_app_gate": true,
-    "next": "new guests use official-app GT3 black box; client glue is 310017 then API1 then official SDK triple then get_cpt_ifm"
+    "next": "call Session.stamp_gt3 on 310017; keep algorithmic w pending"
   }
 }

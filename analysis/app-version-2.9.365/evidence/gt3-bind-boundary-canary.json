@@ -1,0 +1,223 @@
+{
+  "tested_at": "2026-09-03T23:02:14.151726+08:00",
+  "hypothesis": "Python first_register plus gettype/get key shapes can be frozen without ajax.php or official App oracle",
+  "tokens_json_written": false,
+  "ajax_posted": false,
+  "web_fallback": false,
+  "gt3_solved_by_us": false,
+  "origin": "algorithmic-pending",
+  "api1_path": "/signup/geetest_first_register",
+  "retry_keys": [
+    "geetest_challenge",
+    "geetest_validate",
+    "geetest_seccode"
+  ],
+  "gt3_paths": [
+    "/gettype.php",
+    "/get.php",
+    "/ajax.php"
+  ],
+  "guest": {
+    "account_fp": "36b5e06b7534",
+    "account_len": 9,
+    "login_token_len": 32,
+    "reader_id_last": "0"
+  },
+  "host": "app1.hbooker.com",
+  "cpt_before": {
+    "ok": false,
+    "code": "310017",
+    "tip": "请升级到最新版本客户端",
+    "chapter_id_len": 9
+  },
+  "api1": {
+    "success": true,
+    "new_captcha": true,
+    "gt": {
+      "present": true,
+      "len": 32
+    },
+    "challenge": {
+      "present": true,
+      "len": 32
+    },
+    "top_keys": [
+      "challenge",
+      "gt",
+      "new_captcha",
+      "success"
+    ]
+  },
+  "bind": {
+    "raised": true,
+    "class": "Gt3BindNotReady"
+  },
+  "probes": [
+    {
+      "host_class": "ip",
+      "scheme": "http",
+      "path": "/gettype.php",
+      "query_keys": [
+        "callback",
+        "gt"
+      ],
+      "http_code": 404,
+      "error": "http-error",
+      "ok": false,
+      "resp_len": 146,
+      "resp_class": "other",
+      "parse": "Gt3Error"
+    },
+    {
+      "host_class": "name",
+      "scheme": "https",
+      "path": "/gettype.php",
+      "query_keys": [
+        "callback",
+        "gt"
+      ],
+      "http_code": 200,
+      "ok": true,
+      "resp_len": 453,
+      "resp_class": "jsonp",
+      "response": {
+        "kind": "object",
+        "keys": [
+          "data",
+          "status"
+        ],
+        "fields": [
+          {
+            "name": "status",
+            "type": "str",
+            "len": 7,
+            "value": "success"
+          },
+          {
+            "name": "data",
+            "type": "dict",
+            "keys": [
+              "aspect_radio",
+              "beeline",
+              "click",
+              "fullpage",
+              "geetest",
+              "slide",
+              "static_servers",
+              "type",
+              "voice"
+            ],
+            "fields": [
+              {
+                "name": "type",
+                "type": "str",
+                "len": 8,
+                "value": "fullpage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "host_class": "name",
+      "scheme": "https",
+      "path": "/gettype.php",
+      "query_keys": [
+        "callback",
+        "gt"
+      ],
+      "http_code": 200,
+      "ok": true,
+      "resp_len": 453,
+      "resp_class": "jsonp",
+      "response": {
+        "kind": "object",
+        "keys": [
+          "data",
+          "status"
+        ],
+        "fields": [
+          {
+            "name": "status",
+            "type": "str",
+            "len": 7,
+            "value": "success"
+          },
+          {
+            "name": "data",
+            "type": "dict",
+            "keys": [
+              "aspect_radio",
+              "beeline",
+              "click",
+              "fullpage",
+              "geetest",
+              "slide",
+              "static_servers",
+              "type",
+              "voice"
+            ],
+            "fields": [
+              {
+                "name": "type",
+                "type": "str",
+                "len": 8,
+                "value": "fullpage"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "host_class": "name",
+      "scheme": "https",
+      "path": "/get.php",
+      "query_keys": [
+        "callback",
+        "challenge",
+        "client_type",
+        "gt",
+        "lang",
+        "pt"
+      ],
+      "http_code": 200,
+      "ok": true,
+      "resp_len": 1259,
+      "resp_class": "jsonp",
+      "response": {
+        "kind": "object",
+        "keys": [
+          "data",
+          "status"
+        ],
+        "fields": [
+          {
+            "name": "status",
+            "type": "str",
+            "len": 7,
+            "value": "success"
+          },
+          {
+            "name": "data",
+            "type": "dict",
+            "keys": [
+              "api_server",
+              "c",
+              "feedback",
+              "i18n_labels",
+              "logo",
+              "s",
+              "static_servers",
+              "theme",
+              "theme_version"
+            ],
+            "fields": []
+          }
+        ]
+      }
+    }
+  ],
+  "ok": true
+}

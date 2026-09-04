@@ -1,6 +1,6 @@
 # 2.9.365 协议升级进度
 
-更新于 2026-09-03。状态：**这份 Python 自注册游客已被官方进程 GT3 bind 打戳，独立客户端 `get_cpt_ifm=100000`。** 新身份仍走同一官方 SDK 黑盒。
+更新于 2026-09-04。状态：**RuyiDOM 黑盒 GT3 bind 已把新游客 `get_cpt_ifm` 从 310017 打成 100000。** 落地是 env-patch（官方 `static/tools/gt.js` + `initGeetest` bind），不是纯算 `w`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`。官方 App oracle 只当对照。
 
 ## 目标
 
@@ -35,7 +35,33 @@ LDPlayer x86 SecShell `maps`/`fclose` SIGSEGV 已用 Pixel 6 ARM64 原包绕过�
 
 ## 当前阶段
 
-L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保住该身份并完成 GT3 bind。随后独立客户端普通 8 键 `100000`。已放行游客仍在设备上。新游客继续走官方 SDK 黑盒。
+L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组，独立会话 `get_cpt_ifm=100000`。`bind()` 默认仍 `Gt3BindNotReady`。纯算 `w` 未过 sampleParity（ajax `error_03`）。不要把 RuyiDOM 成功标成 algorithmic。
+
+## 2026-09-04 GT3 黑盒 bind 过门
+
+- 新游客基线 cpt=`310017`，API1 成功，gettype `type=fullpage`，fullpage JS=`fullpage.9.2.0-guwyxh.js`。
+- 误加载 `geetest.6.0.9.js` 时 `initGeetest` 不存在。loader 是 `https://static.geetest.com/static/tools/gt.js`。
+- RuyiDOM：`initGeetest` bind + `verify` + `getValidate()`，三元组长度 32/32/39。带三元组重试 cpt=`100000`，随后普通 8 键也是 `100000`。
+- AES+RSA 公开 packing 打 ajax：HTTP 200，`error_03` `param decrypt error`。get.php `api_server=api.geevisit.com`。
+- `Session.stamp_gt3()` 封装这条黑盒面。未写 `tokens.json`，未走网页章节链。
+- 见 `client/gt3_w.py`、`client/gt3_ruyidom_bind.js`、`evidence/gt3-fullpage-w-canary.json`。
+
+## 2026-09-03 Python GT3 bind 面
+
+- 目标改成 Python 纯算完成 bind，允许中间解题，但交付必须是 `get_xxx` 而不是官方进程。
+- 新增 `client/gt3.py`：`first_register`、`retry_chapter_params`、`bind`（默认 `Gt3BindNotReady`）。
+- panda 过滤 jadx 没有 `com.geetest.sdk` / `AddressUtils`。公开资料把无滑块一键对到 GT3 fullpage `w`（AES + RSA），不是滑块轨迹。
+- MITM addon 补记 query 键长和响应 JSON 键名。边界 canary：`scripts/gt3_bind_boundary_canary.py`。
+- 见 `client/gt3.py`、`test_gt3.py`。
+- 边界 canary：新游客 cpt=`310017`，API1 成功，`gettype.type=fullpage`，`get.php` 成功键含 `c`/`s`。`103.143.17.166` 现 404。未打 ajax。见 `evidence/gt3-bind-boundary-canary.json`。
+
+## 2026-09-03 新游客官方 GT3 oracle 复验
+
+- 不 `pm clear`，不开 MITM，不写 `ajax.php` 解题器，不写 `tokens.json`。
+- 新 `auto_reg_v2` 游客 `40fe19acfd04` 基线 cpt=`310017`。
+- 注入后身份保住。免费列表直进 `ReaderActivity4`；这次把直进阅读器当成功路径并停留。
+- 第一次 Python 复打已是 `100000`。已放行游客 `41c934e820ac` 还原后仍 `100000`。`http_proxy=null`。
+- 见 `evidence/official-gt3-new-guest-oracle-canary.json`。
 
 ## 2026-09-03 Python 自注册官方 GT3 oracle
 
@@ -120,7 +146,7 @@ L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保
 | 游客注册 | 可用 |
 | 搜索/榜单/目录 | 可用 |
 | `get_chapter_cmd` | 可用 |
-| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 未打戳 `310017`。官方进程 GT3 bind 后，官方出生与 Python 自注册都可用普通 8 键 `100000`。网页链不是这条门 |
+| `get_cpt_ifm` / `download_cpt` / `check_download_cpt` | 未打戳 `310017`。RuyiDOM 黑盒 bind 已把新游客打成 `100000`（`stamp_gt3`）。纯算 `w` 仍 `error_03`。网页链不是这条门 |
 | `client.web` Web fallback | 已实现；文本免费章 Web detail=`100000`，VIP/图片章不覆盖 |
 | SecShell 解密 DEX | Pixel 6 panda：43 DEX / 71MB，业务包名已在 `dex_0x72090ab000.dex` 等；wrapper 标 `partial`（dump 后 SIGCONT 时进程已死）。不是完整脱壳声明 |
 | LDPlayer 原包启动 | x86 so 可映射，随后 maps/`fclose` SIGSEGV；停在 Splash 或直接崩。真机已替代 |
@@ -134,6 +160,7 @@ L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保
 | 路径 | 说明 |
 |---|---|
 | `input/ciweimao-2.9.365.apk` | SHA-256 `C9B2DA20…F6CB6B` |
+| `evidence/gt3-fullpage-w-canary.json` | RuyiDOM bind：新游客 cpt 310017→100000；AES+RSA ajax=`error_03` |
 | `evidence/protocol-canary.json` | 搜索/目录/cmd=`100000`，正文=`310017` |
 | `evidence/download-cpt-canary.json` | `download_cpt` / `check_download_cpt`=`310017` |
 | `artifacts/dumps/libSecShell-x86.mem.so` | 1,458,176 字节，x86_64 ELF，SHA-256 `66396047aa619f374069db2d35edce77924a4a1619543399dbaa24b309c52054` |
@@ -175,6 +202,7 @@ L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保
 | `evidence/official-geetest-retry-canary.json` | 自注册 API1 + 空/假三元组：空仍 310017，假三元组 280002，未打戳 |
 | `evidence/official-gt3-wire-canary.json` | stamp mitmdump：gettype/get/ajax ~1s，cpt 128b→1.0k，无滑块资源 |
 | `evidence/official-python-born-gt3-oracle-canary.json` | 自注册写入官方 App 后打戳；Python cpt 310017→100000；已放行游客仍在 |
+| `evidence/official-gt3-new-guest-oracle-canary.json` | 第二份新注册游客无 MITM oracle：310017→100000；已放行游客还原后仍 100000 |
 | `evidence/official-inprocess-ecapture.json` | eCapture 强制 boringssl_a_15；无 get_cpt_ifm 明文；Frida attach 失败 |
 | `scripts/spawn_secshell_arm.py` | Frida 17 spawn + `frida:load-bridge` 投递 |
 | `scripts/secshell_arm_frida_agent.js` | 当前：过滤 maps 并 dump so 页；不要 `Interceptor.replace(fclose)` |
@@ -193,6 +221,7 @@ L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保
 - 正文 `310017` **不是**全新官方游客第一次 cpt 有隐藏 8 键外字段：第一次仍是 `OFFICIAL_CPT_ORDER`。差在随后的极验重试。
 - 正文 `310017` **不是**只调 API1 或回填空/假三元组：空与 challenge-only 仍 310017；假 `validate|jordan` 是 280002。三元组必须来自 GT3 `onDialogResult`。
 - 「没点验证码」**不是**漏了隐藏业务字段：官方 GT3 是 bind 一键三枪，无滑块资源。
+- 新游客官方 GT3 oracle **不需要** MITM：第二份新注册游客无 MITM，直进阅读器后第一次 Python 复打已是 `100000`。
 - eCapture **不能**作为本栈官方进程内明文面：Android 15 构建强制 BoringSSL a15，钩不到 APK OpenSSL 1.1.0f。官方阅读器打开缓存导流章时甚至不会再打 `get_cpt_ifm`。
 - 正文 `310017` **不是** native `CURLOPT_HTTP_VERSION=3`：APK `libcurl/7.56.1` 版本串无 nghttp2，setopt 返回 1（`CURLE_UNSUPPORTED_PROTOCOL`），协商 `http_version=2`（HTTP/1.1），与官方 pcap ALPN 仅 `http/1.1` 一致。
 - 正文 `310017` 不是「游客不能读」：官方匿名可打开正文；`pm clear` 后 viselog `get_cpt_ifm=100000`。
@@ -210,5 +239,6 @@ L3 运行时：Python 自注册身份写入官方 prefs 后，官方进程能保
 
 ## 下一步
 
-1. 新游客走官方 App GT3 黑盒：注入身份 → 官方读章 → 还原已放行游客。
-2. 客户端接上同一胶水：`310017` → API1 → 官方 SDK 回写三元组 → 再打 `get_cpt_ifm`。
+1. 采集路径在 `310017` 时调 `Session.stamp_gt3()`，打戳后再读章；RuyiDOM 不可用才走 Web fallback。
+2. 纯算 `w` 仍对不齐 fullpage 9.2.0（`error_03`）。要对齐再冻官方 `w` fixture，不要把 RuyiDOM 出参标 algorithmic。
+3. 不要再依赖官方 App oracle 打戳。

@@ -335,6 +335,32 @@ class Session(_ProtocolMixin):
         return content.normalize_chapter_text(
             plaintext.decode("utf-8", errors="replace"))
 
+    def first_register_gt3(self, *, now_ms: int | None = None):
+        """拉官方 GT3 API1。不求解 ``ajax.php``。"""
+        from . import gt3
+        return gt3.first_register(self, now_ms=now_ms)
+
+    def bind_gt3(self, *, w_provider=None, now_ms: int | None = None):
+        """完整 GT3 bind。默认 ``Gt3BindNotReady``；传入 ``w_provider`` 才求解。"""
+        from . import gt3
+        return gt3.bind(self, w_provider=w_provider, now_ms=now_ms)
+
+    def stamp_gt3(self, *, prefer: str = "ruyidom", now_ms: int | None = None):
+        """RuyiDOM 黑盒 fullpage bind。失败再 AES+RSA ajax。"""
+        from . import gt3_w
+        return self.bind_gt3(
+            w_provider=gt3_w.FullpageWProvider(prefer=prefer),
+            now_ms=now_ms,
+        )
+
+    def retry_chapter_after_gt3(self, chapter_id: str, command: str, triple):
+        """带官方三元组重试 ``get_cpt_ifm``。假三元组会 280002。"""
+        from . import gt3
+        return self._call("/chapter/get_cpt_ifm", gt3.retry_chapter_params({
+            "chapter_id": chapter_id,
+            "chapter_command": command,
+        }, triple))
+
     def get_shelf_list(self) -> list[dict]:
         data = self._call("/bookshelf/get_shelf_list")
         return data.get("data", {}).get("shelf_list", [])
@@ -610,6 +636,32 @@ class AsyncSession(_ProtocolMixin):
         plaintext = crypto.decrypt_chapter(txt_content, command)
         return content.normalize_chapter_text(
             plaintext.decode("utf-8", errors="replace"))
+
+    async def first_register_gt3(self, *, now_ms: int | None = None):
+        from . import gt3
+        return await gt3.first_register_async(self, now_ms=now_ms)
+
+    async def bind_gt3(self, *, w_provider=None, now_ms: int | None = None):
+        from . import gt3
+        return await gt3.bind_async(self, w_provider=w_provider, now_ms=now_ms)
+
+    async def stamp_gt3(self, *, prefer: str = "ruyidom",
+                        now_ms: int | None = None):
+        from . import gt3, gt3_w
+        api1 = await gt3.first_register_async(self, now_ms=now_ms)
+        provider = gt3_w.FullpageWProvider(prefer=prefer)
+        return await asyncio.to_thread(provider.complete_bind, api1)
+
+    async def retry_chapter_after_gt3(self, chapter_id: str, command: str,
+                                      triple):
+        from . import gt3
+        return await self._call(
+            "/chapter/get_cpt_ifm",
+            gt3.retry_chapter_params({
+                "chapter_id": chapter_id,
+                "chapter_command": command,
+            }, triple),
+        )
 
     async def search_books(self, keyword: str, page: int = 0,
                            count: int = 10) -> dict:

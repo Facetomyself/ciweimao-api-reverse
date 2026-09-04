@@ -1,0 +1,169 @@
+{
+  "tested_at": "2026-09-03T22:47:16.814023+08:00",
+  "hypothesis": "a freshly registered python-born guest can be stamped by the official App GT3 bind oracle without MITM or ajax.php solver",
+  "tokens_json_written": false,
+  "web_fallback": false,
+  "pm_clear_used": false,
+  "gt3_solved_by_us": false,
+  "ajax_php_solver": false,
+  "mitm_used": false,
+  "blessed_restored": true,
+  "injected": true,
+  "actions": [
+    "unlock",
+    "cold-start",
+    "unlock",
+    "mainframe",
+    "tab:书城",
+    "free-tab",
+    "book:二次元死亡游戏，在线放水",
+    "direct-reader",
+    "stayed-reader",
+    "cpt-100000",
+    "back",
+    "dismiss-shelf"
+  ],
+  "steps": {
+    "backup": {
+      "ok": true,
+      "reused": true,
+      "bytes": 60938789,
+      "has_prefs": true,
+      "owner": "10237:10237",
+      "tar_rc": 0,
+      "pull_rc": 0,
+      "file_count": 0
+    },
+    "blessed_identity": {
+      "account_len": 9,
+      "account_fp": "41c934e820ac",
+      "login_token_len": 32,
+      "device_token": "ciweimao_",
+      "device_token_is_prefix_only": true,
+      "is_bind": 0,
+      "reader_id_len": 8,
+      "reader_id_last": "2"
+    },
+    "python_identity": {
+      "account_len": 9,
+      "account_fp": "40fe19acfd04",
+      "reader_id_len": 8,
+      "reader_id_last": "7",
+      "is_bind": "0"
+    },
+    "cpt_before": {
+      "code": "310017",
+      "tip": "请升级到最新版本客户端",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.hbooker.com"
+    },
+    "inject": {
+      "push_rc": 0,
+      "copy_rc": 0,
+      "before": {
+        "account_len": 9,
+        "account_fp": "41c934e820ac",
+        "reader_id_len": 8,
+        "reader_id_last": "2",
+        "is_bind": 0,
+        "login_token_len": 32
+      },
+      "after": {
+        "account_len": 9,
+        "account_fp": "40fe19acfd04",
+        "reader_id_len": 8,
+        "reader_id_last": "7",
+        "is_bind": "0",
+        "login_token_len": 32
+      },
+      "fp_changed": true,
+      "matches_python": true
+    },
+    "wipe_reader_cache": {
+      "ok": true,
+      "removed": [
+        {
+          "cmd": "/files/novelCiwei/reader/booksnew",
+          "rc": 0
+        },
+        {
+          "cmd": "/files/novelCiwei/reader/bookdetail",
+          "rc": 0
+        },
+        {
+          "cmd": "/files/novelCiwei/datas",
+          "rc": 0
+        },
+        {
+          "cmd": "/shared_prefs/record.xml",
+          "rc": 0
+        },
+        {
+          "cmd": "/shared_prefs/reading*.xml",
+          "rc": 0
+        },
+        {
+          "cmd": "/databases/novelCiwei",
+          "rc": 0
+        },
+        {
+          "cmd": "/databases/novelCiwei-journal",
+          "rc": 0
+        }
+      ]
+    },
+    "live_after_start": {
+      "account_len": 9,
+      "account_fp": "40fe19acfd04",
+      "reader_id_len": 8,
+      "reader_id_last": "7",
+      "is_bind": 0,
+      "login_token_len": 32
+    },
+    "identity_held": true,
+    "entry": "reader",
+    "cpt_poll": [
+      {
+        "code": "100000",
+        "tip": "",
+        "chapter_id_len": 9,
+        "command_len": 32,
+        "host": "app1.hbooker.com"
+      }
+    ],
+    "cpt_after": {
+      "code": "100000",
+      "tip": "",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.hbooker.com"
+    },
+    "restore": {
+      "ok": true,
+      "tar_rc": 0
+    },
+    "restored_identity": {
+      "account_len": 9,
+      "account_fp": "41c934e820ac",
+      "login_token_len": 32,
+      "device_token": "ciweimao_",
+      "device_token_is_prefix_only": true,
+      "is_bind": 0,
+      "reader_id_len": 8,
+      "reader_id_last": "2"
+    },
+    "cpt_restored_blessed": {
+      "code": "100000",
+      "tip": "",
+      "chapter_id_len": 9,
+      "command_len": 32,
+      "host": "app1.happybooker.cn"
+    }
+  },
+  "http_proxy": "null",
+  "python_account_fp": "40fe19acfd04",
+  "stamped": true,
+  "ok": true,
+  "http_proxy_after": "null"
+}

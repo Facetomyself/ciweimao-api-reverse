@@ -1,5 +1,29 @@
 # 实验记录
 
+## 2026-09-04 GT3 黑盒 bind
+
+- 记录时间：2026-09-04（Asia/Shanghai）
+- 分析思路：卡点是 GT3 fullpage `w`。官方 SDK 是 WebView + `initGeetest` bind，不是滑块。按宿主黑盒跑官方 JS 出三元组，用 `get_cpt_ifm=100000` 验收。AES+RSA packing 只作对照。
+- 本轮操作：`client/gt3_w.py` + `client/gt3_ruyidom_bind.js`。`stamp_gt3()`。现场 canary 新游客，不写 `tokens.json`。
+- 实验结果：gettype `fullpage` / `fullpage.9.2.0-guwyxh.js`。第一次误加载 `geetest.6.0.9.js`，`initGeetest-missing`。loader 改为 `static/tools/gt.js` 后 RuyiDOM `getValidate()` 三元组 32/32/39；重试 cpt=`100000`，随后普通 8 键 `100000`。AES+RSA ajax HTTP 200、`error_03 param decrypt error`。
+- 下一步计划：采集走 `stamp_gt3`。纯算 `w` 另开，不要把黑盒出参标 algorithmic。
+
+## 2026-09-03 Python GT3 bind 面
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：用户要求 Python 完整实现这条门，解题可以做，最终必须纯算。官方 oracle 只证明门在 GT3 bind，不能当交付。
+- 本轮操作：从 `BaseTaskNew` 和 stamp 线抽出 API1 / 三元组重试合同，写入 `client/gt3.py`。`bind()` 默认在 `w` 处失败。addon 补 query/响应键名。不过滤 jadx 里没有 `com.geetest.sdk`。
+- 实验结果：离线 `test_gt3.py` 覆盖 API1 解析、重试键、JSONP 脱敏、`Gt3BindNotReady`。公开滑块解题器不接入。现场 canary：新游客 `310017`，API1 成功，`gettype.type=fullpage`，`get.php?gt&challenge` 成功且 data 含 `c`/`s`。缺 challenge 是 `error_22`。stamp 里的 `103.143.17.166` 现 404。未 POST ajax。
+- 下一步计划：按这条 fullpage 合同移植 `w`（AES 字典 + RSA 包 key + `c`/`s`），再打 `ajax.php`，用 `get_cpt_ifm=100000` 验收。
+
+## 2026-09-03 新游客官方 GT3 oracle 复验
+
+- 记录时间：2026-09-03（Asia/Shanghai）
+- 分析思路：上一份自注册游客已打戳。要证明 oracle 对**新**身份可重复，且不依赖 MITM。直进 `ReaderActivity4` 是成功路径，不要当失败还原。
+- 本轮操作：`official_gt3_new_guest_oracle.py`。新 `auto_reg_v2` 游客写入 `LoginedUser`，清阅读缓存，进书城免费区。未写 `tokens.json`，未 `pm clear`，未开 MITM。
+- 实验结果：`40fe19acfd04` 基线 `310017`。身份保住。免费列表直进阅读器。停留后第一次 Python 复打 `100000`。已放行游客还原后仍 `100000`。全程约 53s。`http_proxy=null`。
+- 下一步计划：客户端接同一 oracle。不要写 `ajax.php` 解题器，不要改走网页章节链。
+
 ## 2026-09-03 Python 自注册官方 GT3 oracle
 
 - 记录时间：2026-09-03（Asia/Shanghai）

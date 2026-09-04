@@ -1,14 +1,14 @@
 # Triage — App 2.9.365 协议升级
 
-更新于 2026-09-03。App 门是官方 GT3 bind。本份 Python 自注册游客经官方进程打戳后独立客户端 `100000`。新身份仍走同一官方 SDK 黑盒。网页章节链是另一条产品面。
+更新于 2026-09-04。App 门是 GT3 bind。RuyiDOM 黑盒 `stamp_gt3()` 已把新游客 `get_cpt_ifm` 打成 100000。纯算 `w` 仍 `error_03`，不能标 algorithmic。网页章节链是另一条产品面。
 
 ## 状态速览
 
 | 深度等级 | 已完成 | 部分完成 | 阻滞 | 未开始 |
 |----------|--------|----------|------|--------|
 | L1（便携） | HMAC/AES 常量对照、真实搜索 canary、Web 双层 AES 复现 | 0 | 新身份未打戳时 310017 | 0 |
-| L2（上下文） | 游客注册、命令/目录可用；官方 POST 键对齐 | 0 | 新身份须官方 GT3 oracle | 0 |
-| L3（运行时） | Pixel 6 原包过 Splash；panda 43 DEX；官方正文 MITM；stamp-event；GT3 一键；自注册官方打戳 | dump 后进程被 panda 暂停致死 | 新游客尚未产品化 oracle | 官方 App GT3 黑盒 |
+| L2（上下文） | 游客注册、命令/目录可用；官方 POST 键对齐；新游客 oracle 可重复 | 0 | 客户端未接 oracle | 0 |
+| L3（运行时） | Pixel 6 原包过 Splash；panda 43 DEX；官方正文 MITM；stamp-event；GT3 一键；自注册官方打戳；新游客 oracle 复验；`client/gt3.py` API1；RuyiDOM 黑盒 bind `100000` | dump 后进程被 panda 暂停致死 | 纯算 `w` 仍 `error_03` | fullpage 9.2.0 packing |
 | L4（triage） | SecShell 路由确认 | 0 | 0 | 0 |
 
 ## 阻滞项
@@ -16,13 +16,13 @@
 ### B-001：章节正文接口 310017
 
 - **位置**：`/chapter/get_cpt_ifm`、`/chapter/download_cpt`、`/chapter/check_download_cpt`
-- **严重程度**：`blocker`
-- **原因**：门在身份有没有走过官方 GT3 bind。本份 Python 自注册已通过官方进程打戳。只调 API1、空字段、假 `|jordan` 都不能打戳。网页章节链风控不同。
-- **已尝试的手段**：对照/新游客/JA3/身份移植/读章序/uid MITM/字段对照/官方独有接口/stamp-event/API1+假三元组/官方 prefs 注入 oracle。
-- **证据**：`evidence/official-python-born-gt3-oracle-canary.json`、`evidence/official-stamp-event-canary.json`、`evidence/official-geetest-retry-canary.json`
-- **建议下一步**：新游客走官方 App GT3 黑盒（注入身份 → 官方读章 → 还原已放行游客）。
+- **严重程度**：`resolved-ruyidom`（纯算 `w` 仍 pending）
+- **原因**：门在身份有没有走过 GT3 bind。RuyiDOM 跑官方 `gt.js` bind 已出三元组，独立会话 `100000`。AES+RSA packing 是 `error_03`。假 `|jordan` 是 280002。网页章节链风控不同。
+- **已尝试的手段**：对照/新游客/JA3/身份移植/读章序/uid MITM/字段对照/官方独有接口/stamp-event/API1+假三元组/官方 prefs 注入 oracle/第二份新游客无 MITM 复验/Python bind 面骨架/RuyiDOM 黑盒/AES+RSA ajax。
+- **证据**：`client/gt3_w.py`、`evidence/gt3-fullpage-w-canary.json`、`client/gt3.py`、`test_gt3.py`
+- **建议下一步**：采集调用 `stamp_gt3()`。要对齐纯算再冻 9.2.0 `w` fixture。
 
-**当前处理**：App 门按官方 GT3 oracle 推进。`client.web` 仍是另一条产品面，不能记成这条门已过。
+**当前处理**：App 门可走 RuyiDOM 黑盒。`client.web` 仍是另一条产品面。
 
 ### W-001：公开 Web free-only 回退（已落地）
 
