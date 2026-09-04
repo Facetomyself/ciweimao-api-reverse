@@ -95,7 +95,7 @@ account, app_version, chapter_command, chapter_id, device_token, login_token, ra
 
 被拦身份的 310017 回包只有 `code`+`tip`。官方 `BaseTaskNew` 对 310017 走 GT3 bind（`setPattern(1)` + `startCustomFlow`），`onDialogResult` 把三元组写回同一 `getC`。API1 本身不够；假三元组是 `280002`。官方 SDK 自己走完 bind 一键。残留系统代理会造成「真机无法加载」，与该业务码无关。
 
-Python 目标是同一条 bind，而不是官方进程 oracle。`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `static/tools/gt.js` 的 `initGeetest` bind，出三元组后独立会话 `get_cpt_ifm=100000`（`gt3-fullpage-w-canary.json`）。`bind()` 默认仍 `Gt3BindNotReady`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`，不得标 `algorithmic`。
+Python 目标是同一条 bind，而不是官方进程 oracle。`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `static/tools/gt.js` 的 `initGeetest` bind，出三元组后独立会话 `get_cpt_ifm=100000`（`gt3-fullpage-w-canary.json`）。下载与协议探测在 `310017` 时默认 `allow_gt3_stamp=True`，失败且 `free_only` 才 Web fallback。`bind()` 默认仍 `Gt3BindNotReady`。AES+RSA packing 对 fullpage 9.2.0 是 `error_03 param decrypt error`，不得标 `algorithmic`。
 
 证据索引：[evidence/](../analysis/app-version-2.9.365/evidence/)。黑盒 bind：`gt3-fullpage-w-canary.json`。新游客 oracle：`official-gt3-new-guest-oracle-canary.json`。自注册官方打戳：`official-python-born-gt3-oracle-canary.json`。stamp-event：`official-stamp-event-canary.json`。假重试：`official-geetest-retry-canary.json`。GT3 线：`official-gt3-wire-canary.json`。线上明文：`official-uid-mitm-startup.json`、`official-uid-mitm-cpt.json`。字段对照：`official-vs-python-field-compare.json`。官方独有接口复放：`official-unique-replay-canary.json`。身份对照：`official-vs-python-cpt-now.json`。
 

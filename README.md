@@ -14,7 +14,7 @@
 | 响应 AES-256-CBC | 已复现（2.9.352+ current key） |
 | 游客注册 / 搜索 / 书城 / 目录 / `get_chapter_cmd` | 已复现，业务码 `100000` |
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
-| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。`Session.stamp_gt3()`（RuyiDOM 官方 `gt.js` bind）已把新游客打成 `100000`。纯算 `w` 仍 `error_03`，不能标 algorithmic |
+| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。下载/探测在该码上先 `stamp_gt3()`（RuyiDOM `gt.js` bind），失败且 `free_only` 才 Web fallback。纯算 `w` 仍 `error_03` |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
 | 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie；字段集合与形状已和 Python 对齐 |
 

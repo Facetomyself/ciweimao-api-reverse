@@ -71,8 +71,8 @@ class FakeAppSession:
     async def get_chapter_command(self, chapter_id):
         return f"command-{chapter_id}"
 
-    async def get_chapter_content(self, chapter_id, command):
-        del command
+    async def get_chapter_content(self, chapter_id, command, **kwargs):
+        del command, kwargs
         return f"正文-{chapter_id}"
 
     async def get_rank_books(self, order, time_type, page=0, count=10,

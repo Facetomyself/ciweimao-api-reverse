@@ -125,17 +125,16 @@ async def get_book(session: _api.AsyncSession, book_id: str,
                 try:
                     command = await session.get_chapter_command(
                         chapter.chapter_id)
-                    if (free_only
+                    chapter.content = await session.get_chapter_content(
+                        chapter.chapter_id,
+                        command,
+                        allow_gt3_stamp=True,
+                        allow_web_fallback=(
+                            free_only
                             and getattr(session, "supports_web_fallback", False)
-                            is True):
-                        chapter.content = await session.get_chapter_content(
-                            chapter.chapter_id,
-                            command,
-                            allow_web_fallback=True,
-                        )
-                    else:
-                        chapter.content = await session.get_chapter_content(
-                            chapter.chapter_id, command)
+                            is True
+                        ),
+                    )
                 except Exception as exc:
                     if _must_abort_download(exc):
                         raise

@@ -107,17 +107,16 @@ def get_book(session: _api.Session, book_id: str,
                     command = session.get_chapter_command(
                         chapter.chapter_id)
                     # Step 5: 获取并解密内容
-                    if (free_only
+                    chapter.content = session.get_chapter_content(
+                        chapter.chapter_id,
+                        command,
+                        allow_gt3_stamp=True,
+                        allow_web_fallback=(
+                            free_only
                             and getattr(session, "supports_web_fallback", False)
-                            is True):
-                        chapter.content = session.get_chapter_content(
-                            chapter.chapter_id,
-                            command,
-                            allow_web_fallback=True,
-                        )
-                    else:
-                        chapter.content = session.get_chapter_content(
-                            chapter.chapter_id, command)
+                            is True
+                        ),
+                    )
                 except Exception as e:
                     if isinstance(e, WebChapterError):
                         raise

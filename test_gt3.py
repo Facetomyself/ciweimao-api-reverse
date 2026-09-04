@@ -7,9 +7,11 @@ import unittest
 from unittest.mock import Mock
 
 from client import gt3
+from client.api import ApiError, Session
 from client.gt3 import (
     Api1Result,
     Gt3BindNotReady,
+    Gt3Error,
     Gt3Triple,
     NotReadyWProvider,
     official_seccode,
@@ -248,6 +250,74 @@ class Gt3WPackingTests(unittest.TestCase):
         second = gt3_w.pack_w('{"a":1}', aes_key="0123456789abcdef")
         self.assertEqual(first[:-256], second[:-256])
         self.assertNotEqual(first[-256:], second[-256:])
+
+
+class Gt3StampRecoveryTests(unittest.TestCase):
+    def _session(self):
+        session = object.__new__(Session)
+        session.web_fallback_enabled = True
+        session.web_fallback_used = False
+        session.gt3_stamped = False
+        session.gt3_stamp_origin = None
+        session._gt3_stamp_lock = __import__("threading").Lock()
+        return session
+
+    def test_default_does_not_stamp(self):
+        session = self._session()
+        session._call = Mock(side_effect=ApiError("310017", "blocked"))
+        session.stamp_gt3 = Mock()
+        with self.assertRaises(ApiError):
+            session.get_chapter_content("1", "cmd")
+        session.stamp_gt3.assert_not_called()
+
+    def test_310017_stamps_then_retries(self):
+        session = self._session()
+        ok = {"data": {"chapter_info": {"txt_content": ""}}}
+        session._call = Mock(side_effect=ApiError("310017", "blocked"))
+        triple = Gt3Triple(
+            32, 32, 39,
+            _challenge="c" * 32,
+            _validate="v" * 32,
+            _seccode="v" * 32 + "|jordan",
+        )
+        def fake_stamp():
+            session.gt3_stamped = True
+            session.gt3_stamp_origin = "ruyidom"
+            return triple
+        session.stamp_gt3 = Mock(side_effect=fake_stamp)
+        session.retry_chapter_after_gt3 = Mock(return_value=ok)
+        text = session.get_chapter_content("1", "cmd", allow_gt3_stamp=True)
+        self.assertEqual("", text)
+        session.stamp_gt3.assert_called_once()
+        session.retry_chapter_after_gt3.assert_called_once()
+        self.assertTrue(session.gt3_stamped)
+
+    def test_stamp_failure_falls_back_to_web(self):
+        session = self._session()
+        session._call = Mock(side_effect=ApiError("310017", "blocked"))
+        session.stamp_gt3 = Mock(side_effect=Gt3Error("offline"))
+        web = Mock()
+        web.get_chapter_content.return_value = "网页正文"
+        session._web_session = web
+        text = session.get_chapter_content(
+            "1", "cmd", allow_gt3_stamp=True, allow_web_fallback=True)
+        self.assertEqual("网页正文", text)
+        self.assertTrue(session.web_fallback_used)
+        web.get_chapter_content.assert_called_once_with("1")
+
+    def test_already_stamped_retries_without_second_bind(self):
+        session = self._session()
+        session.gt3_stamped = True
+        ok = {"data": {"chapter_info": {"txt_content": ""}}}
+        session._call = Mock(side_effect=[
+            ApiError("310017", "blocked"),
+            ok,
+        ])
+        session.stamp_gt3 = Mock()
+        text = session.get_chapter_content("1", "cmd", allow_gt3_stamp=True)
+        self.assertEqual("", text)
+        session.stamp_gt3.assert_not_called()
+        self.assertEqual(2, session._call.call_count)
 
 
 if __name__ == "__main__":

@@ -50,6 +50,10 @@ class _ProtocolMixin:
         self.web_min_interval = max(0.0, float(web_min_interval))
         self.web_base_url = web_base_url
         self.web_fallback_used = False
+        self.gt3_stamped = False
+        self.gt3_stamp_origin = None
+        self._gt3_stamp_lock = threading.Lock()
+        self._gt3_stamp_async_lock = None
 
     @property
     def headers(self) -> dict[str, str]:
@@ -307,18 +311,41 @@ class Session(_ProtocolMixin):
         return data.get("data", {}).get("command", "")
 
     def get_chapter_content(self, chapter_id: str, command: str,
-                            *, allow_web_fallback: bool = False) -> str:
+                            *, allow_web_fallback: bool = False,
+                            allow_gt3_stamp: bool = False) -> str:
         try:
             data = self._call("/chapter/get_cpt_ifm", {
                 "chapter_id": chapter_id,
                 "chapter_command": command,
             })
         except ApiError as exc:
-            if (exc.code != "310017" or not allow_web_fallback
-                    or not self.web_fallback_enabled):
+            if exc.code == "310017" and allow_gt3_stamp:
+                try:
+                    triple = self._ensure_gt3_stamp()
+                    if triple is None:
+                        data = self._call("/chapter/get_cpt_ifm", {
+                            "chapter_id": chapter_id,
+                            "chapter_command": command,
+                        })
+                    else:
+                        data = self.retry_chapter_after_gt3(
+                            chapter_id, command, triple)
+                except Exception:
+                    if (not allow_web_fallback
+                            or not getattr(self, "web_fallback_enabled", False)):
+                        raise
+                    self.web_fallback_used = True
+                    return self._get_web_session().get_chapter_content(
+                        chapter_id)
+            elif (exc.code == "310017" and allow_web_fallback
+                    and getattr(self, "web_fallback_enabled", False)):
+                self.web_fallback_used = True
+                return self._get_web_session().get_chapter_content(chapter_id)
+            else:
                 raise
-            self.web_fallback_used = True
-            return self._get_web_session().get_chapter_content(chapter_id)
+        return self._decode_chapter_payload(data, command)
+
+    def _decode_chapter_payload(self, data: dict, command: str) -> str:
         chapter_info = data.get("data", {}).get("chapter_info", {})
         txt_content = chapter_info.get("txt_content", "")
         if not txt_content:
@@ -335,6 +362,18 @@ class Session(_ProtocolMixin):
         return content.normalize_chapter_text(
             plaintext.decode("utf-8", errors="replace"))
 
+    def _ensure_gt3_stamp(self):
+        if getattr(self, "gt3_stamped", False):
+            return None
+        lock = getattr(self, "_gt3_stamp_lock", None)
+        if lock is None:
+            lock = threading.Lock()
+            self._gt3_stamp_lock = lock
+        with lock:
+            if getattr(self, "gt3_stamped", False):
+                return None
+            return self.stamp_gt3()
+
     def first_register_gt3(self, *, now_ms: int | None = None):
         """拉官方 GT3 API1。不求解 ``ajax.php``。"""
         from . import gt3
@@ -348,10 +387,11 @@ class Session(_ProtocolMixin):
     def stamp_gt3(self, *, prefer: str = "ruyidom", now_ms: int | None = None):
         """RuyiDOM 黑盒 fullpage bind。失败再 AES+RSA ajax。"""
         from . import gt3_w
-        return self.bind_gt3(
-            w_provider=gt3_w.FullpageWProvider(prefer=prefer),
-            now_ms=now_ms,
-        )
+        provider = gt3_w.FullpageWProvider(prefer=prefer)
+        triple = self.bind_gt3(w_provider=provider, now_ms=now_ms)
+        self.gt3_stamped = True
+        self.gt3_stamp_origin = provider.origin
+        return triple
 
     def retry_chapter_after_gt3(self, chapter_id: str, command: str, triple):
         """带官方三元组重试 ``get_cpt_ifm``。假三元组会 280002。"""
@@ -608,19 +648,42 @@ class AsyncSession(_ProtocolMixin):
 
     async def get_chapter_content(self, chapter_id: str,
                                   command: str,
-                                  *, allow_web_fallback: bool = False) -> str:
+                                  *, allow_web_fallback: bool = False,
+                                  allow_gt3_stamp: bool = False) -> str:
         try:
             data = await self._call("/chapter/get_cpt_ifm", {
                 "chapter_id": chapter_id,
                 "chapter_command": command,
             })
         except ApiError as exc:
-            if (exc.code != "310017" or not allow_web_fallback
-                    or not self.web_fallback_enabled):
+            if exc.code == "310017" and allow_gt3_stamp:
+                try:
+                    triple = await self._ensure_gt3_stamp_async()
+                    if triple is None:
+                        data = await self._call("/chapter/get_cpt_ifm", {
+                            "chapter_id": chapter_id,
+                            "chapter_command": command,
+                        })
+                    else:
+                        data = await self.retry_chapter_after_gt3(
+                            chapter_id, command, triple)
+                except Exception:
+                    if (not allow_web_fallback
+                            or not getattr(self, "web_fallback_enabled", False)):
+                        raise
+                    self.web_fallback_used = True
+                    return await self._get_web_session().get_chapter_content(
+                        chapter_id)
+            elif (exc.code == "310017" and allow_web_fallback
+                    and getattr(self, "web_fallback_enabled", False)):
+                self.web_fallback_used = True
+                return await self._get_web_session().get_chapter_content(
+                    chapter_id)
+            else:
                 raise
-            self.web_fallback_used = True
-            return await self._get_web_session().get_chapter_content(
-                chapter_id)
+        return await self._decode_chapter_payload_async(data, command)
+
+    async def _decode_chapter_payload_async(self, data: dict, command: str) -> str:
         chapter_info = data.get("data", {}).get("chapter_info", {})
         txt_content = chapter_info.get("txt_content", "")
         if not txt_content:
@@ -637,6 +700,24 @@ class AsyncSession(_ProtocolMixin):
         return content.normalize_chapter_text(
             plaintext.decode("utf-8", errors="replace"))
 
+    async def _ensure_gt3_stamp_async(self):
+        if getattr(self, "gt3_stamped", False):
+            return None
+        lock = getattr(self, "_gt3_stamp_async_lock", None)
+        if lock is None:
+            guard = getattr(self, "_gt3_stamp_lock", None)
+            if guard is None:
+                guard = threading.Lock()
+                self._gt3_stamp_lock = guard
+            with guard:
+                if getattr(self, "_gt3_stamp_async_lock", None) is None:
+                    self._gt3_stamp_async_lock = asyncio.Lock()
+                lock = self._gt3_stamp_async_lock
+        async with lock:
+            if getattr(self, "gt3_stamped", False):
+                return None
+            return await self.stamp_gt3()
+
     async def first_register_gt3(self, *, now_ms: int | None = None):
         from . import gt3
         return await gt3.first_register_async(self, now_ms=now_ms)
@@ -650,7 +731,10 @@ class AsyncSession(_ProtocolMixin):
         from . import gt3, gt3_w
         api1 = await gt3.first_register_async(self, now_ms=now_ms)
         provider = gt3_w.FullpageWProvider(prefer=prefer)
-        return await asyncio.to_thread(provider.complete_bind, api1)
+        triple = await asyncio.to_thread(provider.complete_bind, api1)
+        self.gt3_stamped = True
+        self.gt3_stamp_origin = provider.origin
+        return triple
 
     async def retry_chapter_after_gt3(self, chapter_id: str, command: str,
                                       triple):

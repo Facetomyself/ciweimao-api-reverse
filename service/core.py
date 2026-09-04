@@ -796,15 +796,16 @@ class CiweimaoService:
                     await _step(
                         "chapter/get_cpt_ifm",
                         lambda session, chapter_id=chapter_id, command=command: (
-                            session._call("/chapter/get_cpt_ifm", {
-                                "chapter_id": chapter_id,
-                                "chapter_command": command,
-                            })
+                            session.get_chapter_content(
+                                chapter_id,
+                                command,
+                                allow_gt3_stamp=True,
+                            )
                         ),
                     )
                     app_protocol_ok = True
                 except ApiError as exc:
-                    # 310017 is a known App-only client gate.  Keep the
+                    # 310017 remains if GT3 stamp is unavailable. Keep the
                     # failed App probe in evidence, then optionally verify
                     # the isolated public Web route for free-only service use.
                     if (exc.code != "310017"

@@ -120,9 +120,11 @@ class AsyncWebFallbackIntegrationTests(unittest.IsolatedAsyncioTestCase):
                 return "cmd"
 
             async def get_chapter_content(self, chapter_id, command, *,
-                                          allow_web_fallback=False):
+                                          allow_web_fallback=False,
+                                          allow_gt3_stamp=False):
                 del chapter_id, command
                 self.allow_web_fallback = allow_web_fallback
+                self.allow_gt3_stamp = allow_gt3_stamp
                 return "网页正文"
 
         session = FallbackSession()
@@ -168,6 +170,8 @@ class AsyncWebFallbackIntegrationTests(unittest.IsolatedAsyncioTestCase):
             raise AssertionError(endpoint)
 
         session._call = app_call
+        session.stamp_gt3 = AsyncMock(side_effect=ApiError(
+            "310017", "请升级到最新版本客户端"))
         web = Mock()
         web.get_chapter_content = AsyncMock(return_value="网页正文")
         session._web_session = web
@@ -216,9 +220,11 @@ class SyncDownloaderWebScopeTests(unittest.TestCase):
                 return "cmd"
 
             def get_chapter_content(self, chapter_id, command, *,
-                                   allow_web_fallback=False):
+                                   allow_web_fallback=False,
+                                   allow_gt3_stamp=False):
                 del chapter_id, command
                 self.allow_web_fallback = allow_web_fallback
+                self.allow_gt3_stamp = allow_gt3_stamp
                 return "网页正文"
 
         session = FallbackSession()
@@ -257,8 +263,9 @@ class SyncDownloaderWebScopeTests(unittest.TestCase):
                 return "cmd"
 
             def get_chapter_content(self, chapter_id, command, *,
-                                   allow_web_fallback=False):
-                del chapter_id, command, allow_web_fallback
+                                   allow_web_fallback=False,
+                                   allow_gt3_stamp=False):
+                del chapter_id, command, allow_web_fallback, allow_gt3_stamp
                 raise WebChapterError(
                     "网页被限流", stage="session", code="403",
                     status_code=403)

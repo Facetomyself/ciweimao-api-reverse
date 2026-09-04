@@ -239,6 +239,5 @@ L3 运行时：`Session.stamp_gt3()` 用 RuyiDOM 跑官方 `gt.js` 出三元组�
 
 ## 下一步
 
-1. 采集路径在 `310017` 时调 `Session.stamp_gt3()`，打戳后再读章；RuyiDOM 不可用才走 Web fallback。
+1. 采集/探测已在 `310017` 时 `allow_gt3_stamp=True`：先 `stamp_gt3()`，失败且 `free_only` 才 Web fallback。
 2. 纯算 `w` 仍对不齐 fullpage 9.2.0（`error_03`）。要对齐再冻官方 `w` fixture，不要把 RuyiDOM 出参标 algorithmic。
-3. 不要再依赖官方 App oracle 打戳。

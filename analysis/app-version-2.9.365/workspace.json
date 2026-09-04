@@ -160,6 +160,6 @@
     "app_gate": "stamp_gt3_ruyidom",
     "algorithmic_w": "error_03",
     "web_is_not_app_gate": true,
-    "next": "call Session.stamp_gt3 on 310017; keep algorithmic w pending"
+    "next": "algorithmic fullpage 9.2.0 w still error_03; collection already stamps via RuyiDOM"
   }
 }

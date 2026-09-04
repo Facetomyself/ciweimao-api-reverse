@@ -51,10 +51,11 @@ class ProbeSession:
         return {"code": "100000"}
 
     async def get_chapter_content(self, chapter_id, command, *,
-                                  allow_web_fallback=False):
-        del chapter_id, command
+                                  allow_web_fallback=False,
+                                  allow_gt3_stamp=False):
+        del chapter_id, command, allow_gt3_stamp
         if not allow_web_fallback:
-            raise AssertionError("probe must opt into web fallback")
+            raise ApiError("310017", "请升级到最新版本客户端")
         self.web_fallback_used = True
         return "网页正文"
 
@@ -78,8 +79,9 @@ class DownloadSession(ProbeSession):
         }}}
 
     async def get_chapter_content(self, chapter_id, command, *,
-                                  allow_web_fallback=False):
-        del chapter_id, command
+                                  allow_web_fallback=False,
+                                  allow_gt3_stamp=False):
+        del chapter_id, command, allow_gt3_stamp
         if not allow_web_fallback:
             raise AssertionError("free-only download must opt into Web")
         self.web_fallback_used = True
