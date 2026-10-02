@@ -91,6 +91,15 @@ class ProxyLeaseTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("proxy_url", snapshot)
         self.assertNotIn("secret", repr(snapshot))
 
+        self.assertTrue(await manager.release(reason="queue-idle"))
+        self.assertFalse(manager.snapshot()["acquired"])
+        self.assertFalse(manager.snapshot()["active"])
+        self.assertEqual(3, manager.snapshot()["generation"])
+        self.assertFalse(await manager.release(reason="queue-idle"))
+        again = await manager.context(reason="download")
+        self.assertEqual(4, provider.calls)
+        self.assertNotEqual(expired.lease.generation, again.lease.generation)
+
     async def test_concurrent_first_use_extracts_only_once(self):
         provider = FakeProvider(delay=0.01)
         manager = ProxyLeaseManager(provider, expiry_safety_seconds=0)

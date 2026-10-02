@@ -35,13 +35,13 @@ FastAPI / queue worker
 租约策略：
 
 - 容器启动、FastAPI lifespan、healthcheck 和 scheduler 投递阶段均不调用 `GetDPS`；
-- scheduler 每 30 分钟只投递一个 `sync_all`；
-- `sync_all` 开始执行时提取 1 个新 IP，榜单和新书全程共享同一个租约；
-- 同步完成后默认投递最多 100 本未下载书籍；这些 `download_book` 任务优先复用刚才的租约；
+- 启动不再自动做协议探测，避免没有采集任务时先提取一个 IP；
+- scheduler 每 30 分钟只投递一个 `sync_all`，本身不接触代理；
+- 这一轮的榜单、新书，以及随后最多 100 本下载，共享同一个租约；
+- 队列排空后立刻丢掉进程内租约。空闲到下一轮调度之间不持有代理；
 - 积压下载跨过 20 分钟租约或遇到出口失败时才按需提取下一 IP；
-- 指定书名下载优先复用当前仍有效的 IP；没有租约、租约到期或代理失败时才提取；
 - 搜索接口与指定书下载使用相同的复用规则；
-- `320002` 先在当前 IP 下刷新游客身份；新游客校验仍失败时才判定出口不可用并换 IP；
+- `320002` 在同一 IP 上重试一次，仍失败才废弃租约并提取新 IP；这个码不刷新游客。`200100` 才在当前 IP 下刷新游客；
 - 连接、代理、timeout、HTTP 407/502/503/504 等错误会废弃当前动态租约并重试一次；
 - 租约只保存在进程内，health 仅返回 provider、generation 和剩余秒数，不返回代理 URL。
 
@@ -70,6 +70,7 @@ chown 10001:10001 runtime/secrets/kdl_secret_id runtime/secrets/kdl_secret_key
 密码默认在第一次实际提取前通过 `GetProxyAuthorization` 获取；该调用不启动 DPS
 有效期。生产 Compose 使用 `required`，鉴权信息取不到就不会调用 `GetDPS`，避免浪费
 IP；若订单明确使用 IP 白名单，再设置 `CIWEIMAO_KDL_AUTH_MODE=whitelist`。
+`runtime/nas-egress/password` 与 `known_hosts` 只给归档 SSH 用，不再作为代理 sidecar。
 
 游客凭据由服务在第一次真实请求时按需校验或创建，并以 `0600` 权限原子写入
 `runtime/data/guest-tokens.json`。动态代理模式不会为了启动服务提前创建游客。
@@ -83,10 +84,10 @@ App 正文接口若返回 `310017`，free-only 下载会切到独立的公开 We
 
 ## 资源限制
 
-- CPU：`0.75`；
-- Memory limit：`384 MiB`；
-- Memory reservation：`128 MiB`；
-- PIDs：`128`；
+- CPU：`0.9`；
+- Memory limit：`512 MiB`；
+- Memory reservation：`192 MiB`；
+- PIDs：`160`；
 - Queue worker：`1`；
 - Uvicorn worker：`1`。
 

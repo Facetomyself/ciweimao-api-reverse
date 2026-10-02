@@ -43,7 +43,7 @@ APScheduler
 ### `service`
 
 - `config.py`：无密钥配置与凭据惰性加载；
-- `proxy.py`：快代理 DPS 按需提取、20 分钟租约缓存、到期与失败刷新；
+- `proxy.py`：快代理 DPS 按需提取；队列空闲后释放租约，到期或失败才刷新；
 - `credentials.py`：静态出口 lifespan 校验、动态出口首次使用自举和 `0600` 原子落盘；
 - `database.py`：SQLite schema、下载候选选择和 repository；
 - `queue.py`：任务恢复、claim、执行和状态迁移；
@@ -93,14 +93,16 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 
 所有 Session 都从业务工作流持有的 `ProxyLease` 注入代理。静态部署仍可使用
 `CIWEIMAO_PROXY_URL`；ali-cloud 使用 `CIWEIMAO_PROXY_PROVIDER=kuaidaili_dps`。
-`GetDPS` 只在第一次真实使用或明确刷新时调用，启动、healthcheck 和 scheduler 投递不
-提取 IP。当前租约只在进程内保存，不修改系统代理、宿主路由或其他容器网络。
+`GetDPS` 只在任务真正要访问网络、且进程里没有可用租约时调用。启动、healthcheck
+和 scheduler 投递不提取 IP。调度器只把 `sync_all` 放进队列。队列排空后立刻丢掉
+进程内租约，空闲时不再持有代理。这不会把已经开始计时的 IP 退回供应商；下一次
+有任务才会再提取。租约不写入磁盘，也不改系统代理、宿主路由或其他容器网络。
 
-- `sync_all` 每轮开始时强制获取一个新租约，榜单与新书在同一个 `ProxyLeaseContext` 中顺序执行；
-- 随后排队的自动下载使用 `force_new_proxy=False`，优先复用同步任务留下的有效租约；
-- 下载积压超过租约有效期时，下一本书按需获取新 IP；代理或请求失败也只在确认后刷新；
-- 榜单和新书单项 handler 手动执行时仍各自获取新租约；
-- 搜索和指定书下载复用仍有效的当前租约，到期或失败后才刷新；
+- 同一轮队列共享一条租约：`sync_all` 的榜单和新书，以及它投递出的下载，都不强制换 IP；
+- 榜单、新书、搜索、指定书下载也复用仍有效的租约；
+- 队列里没有正在执行或已经到点的任务时释放租约。尚未到点的延迟重试不占着代理；
+- 下载跨过租约有效期，或出口失败确认后需要换 IP 时，才再提取；
+- 直接搜索在返回后、确认队列空闲时同样释放；
 - 游客身份与出口相关，完整 App 网络工作流通过单锁串行执行，避免不同代理同时覆盖 token；
 
 - App `get_cpt_ifm` 返回 `310017` 时，只有 `free_only` 下载才进入公开 Web
@@ -113,7 +115,7 @@ APScheduler 3.11 使用 `AsyncIOScheduler`：
 - 榜单：按规格顺序请求，每个规格独立 session；
 - 新书与搜索：按页顺序请求，每页独立 session；
 - 单本下载：章节使用 `asyncio.Semaphore(3)`，每章内部按 `command -> metadata/CDN` 顺序执行；
-- App API/CDN 遇连接断开或 timeout 时先做有限传输重试；`200100` 在当前代理下刷新游客；`320002` 先刷新游客，校验仍失败才废弃动态代理并提取一个新 IP；其他业务错误和解密错误不触发换 IP；
+- App API/CDN 遇连接断开或 timeout 时先做有限传输重试；`200100` 在当前代理下刷新游客；`320002` 在同一 IP 上重试一次，仍失败才废弃动态代理并提取一个新 IP，不刷新游客；其他业务错误和解密错误不触发换 IP；
 - 文件写入：通过 `asyncio.to_thread` 执行，不阻塞 event loop；
 - 落盘：先写 `.txt.part`，完成后 `os.replace`。
 
@@ -192,7 +194,7 @@ repository 使用短连接和短事务。连接关闭及 shutdown 回写经过 c
 | Scheduler 暂停多周期 | `coalesce=True` 合并错过的执行 |
 | 凭据缺失/跨出口失效 | 第一次真实 App 请求持有代理后再按需注册游客；启动阶段不提取 IP |
 | 运行中 `200100` | 在当前代理下单锁刷新 token 文件并重试业务操作 |
-| 持久 `320002` / 代理连接失败 | 当前代理下游客校验失败后废弃租约，按需提取 1 个新 IP |
+| 持久 `320002` / 代理连接失败 | 同一 IP 重试一次后废弃租约，按需提取 1 个新 IP；`320002` 不刷新游客 |
 | 凭据文件更新 | 下个任务重新读取 `tokens.json`，无需重启服务 |
 
 ## 迁移 PostgreSQL 的边界

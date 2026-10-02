@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import unittest
-from pathlib import Path
 from unittest.mock import Mock
 
 from client import gt3
@@ -227,9 +227,12 @@ class Gt3ParseTests(unittest.TestCase):
 
 
 class Gt3WPackingTests(unittest.TestCase):
-    def test_geetest_b64_matches_standard_for_man(self):
+    def test_geetest_b64_uses_hcb_bit_masks(self):
         from client import gt3_w
-        self.assertEqual("TWFu", gt3_w.geetest_b64_encode(b"Man"))
+        # $_HCB masks, not standard base64 (standard would be TWFu / TWE. / TQ..).
+        self.assertEqual("tEle", gt3_w.geetest_b64_encode(b"Man"))
+        self.assertEqual("tEk.", gt3_w.geetest_b64_encode(b"Ma"))
+        self.assertEqual("tA..", gt3_w.geetest_b64_encode(b"M"))
 
     def test_pack_w_shape_hides_plaintext(self):
         from client import gt3_w
@@ -249,7 +252,8 @@ class Gt3WPackingTests(unittest.TestCase):
             mode="b64-concat",
         )
         shape = gt3_w.w_public_shape(packed)
-        self.assertTrue(all(ch in gt3_w.GEETEST_B64_ALPHABET for ch in packed))
+        self.assertTrue(gt3_w.geetest_b64_body_ok(packed))
+        self.assertTrue(packed.endswith(".."))
         self.assertFalse(shape["rsa_hex_ok"])
         self.assertNotIn("fullpage", packed)
 
@@ -257,32 +261,16 @@ class Gt3WPackingTests(unittest.TestCase):
         from client import gt3_w
         self.assertTrue(gt3_w.gt_loader_url(None).endswith("/static/tools/gt.js"))
 
-    def test_provider_order_node_is_default_and_skips_ruyidom(self):
+    def test_provider_order_defaults_to_aes_rsa_and_rejects_blackbox(self):
         from client import gt3_w
-        self.assertEqual(("node",), gt3_w.provider_order("node"))
-        self.assertEqual(("ruyidom",), gt3_w.provider_order("ruyidom"))
-        self.assertEqual(("node", "ruyidom"),
-                         gt3_w.provider_order("node-then-ruyidom"))
+        self.assertEqual(("aes-rsa",), gt3_w.provider_order("aes-rsa"))
+        self.assertEqual(("aes-rsa",), gt3_w.provider_order(""))
         provider = gt3_w.FullpageWProvider()
-        self.assertEqual("node", provider.prefer)
-        self.assertTrue(gt3_w.NODE_BIND_JS.is_file())
-        self.assertTrue(gt3_w.NODE_EXE.is_file())
-
-    def test_node_provider_missing_binary(self):
-        from client import gt3_w
-        api1 = gt3.Api1Result(
-            success=True,
-            new_captcha=True,
-            gt_len=32,
-            challenge_len=32,
-            top_keys=("challenge", "gt"),
-            _gt="g" * 32,
-            _challenge="c" * 32,
-        )
-        provider = gt3_w.NodeWProvider(node=Path("Z:/missing-node.exe"))
-        with self.assertRaises(gt3_w.Gt3WError) as ctx:
-            provider.complete_bind(api1)
-        self.assertIn("node-missing", str(ctx.exception))
+        self.assertEqual("aes-rsa", provider.prefer)
+        for name in ("node", "ruyidom", "node-then-ruyidom"):
+            with self.assertRaises(gt3_w.Gt3WError) as ctx:
+                gt3_w.provider_order(name)
+            self.assertIn(f"blackbox-removed-{name}", str(ctx.exception))
 
     def test_pack_w_rsa_is_not_deterministic(self):
         from client import gt3_w
@@ -290,6 +278,75 @@ class Gt3WPackingTests(unittest.TestCase):
         second = gt3_w.pack_w('{"a":1}', aes_key="0123456789abcdef")
         self.assertEqual(first[:-256], second[:-256])
         self.assertNotEqual(first[-256:], second[-256:])
+
+    def test_ajax_w_is_aes_only_and_get_w_registers_the_key(self):
+        from client import gt3_w
+        key = "0123456789abcdef"
+        plain = '{"type":"fullpage"}'
+        ajax = gt3_w.pack_ajax_w(plain, aes_key=key)
+        registered = gt3_w.pack_registered_w(plain, aes_key=key)
+        self.assertTrue(gt3_w.geetest_b64_body_ok(ajax))
+        self.assertTrue(ajax.endswith("."))
+        self.assertEqual(registered[:-256], ajax)
+        self.assertEqual(256, len(registered) - len(ajax))
+        self.assertTrue(all(ch in "0123456789abcdef" for ch in registered[-256:]))
+
+    def test_tt_insert_uses_original_length(self):
+        from client import gt3_w
+        base = "M(*((1((M(("
+        inserted = gt3_w.tt_insert(base, [12, 58, 98, 36, 43], "4142")
+        self.assertEqual(len(inserted), len(base) + 2)
+        self.assertEqual(gt3_w.tt_insert(base, None, "4142"), base)
+
+    def test_fullpage_ajax_plaintext_matches_920_field_order(self):
+        from client import gt3_w
+        api1 = gt3.Api1Result(
+            success=True,
+            new_captcha=True,
+            gt_len=2,
+            challenge_len=2,
+            top_keys=("challenge", "gt"),
+            _gt="gt",
+            _challenge="ch",
+        )
+        plain = gt3_w.fullpage_ajax_plaintext(
+            api1, passtime=2200, c=[1, 0, 1, 0, 1], s="00", now_ms=1_000,
+        )
+        parsed = json.loads(plain)
+        self.assertEqual(
+            ["lang", "type", "tt", "light", "s", "h", "hh", "hi",
+             "vip_order", "ct", "ep", "passtime", "rp", "captcha_token", "tsfq"],
+            list(parsed),
+        )
+        self.assertEqual("112439067", parsed["captcha_token"])
+        self.assertEqual("xovrayel", parsed["tsfq"])
+        self.assertEqual("fullpage", parsed["type"])
+        self.assertNotIn("client_type", parsed)
+        self.assertEqual(
+            hashlib.md5(b"gtch2200").hexdigest(),
+            parsed["rp"],
+        )
+        self.assertEqual(294, len(gt3_w.FULLPAGE_I))
+
+    def test_aes_rsa_query_uses_mobile_client_type(self):
+        from client import gt3_w
+        api1 = gt3.Api1Result(
+            success=True,
+            new_captcha=True,
+            gt_len=2,
+            challenge_len=2,
+            top_keys=("challenge", "gt"),
+            _gt="gt",
+            _challenge="ch",
+        )
+        provider = gt3_w.AesRsaWProvider()
+        self.assertEqual("web_mobile", provider.client_type)
+        self.assertEqual("3", provider.pt)
+        query = gt3_w.ajax_query(
+            api1, "w", client_type=provider.client_type, pt=provider.pt,
+        )
+        self.assertEqual("web_mobile", query["client_type"])
+        self.assertEqual("3", query["pt"])
 
 
 class Gt3StampRecoveryTests(unittest.TestCase):

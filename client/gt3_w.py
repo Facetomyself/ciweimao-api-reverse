@@ -1,12 +1,11 @@
-"""GT3 fullpage bind：HTTP 三枪、``w`` 打包、Node 黑盒出参。
+"""GT3 fullpage bind：HTTP 三枪与纯算 ``w``。
 
 官方 App 是 ``GT3GeetestUtils`` WebView（``setPattern(1)``），不是滑块。
-本模块把同一条 gettype → get → ajax 收到 Python。``w`` 的主路：
+本模块把同一条 gettype → get → ajax 收到 Python。盖章运行时只有
+fullpage 9.2.0 纯算：``get.php`` 的 ``w`` 登记 AES key（自定义 base64 + RSA hex），
+``ajax.php`` 的 ``w`` 只用同一把 key 的自定义 base64。
 
-- 本机 Node 跑官方 ``gt.js`` / ``initGeetest``，读 ``getValidate()``（黑盒，不依赖 RuyiDOM）
-- 可选 RuyiDOM（``prefer=ruyidom``）
-- AES-CBC 字典 + RSA 包 key（公开 packing；fullpage 9.2.0 仍 ``error_03``）
-
+``prefer=node`` / ``ruyidom`` / ``node-then-ruyidom`` 抛 ``blackbox-removed``。
 默认 ``bind()`` 仍是 ``Gt3BindNotReady``。验收只认独立会话
 ``get_cpt_ifm=100000``。
 """
@@ -16,15 +15,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import hashlib
 import json
-import os
-from pathlib import Path
 import secrets
-import subprocess
-import tempfile
 import time
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
 import urllib.request
 
 from Crypto.Cipher import AES, PKCS1_v1_5
@@ -44,6 +39,9 @@ GEETEST_RSA_E = "010001"
 GEETEST_B64_ALPHABET = (
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789()"
 )
+GEETEST_B64_PAD = "."
+# $_HCB 从 24-bit 组里按这些掩码抽 6 bit，顺序不是标准 base64。
+GEETEST_B64_MASKS = (7274496, 9483264, 19220, 235)
 DEFAULT_API_HOSTS = (
     "https://api.geetest.com",
     "https://api.geevisit.com",
@@ -51,30 +49,41 @@ DEFAULT_API_HOSTS = (
 DEFAULT_GT_JS = "https://static.geetest.com/static/tools/gt.js"
 DEFAULT_CLIENT_TYPE = "native"
 DEFAULT_LANG = "zh-cn"
+# NATIVE_UA 含 Mobi，fullpage 把 client_type 设成 web_mobile，pt 设成 3。
+FULLPAGE_CLIENT_TYPE = "web_mobile"
+FULLPAGE_PT = "3"
+GEETEST_REFERER = "https://www.geetest.com/demo/bind-app.html"
 NATIVE_UA = (
     "Mozilla/5.0 (Linux; Android 15; Pixel 6 Build/AP3A.241005.015) "
     "AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.0.0 "
     "Mobile Safari/537.36"
 )
 AES_IV = b"0000000000000000"
-_CLIENT_DIR = Path(__file__).resolve().parent
-NODE_BIND_JS = _CLIENT_DIR / "gt3_node_bind.mjs"
-NODE_EXE = Path(r"D:\reverse_ENV\tools\node\node.exe")
-RUYIDOM_BIND_JS = _CLIENT_DIR / "gt3_ruyidom_bind.js"
-RUYIDOM_PS1 = Path(r"D:\reverse_ENV\tools\ruyidom\run.ps1")
-POWERSHELL = Path(
-    os.environ.get("SystemRoot", r"C:\Windows")
-) / "System32" / "WindowsPowerShell" / "v1.0" / "powershell.exe"
-PROVIDER_NAMES = ("node", "ruyidom", "aes-rsa")
+# fullpage.9.2.0-guwyxh 成功 bind 的稳定环境字段。
+# tt 基底在送出前按 get.php 的 c/s 插入；s/h/hh/hi 是该环境指纹的 MD5。
+FULLPAGE_TT = "M(*((1((M(("
+FULLPAGE_S = "c7c3e21112fe4f741921cb3e4ff9f7cb"
+FULLPAGE_H = "321f9af1e098233dbd03f250fd2b5e21"
+FULLPAGE_HH = "39bd9cad9e425c3a8f51610fd506e3b3"
+FULLPAGE_HI = "09eb21b3ae9542a9bc1e8b63b3d9a467"
+# djb2 of the 9.2.0-guwyxh inner o/n sources plus "bbOy".
+FULLPAGE_CAPTCHA_TOKEN = "112439067"
+FULLPAGE_I = ("-1!!" * 73) + "-1"
+FULLPAGE_TM_DELTAS = (
+    ("a", 0), ("f", 4), ("g", 6), ("h", 10), ("i", 10), ("j", 18),
+    ("l", 20), ("m", 40), ("n", 55), ("o", 56), ("p", 120), ("q", 130),
+    ("r", 132), ("s", 180), ("t", 181), ("u", 190),
+)
+_REMOVED_PREFERS = frozenset({"node", "ruyidom", "node-then-ruyidom"})
 
 
 def provider_order(prefer: str) -> tuple[str, ...]:
-    """Default stamp is Node-only. RuyiDOM is opt-in, not a fallback."""
-    name = str(prefer or "node")
-    if name == "node-then-ruyidom":
-        return ("node", "ruyidom")
-    if name in PROVIDER_NAMES:
-        return (name,)
+    """Stamp runtime is pure Python fullpage 9.2.0 w."""
+    name = str(prefer or "aes-rsa")
+    if name in _REMOVED_PREFERS:
+        raise Gt3WError(f"blackbox-removed-{name}")
+    if name == "aes-rsa":
+        return ("aes-rsa",)
     raise Gt3WError(f"prefer-{name}")
 
 
@@ -98,26 +107,44 @@ class GeetestPlane:
     error: str = ""
 
 
+def geetest_b64_body_ok(value: str) -> bool:
+    """字母表校验。末尾 ``.`` 是 $_HCB 的余数填充，不在 64 字符表里。"""
+    body = value.rstrip(GEETEST_B64_PAD)
+    return bool(body) and all(ch in GEETEST_B64_ALPHABET for ch in body)
+
+
+def _geetest_b64_index(word: int, mask: int) -> int:
+    """$_HBZ：从高位到低位，掩码为 1 的位拼进下标。"""
+    index = 0
+    for bit in range(23, -1, -1):
+        if (mask >> bit) & 1:
+            index = (index << 1) | ((word >> bit) & 1)
+    return index
+
+
 def geetest_b64_encode(data: bytes) -> str:
-    """GeeTest 6-bit 字母表，``+/`` 换成 ``()``，无 padding。"""
+    """fullpage 9.2.0 ``$_HEJ``。余数 2 补 ``.``，余数 1 补 ``..``。"""
     alphabet = GEETEST_B64_ALPHABET
     out: list[str] = []
     n = len(data)
     i = 0
     while i < n:
-        b1 = data[i]
-        out.append(alphabet[b1 >> 2])
-        if i + 1 < n:
-            b2 = data[i + 1]
-            out.append(alphabet[((b1 & 3) << 4) | (b2 >> 4)])
-            if i + 2 < n:
-                b3 = data[i + 2]
-                out.append(alphabet[((b2 & 15) << 2) | (b3 >> 6)])
-                out.append(alphabet[b3 & 63])
-            else:
-                out.append(alphabet[(b2 & 15) << 2])
+        left = n - i
+        if left >= 3:
+            word = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2]
+            masks = GEETEST_B64_MASKS
+            pad = ""
+        elif left == 2:
+            word = (data[i] << 16) | (data[i + 1] << 8)
+            masks = GEETEST_B64_MASKS[:3]
+            pad = GEETEST_B64_PAD
         else:
-            out.append(alphabet[(b1 & 3) << 4])
+            word = data[i] << 16
+            masks = GEETEST_B64_MASKS[:2]
+            pad = GEETEST_B64_PAD * 2
+        out.extend(alphabet[_geetest_b64_index(word, mask)] for mask in masks)
+        if pad:
+            out.append(pad)
         i += 3
     return "".join(out)
 
@@ -148,6 +175,42 @@ def aes_cbc_encrypt(plaintext: str, aes_key: str) -> bytes:
 PACK_MODES = ("b64-hex", "b64-b64", "b64-concat")
 
 
+def tt_insert(track: str, c: list | None, s: str | None) -> str:
+    """fullpage 9.2.0 把 get.php 的 ``c``/``s`` 插进轨迹，不插进 ``w``。"""
+    if not track or not c or not s:
+        return track
+    try:
+        scale = int(c[0])
+        bias = int(c[2])
+        shift = int(c[4])
+    except (IndexError, TypeError, ValueError):
+        return track
+    out = track
+    offset = 0
+    width = len(track)
+    while offset + 2 <= len(s):
+        pair = s[offset:offset + 2]
+        offset += 2
+        try:
+            value = int(pair, 16)
+        except ValueError:
+            break
+        pos = (scale * value * value + bias * value + shift) % width
+        out = out[:pos] + chr(value) + out[pos:]
+    return out
+
+
+def pack_registered_w(plaintext: str, *, aes_key: str) -> str:
+    """``get.php`` ``w``：自定义 base64(AES) + RSA hex，用来登记 AES key。"""
+    aes_ct = aes_cbc_encrypt(plaintext, aes_key)
+    return geetest_b64_encode(aes_ct) + rsa_encrypt_aes_key(aes_key)
+
+
+def pack_ajax_w(plaintext: str, *, aes_key: str) -> str:
+    """``ajax.php`` ``w``：同一把 key 的自定义 base64(AES)，没有 RSA 尾。"""
+    return geetest_b64_encode(aes_cbc_encrypt(plaintext, aes_key))
+
+
 def pack_w(plaintext: str, *, aes_key: str | None = None,
            mode: str = "b64-hex") -> str:
     """打包 ``w``。9.2.0 官方外形是整串 GeeTest 字母表，末尾不是 hex。"""
@@ -168,39 +231,113 @@ def w_public_shape(value: str) -> dict:
         "len": len(value),
         "rsa_hex_len": 256 if len(value) >= 256 else 0,
         "body_len": max(0, len(value) - 256),
-        "alphabet_ok": all(ch in GEETEST_B64_ALPHABET for ch in value[:-256])
+        "alphabet_ok": geetest_b64_body_ok(value[:-256])
         if len(value) >= 256 else False,
         "rsa_hex_ok": all(ch in "0123456789abcdef" for ch in value[-256:].lower())
         if len(value) >= 256 else False,
     }
 
 
-def fullpage_ajax_plaintext(
-    api1: gt3.Api1Result,
-    *,
-    passtime: int = 520,
-    client_type: str = DEFAULT_CLIENT_TYPE,
-) -> str:
-    """fullpage ajax 字典。字段名公开；这不是已对齐的官方 fixture。"""
-    rp = hashlib.md5(
-        f"{api1.gt}{api1.challenge[:32]}{passtime}".encode("utf-8")
-    ).hexdigest()
+def _js_value(value: Any) -> str:
+    return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+
+
+def fullpage_get_plaintext(api1: gt3.Api1Result, *, api_server: str) -> str:
+    """``get.php`` 加密 JSON。字段顺序跟 9.2.0-guwyxh ``JSON.stringify`` 一致。"""
+    host = str(api_server or "").split("://", 1)[-1].strip("/") or "api.geetest.com"
     payload = {
-        "lang": DEFAULT_LANG,
-        "type": "fullpage",
+        "gt": api1.gt,
+        "challenge": api1.challenge,
         "offline": False,
         "new_captcha": True,
         "product": "bind",
         "https": True,
+        "api_server": host,
+        "lang": DEFAULT_LANG,
+        "width": "300px",
         "protocol": "https://",
-        "gt": api1.gt,
-        "challenge": api1.challenge,
-        "client_type": client_type,
-        "passtime": int(passtime),
-        "ep": {"v": "3.3.0", "te": False, "me": True},
-        "rp": rp,
+        "type": "fullpage",
+        "static_servers": ["static.geetest.com/", "static.geevisit.com/"],
+        "click": "/static/js/click.3.1.2.js",
+        "beeline": "/static/js/beeline.1.0.1.js",
+        "voice": "/static/js/voice.1.2.6.js",
+        "fullpage": "/static/js/fullpage.9.2.0-guwyxh.js",
+        "slide": "/static/js/slide.7.9.3.js",
+        "geetest": "/static/js/geetest.6.0.9.js",
+        "aspect_radio": {"slide": 103, "click": 128, "voice": 128, "beeline": 50},
+        "cc": 8,
+        "ww": True,
+        "i": FULLPAGE_I,
     }
-    return json.dumps(payload, separators=(",", ":"), ensure_ascii=False)
+    return _js_value(payload)
+
+
+def fullpage_ep(now_ms: int) -> dict:
+    base = int(now_ms)
+    return {
+        "v": "9.2.0-guwyxh",
+        "te": False,
+        "$_BBn": False,
+        "ven": -1,
+        "ren": -1,
+        "fp": None,
+        "lp": None,
+        "em": {
+            "ph": 1, "cp": 1, "ek": "11", "wd": 1, "nt": 1, "si": 0, "sc": 0,
+        },
+        "tm": {key: base + delta for key, delta in FULLPAGE_TM_DELTAS},
+        "dnf": "dnf",
+        "by": 2,
+    }
+
+
+def fullpage_ajax_plaintext(
+    api1: gt3.Api1Result,
+    *,
+    passtime: int = 2200,
+    client_type: str = DEFAULT_CLIENT_TYPE,
+    c: list | None = None,
+    s: str | None = None,
+    now_ms: int | None = None,
+) -> str:
+    """手写 fullpage ajax 明文。``captcha_token`` 和 ``tsfq`` 不走 ``JSON.stringify``。"""
+    del client_type  # 9.2.0 把它放在 query，不放进 ajax 明文
+    stamp = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    spent = int(passtime)
+    rp = hashlib.md5(
+        f"{api1.gt}{api1.challenge}{spent}".encode("utf-8")
+    ).hexdigest()
+    fields = (
+        ("lang", DEFAULT_LANG),
+        ("type", "fullpage"),
+        ("tt", tt_insert(FULLPAGE_TT, c, s) or -1),
+        ("light", -1),
+        ("s", FULLPAGE_S),
+        ("h", FULLPAGE_H),
+        ("hh", FULLPAGE_HH),
+        ("hi", FULLPAGE_HI),
+        ("vip_order", -1),
+        ("ct", -1),
+        ("ep", fullpage_ep(stamp - 300)),
+        ("passtime", spent),
+        ("rp", rp),
+    )
+    body = "".join(f'"{key}":{_js_value(value)},' for key, value in fields)
+    return (
+        "{"
+        + body
+        + f'"captcha_token":"{FULLPAGE_CAPTCHA_TOKEN}","tsfq":"xovrayel"}}'
+    )
+
+
+def challenge_cs(parsed: Any) -> tuple[list, str]:
+    data = parsed.get("data") if isinstance(parsed, dict) else None
+    source = data if isinstance(data, dict) else parsed if isinstance(parsed, dict) else {}
+    raw_c = source.get("c")
+    raw_s = source.get("s")
+    c_value = raw_c if isinstance(raw_c, list) else []
+    s_value = raw_s if isinstance(raw_s, str) else ""
+    return c_value, s_value
 
 
 def _resp_class(raw: str) -> str:
@@ -238,7 +375,12 @@ def geetest_request(
     url = f"{host.rstrip('/')}{path}"
     if query:
         url = f"{url}?{urlencode(query)}"
-    headers = {"Accept": "*/*", "User-Agent": user_agent}
+    headers = {
+        "Accept": "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        "User-Agent": user_agent,
+        "Referer": GEETEST_REFERER,
+    }
     data = None
     if method.upper() == "POST":
         payload = body if body is not None else {}
@@ -320,7 +462,12 @@ def fetch_jsonp(host: str, path: str, query: dict, **kwargs) -> tuple[GeetestPla
     url = f"{host.rstrip('/')}{path}?{urlencode(query)}"
     req = urllib.request.Request(
         url,
-        headers={"Accept": "*/*", "User-Agent": kwargs.get("user_agent", NATIVE_UA)},
+        headers={
+            "Accept": "*/*",
+            "Accept-Language": "zh-CN,zh;q=0.9",
+            "User-Agent": kwargs.get("user_agent", NATIVE_UA),
+            "Referer": GEETEST_REFERER,
+        },
         method="GET",
     )
     rec: dict[str, Any] = {
@@ -382,16 +529,22 @@ def getphp_query(
     api1: gt3.Api1Result,
     *,
     client_type: str = DEFAULT_CLIENT_TYPE,
+    pt: str = "0",
     now_ms: int | None = None,
+    w: str | None = None,
 ) -> dict:
-    return {
+    query = {
         "gt": api1.gt,
         "challenge": api1.challenge,
         "lang": DEFAULT_LANG,
-        "pt": "0",
+        "pt": str(pt),
         "client_type": client_type,
+        "w": w or "",
         "callback": callback_name(now_ms),
     }
+    if not w:
+        query.pop("w")
+    return query
 
 
 def ajax_query(
@@ -399,13 +552,14 @@ def ajax_query(
     w_value: str,
     *,
     client_type: str = DEFAULT_CLIENT_TYPE,
+    pt: str = "0",
     now_ms: int | None = None,
 ) -> dict:
     return {
         "gt": api1.gt,
         "challenge": api1.challenge,
         "lang": DEFAULT_LANG,
-        "pt": "0",
+        "pt": str(pt),
         "client_type": client_type,
         "w": w_value,
         "callback": callback_name(now_ms),
@@ -472,17 +626,19 @@ def plane_public(plane: GeetestPlane) -> dict:
 
 
 class AesRsaWProvider:
-    """用公开 packing 打 ajax。字典未 sampleParity 时 ajax 可以失败。"""
+    """fullpage 9.2.0 纯算。get.php 登记 AES key，ajax 只送 base64(AES)。"""
 
     def __init__(
         self,
         *,
         api_host: str | None = None,
-        client_type: str = DEFAULT_CLIENT_TYPE,
+        client_type: str = FULLPAGE_CLIENT_TYPE,
+        pt: str = FULLPAGE_PT,
         user_agent: str = NATIVE_UA,
     ):
         self.api_host = api_host
         self.client_type = client_type
+        self.pt = str(pt)
         self.user_agent = user_agent
         self.last_public: dict = {}
 
@@ -490,17 +646,37 @@ class AesRsaWProvider:
         if not api1.success:
             raise Gt3WError("api1-unsuccessful")
         host = self.api_host or DEFAULT_API_HOSTS[0]
+        started = time.time()
         gettype_plane, gettype_data = fetch_jsonp(
             host, "/gettype.php", gettype_query(api1), user_agent=self.user_agent)
+        if self.api_host is None:
+            host = pick_api_host(gettype_data)
+        aes_key = random_aes_key()
+        get_plain = fullpage_get_plaintext(api1, api_server=host)
+        w_get = pack_registered_w(get_plain, aes_key=aes_key)
         get_plane, get_data = fetch_jsonp(
-            host, "/get.php", getphp_query(api1, client_type=self.client_type),
+            host, "/get.php",
+            getphp_query(api1, client_type=self.client_type, pt=self.pt, w=w_get),
             user_agent=self.user_agent)
         if self.api_host is None:
             host = pick_api_host(get_data, gettype_data)
-        plaintext = fullpage_ajax_plaintext(api1, client_type=self.client_type)
-        w_value = pack_w(plaintext)
+        c_value, s_value = challenge_cs(get_data)
+        elapsed = time.time() - started
+        if elapsed < 2.2:
+            time.sleep(2.2 - elapsed)
+        passtime = max(1, int((time.time() - started) * 1000))
+        plaintext = fullpage_ajax_plaintext(
+            api1,
+            passtime=passtime,
+            client_type=self.client_type,
+            c=c_value,
+            s=s_value,
+            now_ms=int(time.time() * 1000),
+        )
+        w_value = pack_ajax_w(plaintext, aes_key=aes_key)
         ajax_plane, ajax_data = fetch_jsonp(
-            host, "/ajax.php", ajax_query(api1, w_value, client_type=self.client_type),
+            host, "/ajax.php",
+            ajax_query(api1, w_value, client_type=self.client_type, pt=self.pt),
             user_agent=self.user_agent)
         self.last_public = {
             "origin": "aes-rsa",
@@ -509,7 +685,15 @@ class AesRsaWProvider:
             "gettype": plane_public(gettype_plane),
             "get": plane_public(get_plane),
             "ajax": plane_public(ajax_plane),
-            "w": w_public_shape(w_value),
+            "w_get": w_public_shape(w_get),
+            "w": {
+                "len": len(w_value),
+                "alphabet_ok": geetest_b64_body_ok(w_value),
+                "rsa_tail": False,
+            },
+            "tt_len": len(json.loads(plaintext).get("tt") or ""),
+            "passtime": passtime,
+            "cs": bool(c_value and s_value),
             "plaintext_keys": sorted(json.loads(plaintext).keys()),
         }
         if not ajax_plane.ok:
@@ -525,270 +709,16 @@ class AesRsaWProvider:
             ) from exc
 
 
-def _extract_json_line(stdout: str, *, label: str = "bind-no-json") -> dict:
-    last = None
-    for line in str(stdout or "").splitlines():
-        text = line.strip()
-        if text.startswith("{") and text.endswith("}"):
-            try:
-                last = json.loads(text)
-            except json.JSONDecodeError:
-                continue
-    if not isinstance(last, dict):
-        raise Gt3WError(label)
-    return last
-
-
-class RuyiDomWProvider:
-    """官方 gt.js 黑盒：``initGeetest`` + ``verify`` + ``getValidate()``。"""
-
-    def __init__(
-        self,
-        *,
-        script: Path | None = None,
-        timeout_seconds: int = 90,
-        api_host: str | None = None,
-        user_agent: str = NATIVE_UA,
-    ):
-        self.script = Path(script) if script else RUYIDOM_BIND_JS
-        self.timeout_seconds = int(timeout_seconds)
-        self.api_host = api_host
-        self.user_agent = user_agent
-        self.last_public: dict = {}
-
-    def complete_bind(self, api1: gt3.Api1Result) -> gt3.Gt3Triple:
-        if not api1.success:
-            raise Gt3WError("api1-unsuccessful")
-        if not self.script.is_file():
-            raise Gt3WError("ruyidom-script-missing")
-        if not RUYIDOM_PS1.is_file():
-            raise Gt3WError("ruyidom-cli-missing")
-        host = self.api_host or DEFAULT_API_HOSTS[0]
-        gettype_plane, gettype_data = fetch_jsonp(
-            host, "/gettype.php", gettype_query(api1), user_agent=self.user_agent)
-        if gettype_plane.ok and self.api_host is None:
-            host = pick_api_host(gettype_data)
-        gt_js = gt_loader_url(gettype_data)
-        payload = {
-            "gt": api1.gt,
-            "challenge": api1.challenge,
-            "new_captcha": bool(api1.new_captcha),
-            "api_server": host.split("://", 1)[-1],
-            "gt_js_url": gt_js,
-            "product": "bind",
-            "lang": DEFAULT_LANG,
-        }
-        with tempfile.NamedTemporaryFile(
-                "w", encoding="utf-8", suffix=".json", delete=False) as handle:
-            json.dump(payload, handle)
-            input_path = handle.name
-        cmd = [
-            str(POWERSHELL),
-            "-NoProfile",
-            "-ExecutionPolicy", "Bypass",
-            "-File", str(RUYIDOM_PS1),
-            "-Script", str(self.script),
-            "-InputFile", input_path,
-            "-AllowNetwork",
-            "-TimeoutSeconds", str(self.timeout_seconds),
-        ]
-        try:
-            completed = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=self.timeout_seconds + 30,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise Gt3WError("ruyidom-timeout") from exc
-        finally:
-            try:
-                os.unlink(input_path)
-            except OSError:
-                pass
-        stdout = completed.stdout or ""
-        try:
-            result = _extract_json_line(stdout, label="ruyidom-no-json")
-        except Gt3WError:
-            self.last_public = {
-                "origin": "ruyidom",
-                "ok": False,
-                "exit_code": completed.returncode,
-                "error": "ruyidom-no-json",
-                "gettype": plane_public(gettype_plane),
-                "gt_js_host": urlparse(gt_js).netloc,
-            }
-            raise
-        public = {
-            "origin": "ruyidom",
-            "ok": bool(result.get("ok")),
-            "exit_code": completed.returncode,
-            "script_loaded": bool(result.get("script_loaded")),
-            "ready": bool(result.get("ready")),
-            "success": bool(result.get("success")),
-            "error": result.get("error"),
-            "gettype": plane_public(gettype_plane),
-            "gt_js_path": "/".join(gt_js.split("/")[-2:]),
-            "validate_len": result.get("validate_len") or 0,
-            "challenge_len": result.get("challenge_len") or 0,
-            "seccode_len": result.get("seccode_len") or 0,
-            "w_shape": result.get("w_shape"),
-        }
-        self.last_public = public
-        if not result.get("ok"):
-            raise Gt3WError(f"ruyidom-fail:{result.get('error') or 'unknown'}")
-        dialog = {
-            "geetest_challenge": result.get("challenge") or api1.challenge,
-            "geetest_validate": result.get("validate") or "",
-            "geetest_seccode": result.get("seccode") or "",
-        }
-        return gt3.triple_from_dialog(dialog, fallback_challenge=api1.challenge)
-
-
-def _js_bind_payload(api1: gt3.Api1Result, *, api_host: str | None,
-                     user_agent: str) -> tuple[dict, GeetestPlane, str]:
-    host = api_host or DEFAULT_API_HOSTS[0]
-    gettype_plane, gettype_data = fetch_jsonp(
-        host, "/gettype.php", gettype_query(api1), user_agent=user_agent)
-    if gettype_plane.ok and api_host is None:
-        host = pick_api_host(gettype_data)
-    gt_js = gt_loader_url(gettype_data)
-    payload = {
-        "gt": api1.gt,
-        "challenge": api1.challenge,
-        "new_captcha": bool(api1.new_captcha),
-        "api_server": host.split("://", 1)[-1],
-        "gt_js_url": gt_js,
-        "product": "bind",
-        "lang": DEFAULT_LANG,
-    }
-    return payload, gettype_plane, gt_js
-
-
-class NodeWProvider:
-    """官方 gt.js 黑盒：本机 Node ``vm`` + JSONP 宿主，不依赖 RuyiDOM。"""
-
-    def __init__(
-        self,
-        *,
-        script: Path | None = None,
-        node: Path | None = None,
-        timeout_seconds: int = 90,
-        api_host: str | None = None,
-        user_agent: str = NATIVE_UA,
-    ):
-        self.script = Path(script) if script else NODE_BIND_JS
-        self.node = Path(node) if node else NODE_EXE
-        self.timeout_seconds = int(timeout_seconds)
-        self.api_host = api_host
-        self.user_agent = user_agent
-        self.last_public: dict = {}
-
-    def complete_bind(self, api1: gt3.Api1Result) -> gt3.Gt3Triple:
-        if not api1.success:
-            raise Gt3WError("api1-unsuccessful")
-        if not self.script.is_file():
-            raise Gt3WError("node-script-missing")
-        if not self.node.is_file():
-            raise Gt3WError("node-missing")
-        payload, gettype_plane, gt_js = _js_bind_payload(
-            api1, api_host=self.api_host, user_agent=self.user_agent)
-        with tempfile.NamedTemporaryFile(
-                "w", encoding="utf-8", suffix=".json", delete=False) as handle:
-            json.dump(payload, handle)
-            input_path = handle.name
-        env = os.environ.copy()
-        env.pop("RUYIDOM_INPUT_JSON", None)
-        env.pop("RUYIDOM_INPUT_FILE", None)
-        cmd = [str(self.node), str(self.script), input_path]
-        try:
-            completed = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=self.timeout_seconds + 30,
-                check=False,
-                env=env,
-            )
-        except subprocess.TimeoutExpired as exc:
-            stderr = str(exc.stderr or "")[-1500:]
-            self.last_public = {
-                "origin": "node",
-                "ok": False,
-                "error": "node-timeout",
-                "stderr_tail": [
-                    line for line in stderr.splitlines()
-                    if line.startswith("[gt3-node]")
-                ][-20:],
-            }
-            raise Gt3WError("node-timeout") from exc
-        finally:
-            try:
-                os.unlink(input_path)
-            except OSError:
-                pass
-        stdout = completed.stdout or ""
-        try:
-            result = _extract_json_line(stdout, label="node-no-json")
-        except Gt3WError:
-            self.last_public = {
-                "origin": "node",
-                "ok": False,
-                "exit_code": completed.returncode,
-                "error": "node-no-json",
-                "gettype": plane_public(gettype_plane),
-                "gt_js_host": urlparse(gt_js).netloc,
-                "stderr_len": len(completed.stderr or ""),
-            }
-            raise
-        public = {
-            "origin": "node",
-            "ok": bool(result.get("ok")),
-            "exit_code": completed.returncode,
-            "script_loaded": bool(result.get("script_loaded")),
-            "ready": bool(result.get("ready")),
-            "success": bool(result.get("success")),
-            "error": result.get("error"),
-            "gettype": plane_public(gettype_plane),
-            "gt_js_path": "/".join(gt_js.split("/")[-2:]),
-            "validate_len": result.get("validate_len") or 0,
-            "challenge_len": result.get("challenge_len") or 0,
-            "seccode_len": result.get("seccode_len") or 0,
-            "w_shape": result.get("w_shape"),
-            "loaded": result.get("loaded") or [],
-            "ajax_seen": bool(result.get("ajax_seen")),
-            "miss": result.get("miss") or [],
-        }
-        self.last_public = public
-        if not result.get("ok"):
-            raise Gt3WError(f"node-fail:{result.get('error') or 'unknown'}")
-        dialog = {
-            "geetest_challenge": result.get("challenge") or api1.challenge,
-            "geetest_validate": result.get("validate") or "",
-            "geetest_seccode": result.get("seccode") or "",
-        }
-        return gt3.triple_from_dialog(dialog, fallback_challenge=api1.challenge)
-
-
 def _make_provider(name: str):
-    if name == "node":
-        return NodeWProvider()
-    if name == "ruyidom":
-        return RuyiDomWProvider()
     if name == "aes-rsa":
         return AesRsaWProvider()
     raise Gt3WError(f"provider-{name}")
 
 
 class FullpageWProvider:
-    """默认本机 Node 黑盒。RuyiDOM / AES+RSA 只在显式 ``prefer`` 时走。"""
+    """fullpage 9.2.0 纯算 ``w``。``prefer`` 只接受 ``aes-rsa``。"""
 
-    def __init__(self, *, prefer: str = "node"):
+    def __init__(self, *, prefer: str = "aes-rsa"):
         self.prefer = prefer
         self.last_public: dict = {}
         self.origin = ""

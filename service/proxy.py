@@ -325,6 +325,21 @@ class ProxyLeaseManager:
             )
             return lease
 
+    async def release(self, reason: str = "idle") -> bool:
+        """丢掉进程内租约。不连供应商，也不退回已经开始计时的 IP。"""
+        async with self._lock:
+            current = self._current
+            if current is None:
+                return False
+            self._current = None
+            LOGGER.info(
+                "proxy lease released: provider=%s generation=%s reason=%s",
+                current.provider,
+                current.generation,
+                reason,
+            )
+            return True
+
     async def context(self, *, force_new: bool = False,
                       reason: str = "request") -> ProxyLeaseContext:
         lease = await self.acquire(force_new=force_new, reason=reason)
@@ -341,7 +356,8 @@ class ProxyLeaseManager:
             "dynamic": self.dynamic,
             "acquired": current is not None,
             "active": self._usable(current),
-            "generation": current.generation if current else 0,
+            "generation": (
+                current.generation if current is not None else self._generation),
             "remaining_seconds": (
                 round(remaining, 1) if remaining is not None else None),
         }
@@ -538,6 +554,11 @@ class FailoverProxyLeaseManager:
                       reason: str = "request") -> ProxyLeaseContext:
         lease = await self.acquire(force_new=force_new, reason=reason)
         return ProxyLeaseContext(self, lease, reason)
+
+    async def release(self, reason: str = "idle") -> bool:
+        primary = await self.primary.release(f"{reason}:primary")
+        fallback = await self.fallback.release(f"{reason}:fallback")
+        return primary or fallback
 
     async def context_for_slot(
             self, slot_id: str, *, force_new: bool = False,

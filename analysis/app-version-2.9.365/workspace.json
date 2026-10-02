@@ -135,7 +135,7 @@
       "analysis/app-version-2.9.365/evidence/gt3-bind-boundary-canary.json",
       "analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json",
       "client/gt3_w.py",
-      "client/gt3_ruyidom_bind.js",
+      "analysis/app-version-2.9.365/evidence/gt3-aes-rsa-canary.json",
       "analysis/app-version-2.9.365/scripts/gt3_fullpage_w_canary.py",
       "analysis/app-version-2.9.365/scripts/web_fallback_canary.py",
       "docs/web-fallback.md",
@@ -155,11 +155,11 @@
     "ready_for_delivery": false
   },
   "continuation": {
-    "date": "2026-09-04",
-    "status": "ruyidom_gt3_bind_passed",
-    "app_gate": "stamp_gt3_ruyidom",
-    "algorithmic_w": "error_03",
+    "date": "2026-10-02",
+    "status": "pure_fullpage_w_only_runtime",
+    "app_gate": "stamp_gt3_aes_rsa",
+    "algorithmic_w": "passed_310017_to_100000",
     "web_is_not_app_gate": true,
-    "next": "algorithmic fullpage 9.2.0 w still error_03; collection already stamps via RuyiDOM"
+    "next": "stamp_gt3 default is AesRsaWProvider; node and ruyidom providers removed; September evidence kept"
   }
 }

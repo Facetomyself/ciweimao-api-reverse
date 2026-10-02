@@ -1,4 +1,8 @@
-"""APScheduler 仅负责向持久化队列投递定时任务。"""
+"""APScheduler 只把到期的采集放进队列。
+
+它不提取代理，也不保留租约。队列在任务开始时按需取用代理，
+一轮任务（同步以及它投递出的下载）排空后立刻放开。
+"""
 
 import hashlib
 import json
@@ -35,6 +39,7 @@ def build_scheduler(settings: Settings,
                 message="scheduler paused",
             )
             return
+        # 只入队。相同 payload 在 queued/running 期间去重，不会叠出第二轮同步。
         await queue.submit(
             "sync_all",
             sync_payload,

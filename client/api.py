@@ -384,8 +384,8 @@ class Session(_ProtocolMixin):
         from . import gt3
         return gt3.bind(self, w_provider=w_provider, now_ms=now_ms)
 
-    def stamp_gt3(self, *, prefer: str = "node", now_ms: int | None = None):
-        """Node 黑盒 fullpage bind。不依赖 RuyiDOM。"""
+    def stamp_gt3(self, *, prefer: str = "aes-rsa", now_ms: int | None = None):
+        """fullpage 9.2.0 纯算 ``w`` bind。"""
         from . import gt3_w
         provider = gt3_w.FullpageWProvider(prefer=prefer)
         triple = self.bind_gt3(w_provider=provider, now_ms=now_ms)
@@ -726,7 +726,7 @@ class AsyncSession(_ProtocolMixin):
         from . import gt3
         return await gt3.bind_async(self, w_provider=w_provider, now_ms=now_ms)
 
-    async def stamp_gt3(self, *, prefer: str = "node",
+    async def stamp_gt3(self, *, prefer: str = "aes-rsa",
                         now_ms: int | None = None):
         from . import gt3, gt3_w
         api1 = await gt3.first_register_async(self, now_ms=now_ms)

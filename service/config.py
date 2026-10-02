@@ -242,7 +242,7 @@ class Settings:
             readiness_allow_web_fallback=_env_bool(
                 "CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK", False),
             readiness_auto_probe_enabled=_env_bool(
-                "CIWEIMAO_READINESS_AUTO_PROBE_ENABLED", True),
+                "CIWEIMAO_READINESS_AUTO_PROBE_ENABLED", False),
             readiness_probe_max_age_seconds=_env_int(
                 "CIWEIMAO_READINESS_PROBE_MAX_AGE_SECONDS", 3600),
             readiness_failure_streak_threshold=_env_int(

@@ -10,7 +10,7 @@
 | 架构 | ARM64 主分析；APK 同时含 ARMv7 与 `libSecShell-x86.so` |
 | App | `com.kuangxiangciweimao.novel` 2.9.365 (`290365`) |
 | 分析时间 | 2026-08-23 至 2026-08-27；续推进 2026-09-01 / 2026-09-02 / 2026-09-03 |
-| 分析深度 | L3-partial；Node 黑盒 GT3 bind 已过 `get_cpt_ifm=100000`（不依赖 RuyiDOM）；纯算 `w` 仍 `error_03` |
+| 分析深度 | L3；盖章运行时是 fullpage 9.2.0 纯算 `w`，已过 `get_cpt_ifm=100000`。2026-09-04 Node / RuyiDOM 证据保留 |
 
 ## 目标概述
 
@@ -28,10 +28,17 @@
 
 ## 关键发现
 
+### F-045：fullpage 9.2.0 纯算 `w` 已过 App 门
+
+- **位置**：`client/gt3_w.py` `AesRsaWProvider`
+- **描述**：新游客 `310017` → `prefer=aes-rsa` → 三元组 32/32/39 → 重试与随后 8 键 `get_cpt_ifm=100000`。`get.php` 的 `w` 登记 AES key，`ajax.php` 的 `w` 没有 RSA 尾。query 为 `client_type=web_mobile`、`pt=3`。不写 `tokens.json`。2026-10-02 起这是 `stamp_gt3()` 的唯一运行时。2026-09-04 的 Node / RuyiDOM 成功仍记在 F-044 / F-043。
+- **证据**：`evidence/gt3-aes-rsa-canary.json`
+- **置信度**：high
+
 ### F-044：Node 黑盒 bind 已过 App 门（不依赖 RuyiDOM）
 
-- **位置**：`client/gt3_node_bind.mjs` / `client/gt3_w.py` / `static/tools/gt.js`
-- **描述**：新游客 `310017` → 本机 Node `initGeetest` bind → 三元组 32/32/39 → `get_cpt_ifm=100000`。薄宿主 `w` len=704 会 `error_100` 并掉进 slide；补 Audio/WebGL/canvas 后 `w` len=1088 过 ajax。AES+RSA packing 仍 `error_03`。
+- **位置**：2026-09-04 的 `client/gt3_node_bind.mjs`（2026-10-02 已从客户端删除）/ `evidence/gt3-node-bind-canary.json`
+- **描述**：新游客 `310017` → 本机 Node `initGeetest` bind → 三元组 32/32/39 → `get_cpt_ifm=100000`。薄宿主 `w` len=704 会 `error_100` 并掉进 slide；补 Audio/WebGL/canvas 后 `w` len=1088 过 ajax。2026-09-04 的 AES+RSA 试包是 `error_03`；纯算闭合见 F-045。
 - **证据**：`evidence/gt3-node-bind-canary.json`
 - **置信度**：high
 

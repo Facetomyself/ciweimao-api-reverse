@@ -369,13 +369,22 @@ def create_app(settings: Settings | None = None,
                         proxy_url=active_settings.http_proxy_url))
         if hasattr(service, "set_credential_bootstrap"):
             service.set_credential_bootstrap(credential_bootstrap)
+        async def release_proxy(reason: str) -> None:
+            manager = getattr(service, "proxy_manager", None)
+            release = getattr(manager, "release", None)
+            if release is not None:
+                await release(reason=reason)
+
         queue = PersistentTaskQueue(
             database,
             service.task_handlers,
             workers=active_settings.queue_workers,
+            proxy_releaser=release_proxy,
         )
         if hasattr(service, "set_task_submitter"):
             service.set_task_submitter(queue.submit)
+        if hasattr(service, "set_idle_proxy_release"):
+            service.set_idle_proxy_release(queue.release_proxy_if_idle)
         await queue.start()
         if (active_settings.readiness_auto_probe_enabled
                 and "protocol_probe" in service.task_handlers):

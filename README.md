@@ -6,7 +6,7 @@
 
 仓库：<https://github.com/Facetomyself/ciweimao-api-reverse>
 
-## 项目状态（2026-09-04：Node 黑盒 GT3 bind 已过 App 门；不依赖 RuyiDOM；纯算 `w` 未完成）
+## 项目状态（2026-10-02：fullpage 9.2.0 纯算 `w` 是唯一盖章运行时）
 
 | 能力 | 状态 |
 |------|------|
@@ -14,13 +14,13 @@
 | 响应 AES-256-CBC | 已复现（2.9.352+ current key） |
 | 游客注册 / 搜索 / 书城 / 目录 / `get_chapter_cmd` | 已复现，业务码 `100000` |
 | 官方 App 游客读章 | 已复现，`get_cpt_ifm=100000` |
-| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。下载/探测在该码上先 `stamp_gt3()`（本机 Node 跑官方 `gt.js` bind，不依赖 RuyiDOM），失败且 `free_only` 才 Web fallback。纯算 `w` 仍 `error_03` |
+| 独立客户端读章 `get_cpt_ifm` | 未打戳 `310017`。下载/探测在该码上先 `stamp_gt3()`。运行时是 fullpage 9.2.0 纯算 `w`，新游客已从 `310017` 到 `100000`。失败且 `free_only` 才 Web fallback |
 | Native 注册通路（`getC(17)` → `libcwmhttps.so`） | 已静态闭合并完成传输三项 canary |
 | 官方 HTTPS 明文（uid MITM） | 冷启动 9 条与未缓存 `get_cpt_ifm` 已解密；无隐藏头 / Cookie；字段集合与形状已和 Python 对齐 |
 
-`get_cpt_ifm` 的 `310017` 跟着「这个身份有没有走过 GT3 bind 一键」走。官方线是 API1 → `gettype.php`/`get.php`/`ajax.php`（约 1s，无滑块图）→ 带三元组的第二次 cpt。只调 API1 或假 `validate|jordan` 不能打戳。Python 已用本机 Node 跑官方 `static/tools/gt.js` 完成同一条 bind（`Session.stamp_gt3()`，不依赖 RuyiDOM）；AES+RSA packing 对 fullpage 9.2.0 是 `error_03`，不得标纯算完成。网页章节链是另一条产品面。
+`get_cpt_ifm` 的 `310017` 跟着「这个身份有没有走过 GT3 bind 一键」走。官方线是 API1 → `gettype.php`/`get.php`/`ajax.php`（约 1–2s，无滑块图）→ 带三元组的第二次 cpt。只调 API1 或假 `validate|jordan` 不能打戳。`Session.stamp_gt3()` 用 Python 纯算 fullpage 9.2.0 的 `w`：`get.php` 登记 AES key，`ajax.php` 只送同一把 key 的自定义 base64。2026-10-02 新游客金丝雀 `310017`→`100000`。网页章节链是另一条产品面。
 
-闭合事实见 [docs/protocol.md](docs/protocol.md)。Node 黑盒 bind：[gt3-node-bind-canary.json](analysis/app-version-2.9.365/evidence/gt3-node-bind-canary.json)。RuyiDOM 对照：[gt3-fullpage-w-canary.json](analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json)。GT3 线：[official-gt3-wire-canary.json](analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
+闭合事实见 [docs/protocol.md](docs/protocol.md)。纯算 bind：[gt3-aes-rsa-canary.json](analysis/app-version-2.9.365/evidence/gt3-aes-rsa-canary.json)。2026-09-04 Node 证据：[gt3-node-bind-canary.json](analysis/app-version-2.9.365/evidence/gt3-node-bind-canary.json)。2026-09-04 RuyiDOM 证据：[gt3-fullpage-w-canary.json](analysis/app-version-2.9.365/evidence/gt3-fullpage-w-canary.json)。GT3 线：[official-gt3-wire-canary.json](analysis/app-version-2.9.365/evidence/official-gt3-wire-canary.json)。账本见 [analysis/app-version-2.9.365/analysis-progress.md](analysis/app-version-2.9.365/analysis-progress.md)。
 
 ## 仓库结构
 
@@ -187,7 +187,7 @@ Swagger：`http://127.0.0.1:8000/docs`。控制台开发代理见 `frontend/vite
 
 按书名下载返回 `202` 与任务 ID，实际抓取由 worker 完成。
 
-调度默认每 30 分钟一个 `sync_all`，两段同步共享同一个代理租约；完成后最多投递 100 本未下载书。`coalesce=True`、`max_instances=1`。SQLite 默认 `data/ciweimao.sqlite3`（WAL），正文文件在 `output_api/`。完整边界见 `docs/architecture.md`。
+调度器默认每 30 分钟只把一个 `sync_all` 放进队列，不自己提取代理。这一轮的榜单、新书和随后最多 100 本下载共享一条租约；队列空了就放开，没有任务时进程里不留代理。`coalesce=True`、`max_instances=1`。SQLite 默认 `data/ciweimao.sqlite3`（WAL），正文文件在 `output_api/`。完整边界见 `docs/architecture.md`。
 
 ### 配置
 
@@ -203,6 +203,7 @@ Swagger：`http://127.0.0.1:8000/docs`。控制台开发代理见 `frontend/vite
 | `CIWEIMAO_WEB_FALLBACK_ENABLED` | `1` | App `310017` 后是否回退公开 Web 免费章链 |
 | `CIWEIMAO_WEB_MIN_INTERVAL_SECONDS` | `3` | 同一 Web session 的最小请求间隔 |
 | `CIWEIMAO_READINESS_ALLOW_WEB_FALLBACK` | `0` | 是否允许 Web canary 作为服务就绪依据（App gate 仍单独展示） |
+| `CIWEIMAO_READINESS_AUTO_PROBE_ENABLED` | `0` | 启动时不自动协议探测，避免没有任务就提取 IP |
 | `CIWEIMAO_QUEUE_WORKERS` | `1` | 任务 worker 数 |
 | `CIWEIMAO_PROXY_PROVIDER` | `auto` | `direct` / `static` / `kuaidaili_dps` |
 | `CIWEIMAO_PROXY_URL` | 空 | 静态代理 URL |
@@ -213,7 +214,7 @@ Swagger：`http://127.0.0.1:8000/docs`。控制台开发代理见 `frontend/vite
 
 ## Docker Compose
 
-`Dockerfile` 与 `compose.yaml` 使用独立 project 名 `ciweimao-api-reverse`，默认绑定 `127.0.0.1:18086`。数据与下载分别持久化到 `runtime/data/` 与 `runtime/output/`。快代理密钥走 Compose secrets；游客凭据为 `runtime/data/guest-tokens.json`。部署说明见 [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md)。
+`Dockerfile` 与 `compose.yaml` 使用独立 project 名 `ciweimao-api-reverse`，默认绑定 `127.0.0.1:18086`。Compose 只起 API 容器，出口是 `kuaidaili_dps` 单租约，不再部署 NAS SSH sidecar。数据与下载分别持久化到 `runtime/data/` 与 `runtime/output/`。快代理订单密钥走 Compose secrets；游客凭据为 `runtime/data/guest-tokens.json`。部署说明见 [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md)。
 
 ## License
 

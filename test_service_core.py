@@ -308,6 +308,17 @@ class ServiceCoreTests(unittest.IsolatedAsyncioTestCase):
             SyncNewBooksRequest().model_dump(mode="json"),
             "new-books-task",
         )
+        self.assertEqual(1, provider.calls)
+
+        released = await manager.release(reason="queue-idle")
+        self.assertTrue(released)
+        self.assertFalse(manager.snapshot()["acquired"])
+        await service.handle_sync_rankings(
+            SyncRankingsRequest(specs=[RankingSpec(
+                order="fans_value", time_type="week")]
+            ).model_dump(mode="json"),
+            "ranking-task-after-idle",
+        )
         self.assertEqual(2, provider.calls)
 
     async def test_merged_sync_reuses_one_proxy_lease(self):

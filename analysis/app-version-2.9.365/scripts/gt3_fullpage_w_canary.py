@@ -1,4 +1,4 @@
-"""GT3 fullpage bind canary：默认本机 Node 黑盒，不依赖 RuyiDOM。
+"""GT3 fullpage bind canary：纯算 fullpage 9.2.0 w。
 
 新游客、不写 tokens.json、不走网页章节链。验收只认 get_cpt_ifm=100000。
 不打印 gt/challenge/validate/w 原文。
@@ -28,7 +28,7 @@ DEFAULT_OUTPUT = (
     / "analysis"
     / "app-version-2.9.365"
     / "evidence"
-    / "gt3-fullpage-w-canary.json"
+    / "gt3-aes-rsa-canary.json"
 )
 DEFAULT_CHAPTER_ID = "106129841"
 
@@ -86,16 +86,15 @@ def main() -> int:
     parser.add_argument("--chapter-id", default=DEFAULT_CHAPTER_ID)
     parser.add_argument(
         "--prefer",
-        choices=("node", "ruyidom", "aes-rsa", "node-then-ruyidom"),
-        default="node",
+        choices=("aes-rsa",),
+        default="aes-rsa",
     )
     args = parser.parse_args()
 
     payload = {
         "tested_at": datetime.now(timezone.utc).astimezone().isoformat(),
         "hypothesis": (
-            "Node black-box initGeetest bind (no RuyiDOM) "
-            "can produce a GT3 triple that stamps get_cpt_ifm"
+            "fullpage 9.2.0 pure w (prefer=aes-rsa) stamps get_cpt_ifm"
         ),
         "tokens_json_written": False,
         "web_fallback": False,

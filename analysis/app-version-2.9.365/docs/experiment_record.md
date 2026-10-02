@@ -1,5 +1,21 @@
 # 实验记录
 
+## 2026-10-02 盖章运行时去黑盒
+
+- 记录时间：2026-10-02（Asia/Shanghai）
+- 分析思路：纯算 `w` 已过 `310017`→`100000`。盖章路径上不再保留 Node / RuyiDOM 运行时。
+- 本轮操作：`Session.stamp_gt3()` 与 `FullpageWProvider` 默认 `prefer=aes-rsa`。`node` / `ruyidom` / `node-then-ruyidom` 抛 `blackbox-removed`。删除 `client/gt3_node_bind.mjs` 与 `client/gt3_ruyidom_bind.js`。未再跑现场金丝雀，未写 `tokens.json`。
+- 实验结果：算法与 2026-10-02 纯算金丝雀相同。本轮只改运行时入口和文档。9 月证据文件未改。
+- 下一步计划：采集调用 `stamp_gt3()`。
+
+## 2026-10-02 fullpage 9.2.0 纯算 `w`
+
+- 记录时间：2026-10-02（Asia/Shanghai）
+- 分析思路：官方 `$_HEJ` 不是标准 base64。`get.php` 用它登记 AES key，`ajax.php` 只送同一把 key 的密文。这条 UA 含 `Mobi`，所以 query 是 `web_mobile` / `pt=3`。
+- 本轮操作：`AesRsaWProvider`，`gt3_fullpage_w_canary.py --prefer aes-rsa`。新游客，不写 `tokens.json`。
+- 实验结果：`get.php` 成功并带回 `c`/`s`。`ajax.php` 三元组 32/32/39。重试 cpt=`100000`，随后 8 键 `100000`。`gt3_solved_by_us=true`。
+- 下一步计划：见同日「盖章运行时去黑盒」。当时这条记录写下时，默认仍是 Node。
+
 ## 2026-09-04 Node 黑盒 bind（不依赖 RuyiDOM）
 
 - 记录时间：2026-09-04（Asia/Shanghai）

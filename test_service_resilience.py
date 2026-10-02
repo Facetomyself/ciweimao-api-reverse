@@ -268,6 +268,72 @@ class DeferredQueueTests(unittest.IsolatedAsyncioTestCase):
             finally:
                 await queue.stop()
 
+    async def test_queue_holds_one_proxy_for_a_batch_then_releases(self):
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+            database = Database(Path(tmp) / "queue.sqlite3")
+            await database.initialize()
+
+            class Provider:
+                name = "fake"
+                dynamic = True
+                lease_seconds = 1200
+
+                def __init__(self):
+                    self.calls = 0
+
+                async def acquire(self):
+                    self.calls += 1
+                    return f"http://proxy-{self.calls}.test:8000"
+
+            provider = Provider()
+            manager = ProxyLeaseManager(provider, expiry_safety_seconds=0)
+            queue = PersistentTaskQueue(
+                database, {}, workers=1, poll_interval=0.05,
+                proxy_releaser=manager.release)
+
+            async def parent(payload, task_id):
+                del payload, task_id
+                await manager.context(reason="sync")
+                await queue.submit("child", {}, "child")
+                return {"queued": True}
+
+            async def child(payload, task_id):
+                del payload, task_id
+                await manager.context(reason="download")
+                return {"downloaded": True}
+
+            queue.handlers = {"parent": parent, "child": child}
+            await queue.start()
+            try:
+                submitted = await queue.submit("parent", {}, "parent")
+                for _ in range(200):
+                    parent_task = await database.get_task(submitted["id"])
+                    children = await database.list_tasks(
+                        task_type="child", limit=5)
+                    if (parent_task["status"] == "succeeded"
+                            and children
+                            and children[0]["status"] == "succeeded"
+                            and not manager.snapshot()["acquired"]):
+                        break
+                    await asyncio.sleep(0.01)
+                else:
+                    self.fail("batch did not finish and release the proxy")
+                self.assertEqual(1, provider.calls)
+                self.assertFalse(manager.snapshot()["active"])
+
+                again = await queue.submit("parent", {}, "parent-2")
+                for _ in range(200):
+                    task = await database.get_task(again["id"])
+                    if (task["status"] == "succeeded"
+                            and not manager.snapshot()["acquired"]):
+                        break
+                    await asyncio.sleep(0.01)
+                else:
+                    self.fail("second batch did not release the proxy")
+                self.assertEqual(2, provider.calls)
+            finally:
+                await queue.stop()
+
 
 if __name__ == "__main__":
     unittest.main()

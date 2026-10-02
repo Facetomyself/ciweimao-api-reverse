@@ -10,21 +10,32 @@ from .proxy import redact_error_text
 
 
 TaskHandler = Callable[[dict, str], Awaitable[dict | None]]
+ProxyReleaser = Callable[[str], Awaitable[None]]
 logger = logging.getLogger(__name__)
 
 
 class PersistentTaskQueue:
+    """持久化队列。代理只在有任务执行时持有，排空后立刻释放。
+
+    调度器只负责入队，不提取、不缓存代理。同一轮里先入队的后续任务
+    （例如同步投递出的下载）继续复用当前租约；队列里没有到期任务后，
+    租约从进程中丢掉。下一次有任务再按需提取。
+    """
+
     def __init__(self, database: Database,
                  handlers: dict[str, TaskHandler], workers: int = 2,
-                 poll_interval: float = 5):
+                 poll_interval: float = 5,
+                 proxy_releaser: ProxyReleaser | None = None):
         self.database = database
         self.handlers = dict(handlers)
         self.worker_count = max(1, int(workers))
         self.poll_interval = max(0.01, float(poll_interval))
+        self._proxy_releaser = proxy_releaser
         self._queue: asyncio.Queue[str] = asyncio.Queue()
         self._workers: list[asyncio.Task] = []
         self._poller: asyncio.Task | None = None
         self._queued_ids: set[str] = set()
+        self._inflight = 0
         self._started = False
 
     @property
@@ -65,6 +76,7 @@ class PersistentTaskQueue:
         self._poller = None
         self._workers.clear()
         self._queued_ids.clear()
+        self._inflight = 0
 
     async def _enqueue(self, task_id: str) -> None:
         task_id = str(task_id)
@@ -101,11 +113,25 @@ class PersistentTaskQueue:
     async def join(self) -> None:
         await self._queue.join()
 
+    def _locally_idle(self) -> bool:
+        return (self._inflight == 0
+                and self._queue.qsize() == 0
+                and not self._queued_ids)
+
+    async def release_proxy_if_idle(self, reason: str = "queue-idle") -> None:
+        """没有到期任务时放开租约。延迟重试不算仍在使用代理。"""
+        if self._proxy_releaser is None or not self._locally_idle():
+            return
+        if await self.database.has_pending_work():
+            return
+        await self._proxy_releaser(reason)
+
     async def _worker(self, index: int) -> None:
         del index
         while True:
             task_id = await self._queue.get()
             self._queued_ids.discard(task_id)
+            self._inflight += 1
             claimed = False
             try:
                 if await self.database.is_paused("all"):
@@ -171,4 +197,9 @@ class PersistentTaskQueue:
                     safe_error,
                 )
             finally:
+                self._inflight -= 1
                 self._queue.task_done()
+                try:
+                    await self.release_proxy_if_idle()
+                except Exception:
+                    logger.exception("队列空闲后释放代理失败")

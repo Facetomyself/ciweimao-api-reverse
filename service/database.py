@@ -453,6 +453,26 @@ class Database:
             await cursor.close()
         return [str(row["id"]) for row in rows]
 
+    async def has_pending_work(self) -> bool:
+        """是否还有正在执行、或已经到点的排队任务。
+
+        未来才重试的延迟任务不算。队列用它决定要不要放开代理租约。
+        """
+        now = utc_now()
+        async with self.connect() as connection:
+            cursor = await connection.execute("""
+                SELECT 1 FROM tasks
+                WHERE status = 'running'
+                   OR (
+                        status = 'queued'
+                        AND (next_retry_at IS NULL OR next_retry_at <= ?)
+                   )
+                LIMIT 1
+            """, (now,))
+            row = await cursor.fetchone()
+            await cursor.close()
+        return row is not None
+
     async def claim_task(self, task_id: str) -> dict | None:
         now = utc_now()
         async with self.connect() as connection:

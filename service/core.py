@@ -121,6 +121,15 @@ class CiweimaoService:
     def set_task_submitter(self, submitter: TaskSubmitter) -> None:
         self._task_submitter = submitter
 
+    def set_idle_proxy_release(self, release) -> None:
+        """队列空闲时由服务调用，用来放开进程内代理租约。"""
+        self._idle_proxy_release = release
+
+    async def _release_proxy_if_idle(self, reason: str) -> None:
+        release = getattr(self, "_idle_proxy_release", None)
+        if release is not None:
+            await release(reason)
+
     @property
     def task_handlers(self):
         return {
@@ -337,12 +346,14 @@ class CiweimaoService:
                            count: int = 10) -> list[dict]:
         async with self._workflow(
                 force_new_proxy=False, reason="search") as proxy_context:
-            return await self._search_books(
+            books = await self._search_books(
                 keyword,
                 max_pages=max_pages,
                 count=count,
                 proxy_context=proxy_context,
             )
+        await self._release_proxy_if_idle("search-finished")
+        return books
 
     async def _search_books(self, keyword: str, max_pages: int,
                             count: int,
@@ -661,7 +672,7 @@ class CiweimaoService:
         del task_id
         request = SyncRankingsRequest.model_validate(payload)
         async with self._workflow(
-                force_new_proxy=True,
+                force_new_proxy=False,
                 reason="sync_rankings") as proxy_context:
             return await self._sync_rankings(request, proxy_context)
 
@@ -670,16 +681,16 @@ class CiweimaoService:
         del task_id
         request = SyncNewBooksRequest.model_validate(payload)
         async with self._workflow(
-                force_new_proxy=True,
+                force_new_proxy=False,
                 reason="sync_new_books") as proxy_context:
             return await self._sync_new_books(request, proxy_context)
 
     async def handle_sync_all(self, payload: dict, task_id: str) -> dict:
-        """在一次 workflow 内完成榜单和新书同步，初始只获取一个 IP。"""
+        """榜单和新书共用当前租约。队列排空后才放开，不在这里提前换 IP。"""
         del task_id
         request = SyncAllRequest.model_validate(payload)
         async with self._workflow(
-                force_new_proxy=True,
+                force_new_proxy=False,
                 reason="sync_all") as proxy_context:
             rankings = await self._sync_rankings(
                 request.rankings, proxy_context)
