@@ -214,7 +214,7 @@ Swagger：`http://127.0.0.1:8000/docs`。控制台开发代理见 `frontend/vite
 
 ## Docker Compose
 
-`Dockerfile` 与 `compose.yaml` 使用独立 project 名 `ciweimao-api-reverse`，默认绑定 `127.0.0.1:18086`。Compose 只起 API 容器，出口是 `kuaidaili_dps` 单租约，不再部署 NAS SSH sidecar。数据与下载分别持久化到 `runtime/data/` 与 `runtime/output/`。快代理订单密钥走 Compose secrets；游客凭据为 `runtime/data/guest-tokens.json`。部署说明见 [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md)。
+`Dockerfile` 与 `compose.yaml` 使用独立 project 名 `ciweimao-api-reverse`，默认绑定 `127.0.0.1:18086`。Compose 只起 API 容器，出口是 `kuaidaili_dps` 单租约，不再部署 NAS SSH sidecar。生产 Compose 关闭调度器和自动下载，避免没有手工任务时按 30 分钟提取 IP。数据与下载分别持久化到 `runtime/data/` 与 `runtime/output/`。快代理订单密钥走 Compose secrets；游客凭据为 `runtime/data/guest-tokens.json`。部署说明见 [docs/deployment-ali-cloud.md](docs/deployment-ali-cloud.md)。
 
 ## License
 
